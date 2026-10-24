@@ -484,553 +484,1034 @@ window.GODOT_LESSONS_3D = [
   }
 },
 
-  {
-    id: "3d-intro-meshes-csg",
-    area: "3d",
-    level: "introducao",
-    levelLabel: "Introdução",
-    title: "3. Malhas 3D (MeshInstance3D), Prototipagem CSG e Importação GLTF/Blender",
-    subtitle: "Como exibir modelos 3D, esculpir fases inteiras dentro da Godot com blocos CSG (Whiteboxing) e importar arquivos do Blender sem dor de cabeça.",
-    nodesUsed: ["MeshInstance3D", "CSGBox3D", "CSGCylinder3D", "CSGCombiner3D", "GLTF / .glb"],
-    feynman: {
-      title: "Explicação Feynman: A Estátua de Arame com Papel Machê e os Cortadores de Massinha",
-      explanation: "Como o computador desenha um objeto 3D na tela? Tudo é feito de uma gaiola de triângulos chamada **Malha (`Mesh`)**, exibida pelo nó **`MeshInstance3D`**. Mas e quando você quer testar uma fase hoje mesmo e ainda não modelou o castelo no Blender? A Godot tem os blocos **CSG (*Constructive Solid Geometry*)**! Eles funcionam como massinha de modelar com cortadores: você coloca um `CSGBox3D` grande para ser uma sala, coloca outro `CSGBox3D` menor dentro dele no modo **Subtração (`Subtraction`)** e pronto — ele cava a sala oca e abre o buraco das portas e janelas na hora, já com colisão física pronta para você sair andando!",
-      analogies: [
+{
+  "id": "3d-intro-meshes-csg",
+  "area": "3d",
+  "level": "introducao",
+  "levelLabel": "Introdução",
+  "title": "3. Malhas, CSG e importação: do protótipo à cena",
+  "subtitle": "Separe geometria visual e colisão, combine formas com CSG e confira o que um arquivo glTF realmente traz.",
+  "nodesUsed": [
+    "MeshInstance3D",
+    "BoxMesh",
+    "CSGBox3D",
+    "CSGCombiner3D",
+    "glTF 2.0 / .glb"
+  ],
+  "feynman": {
+    "title": "A forma desenhada e a forma que bloqueia passagem",
+    "explanation": "Uma malha descreve uma superfície por vértices e faces. MeshInstance3D coloca um recurso Mesh na cena para desenhá-lo, mas esse desenho sozinho não vira uma parede física. CSG combina volumes simples para esboçar o cenário: unir conserva material de ambas as formas, subtrair remove de A o que B ocupa, e intersectar conserva só o que elas compartilham. Depois, importar uma cena glTF traz uma hierarquia e seus recursos suportados; ainda precisamos conferir escala, materiais e colisões.",
+    "analogies": [
+      {
+        "term": "Mesh e MeshInstance3D",
+        "analogy": "A receita geométrica é um recurso; cada nó é uma colocação dessa forma na oficina. Mais de um nó pode usar a mesma malha."
+      },
+      {
+        "term": "CSG e ordem",
+        "analogy": "Uma primeira peça fornece material, e a seguinte executa uma operação sobre o resultado anterior. A ordem e a hierarquia fazem parte da construção."
+      },
+      {
+        "term": "Visual e física",
+        "analogy": "Ver uma parede e encontrar uma barreira são verificações diferentes. É possível desenhar sem colisão ou manter uma colisão mesmo sem desenho visível."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Comece com PrimitiveMesh para reconhecer a diferença entre recurso e instância. Depois combine duas CSGBox3D sob uma CSGCombiner3D e faça previsões. A deve vir antes de B: no nosso exemplo A fornece o primeiro sólido; a operação de B age sobre ele. Por fim, compare o protótipo com uma malha convertida e com um .glb de teste. A prática principal usa o editor e uma bancada pronta; os scripts são consulta opcional.",
+    "anatomy": [
+      {
+        "prop": "MeshInstance3D.mesh e PrimitiveMesh",
+        "desc": "BoxMesh e outras primitivas são recursos de geometria, não corpos físicos. O Transform do nó posiciona a instância. Se dois nós compartilham o mesmo recurso, editar suas propriedades pode afetar ambos; torne o recurso único quando quiser uma variante independente."
+      },
+      {
+        "prop": "CSGCombiner3D → A → B na ordem da árvore",
+        "desc": "O combiner organiza a combinação. Cada nó processa seus filhos e as operações são aplicadas na ordem da árvore. Aqui A e B são irmãos diretos, A primeiro, B depois. A operação do primeiro filho não fornece um sólido anterior para recortar. Duas raízes CSG separadas não fazem automaticamente uma booleana entre si."
+      },
+      {
+        "prop": "use_collision na raiz CSG",
+        "desc": "Começa desligado. Quando habilitado, adiciona colisão que se comporta como corpo estático; ainda é preciso testar consulta física, dimensões e filtros. Esconder o CSG não desliga essa colisão. Não há personagem nem garantia de passagem só por ativar uma opção."
+      },
+      {
+        "prop": "Bake de malha e bake de colisão",
+        "desc": "Converter o resultado visual cria recursos estáticos e evita manter a reconstrução CSG para essa versão. O bake visual e o de colisão são ações distintas. O original pode continuar na árvore: desative use_collision e esconda-o para não duplicar a versão ativa. Um CollisionShape3D precisa estar sob um corpo adequado; uma forma isolada não bloqueia passagem."
+      },
+      {
+        "prop": ".glb, .gltf e .blend",
+        "desc": "glTF 2.0 é recomendado pela documentação: .glb é binário, enquanto .gltf pode depender de .bin e imagens separados. .blend é convertido via Blender e requer instalação/configuração dele. Materiais, rig e animações precisam de conferência; importar não promete equivalência perfeita."
+      },
+      {
+        "prop": "Sufixos de importação",
+        "desc": "Com reconhecimento de sufixos ativo, -col mantém a malha e cria colisão estática triangular; -convcol usa forma convexa e não cria um RigidBody3D por si só. -colonly remove a malha visual e mantém colisão. Um casco convexo não preserva furos. -navmesh converte a malha para navegação e remove o visual original; não cria uma IA pronta."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": false,
+    "codeIntro": "A prática principal usa as cenas e o arquivo .glb fornecidos. Consulte o controlador se quiser estudar a consulta física; os nomes de importação são texto de referência, e SurfaceTool é uma extensão separada.",
+    "duration": "65–90 min com importação e comparações (estimativa)",
+    "prerequisite": "Aulas 3D 1–2: cena, recursos, Transform e referências; noções de colisão serão aprofundadas na próxima aula. Referência Godot 4.5, GDScript, Compatibility, desktop. Projeto revisado documentalmente; ainda não executado no motor.",
+    "objectives": [
+      "Distinguir recurso Mesh, instância visual e colisão física.",
+      "Construir e prever operações CSG em uma hierarquia simples e converter o protótipo sem duplicar visual/física.",
+      "Importar o .glb de teste e inspecionar hierarquia, escala, materiais e efeitos dos sufixos."
+    ],
+    "practice": {
+      "title": "Prática guiada: uma janela no bloco de bronze",
+      "intro": "Use duas caixas: A mede (4,3,1), B mede (2,2,1.4), ambas centradas inicialmente na origem. B atravessa A em Z para abrir a janela. O laboratório do navegador representa somente a seção XY em Z=0; a cena Godot mostra os sólidos completos. Sem corpo de jogador ou movimento automático.",
+      "tree": "oficina.tscn — Oficina (Node3D / oficina.gd)\n├── Combinacao (CSGCombiner3D) — raiz, use_collision inicialmente false\n│   ├── A (CSGBox3D) — primeiro filho, size=(4,3,1)\n│   └── B (CSGBox3D) — segundo filho, size=(2,2,1.4), operação ajustável\n├── VisualSemColisao (MeshInstance3D / BoxMesh de 1 u, X=−5)\n├── Piso (malha visual, sem corpo)\n├── Camera3D (ortográfica, atual)\n└── DirectionalLight3D\n\nRuntime: CanvasLayer/controles e consulta de raio em Z.\nexemplos.glb: quatro instâncias de cubo com nomes/sufixos diferentes.\ntriangulo.tscn: extensão separada, MeshInstance3D / triangulo.gd.",
+      "download": {
+        "url": "assets/aula-3d-03-malhas-csg-importacao.zip",
+        "label": "Baixar projeto de apoio: malhas, CSG e importação"
+      },
+      "downloadNote": "Nove arquivos locais, incluindo duas cenas e um .glb de teste gerado para a aula. Sem Blender obrigatório para importar esse arquivo. Execução/importação/bake reais na Godot ainda pendentes.",
+      "steps": [
         {
-          term: "MeshInstance3D + PrimitiveMesh",
-          analogy: "O manequim que exibe uma forma 3D (Caixa, Esfera, Cilindro, Cápsula ou um modelo importado)."
+          "title": "Separe recurso e instância",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn. Selecione VisualSemColisao: é um MeshInstance3D em X=−5; seu campo mesh aponta para BoxMesh de tamanho (1,1,1). Duplicar o nó duplica a instância, não garante um recurso independente. Desfaça a duplicação antes de continuar.",
+          "expect": "O cubo é visível com câmera/luz, mas a cena não lhe atribuiu corpo físico. Para uma variante de recurso, use Make Unique / Tornar único no recurso antes de alterar seu tamanho. Transform do nó e tamanho do recurso são escolhas diferentes."
         },
         {
-          term: "CSG (CSGBox3D, CSGCylinder3D, CSGPolygon3D)",
-          analogy: "Blocos de prototipagem rápida (*Whiteboxing / Greyboxing*): permitem somar formas (`Union`), cavar buracos (`Subtraction`) ou pegar só o cruzamento (`Intersection`)."
+          "title": "Confira a árvore CSG e preveja a seção",
+          "text": "Selecione Combinacao: A e B são filhos diretos, nessa ordem. A mede (4,3,1); B mede (2,2,1.4), centralizada, em Subtraction. Execute F6 para a bancada; ela instala subtração, B.x=0 e colisão desligada. No navegador use R. Na seção Z=0, A tem área 12, B tem 4 e A menos B tem 8 unidades quadradas.",
+          "expect": "Uma janela atravessa a profundidade de A, pois B é mais profunda. As dimensões de B não mudam ao trocar a operação. Não compare a área desta seção com o volume do sólido 3D."
         },
         {
-          term: "use_collision = true (nos nós CSG)",
-          analogy: "Um botão mágico no Inspector do CSG que cria a parede física automaticamente sem você precisar adicionar StaticBody3D na mão!"
+          "title": "Compare operações com as mesmas entradas",
+          "text": "Com B.x=0, alterne subtração, união e interseção: as áreas da seção são 8, 12 e 4. Mude B.x para 1,5: sobreposição=3; áreas 9, 13 e 3. Separe B com P (X=4): sobreposição zero; interseção vazia, subtração conserva A e união contém duas partes separadas.",
+          "expect": "Na união, B continua existindo fora de A. Na subtração, material só pode permanecer onde havia A. Interseção não é apenas desenhar B inteiro. A/D e setas no navegador movem B por 0,25; 1/2/3 escolhem operação, C centraliza, P separa e R restaura."
         },
         {
-          term: "Formato .glb / .gltf (Padrão Ouro Godot 4)",
-          analogy: "A ponte direta e moderna entre o Blender/Blockbench e a Godot: traz malhas, materiais, luzes e animações perfeitas."
+          "title": "Teste física na Godot, separadamente do desenho",
+          "text": "Na bancada Godot restaure, escolha subtração e deixe consulta XY=(0,0). Use V: com use_collision desligado, espere sem contato. Habilite Gerar colisão e consulte novamente: o raio central atravessa a janela. Mude Consulta X para 1,5 e mantenha Y=0: o raio deve atingir a faixa sólida de A. Mude X para −5: o cubo visual sem corpo não deve gerar contato.",
+          "expect": "O raio vai de Z=+4 a −4 e consulta corpos na camada 1. Aguarda atualização visual/física; se os parâmetros mudarem durante a espera, pede nova consulta. Esse teste não equivale a andar com personagem. O navegador não executa esse raio nem recalcula colisões."
+        },
+        {
+          "title": "Importe o .glb de teste e inspecione",
+          "text": "Pare a execução. Abra exemplos.glb na importação avançada e confira o reconhecimento de sufixos; depois instancie-o numa nova cena de trabalho. O arquivo contém quatro cubos de aresta 1 em X=−2,0,2,4: SuporteVisual, Suporte-col, Suporte-convcol e Colisao-colonly. Inspecione os nós gerados e habilite a visualização de colisões durante execução, quando houver uma cena com câmera/luz.",
+          "expect": "O primeiro nome não pede colisão; -col cria forma triangular estática; -convcol usa forma convexa sem criar um corpo dinâmico; -colonly não conserva o cubo visual. Confira os nomes já processados, escala, pivô e material simples. Este fixture não contém rig, animação ou texturas externas e não valida esses fluxos."
+        },
+        {
+          "title": "Converta o protótipo sem duplicar o resultado",
+          "text": "Em uma cópia da cena, deixe a combinação simples centralizada e selecione a raiz Combinacao. No menu CSG, use Bake Mesh Instance; a malha é criada como irmã, e o original não é escondido automaticamente. Se quiser colisão estática dessa versão, use Bake Collision Shape e coloque a forma gerada sob um StaticBody3D com Transform coerente. Neste exemplo a raiz está na identidade. Desative use_collision do CSG original e esconda-o.",
+          "expect": "A nova malha visual e a nova forma física são recursos separados. Não deixe visual sobreposto nem colisão antiga invisível ativa. Teste novamente janela/faixa sólida no motor. Mudar o CSG original depois não atualiza automaticamente a versão já convertida; refaça o bake quando necessário."
+        },
+        {
+          "title": "Faça uma extensão e registre o que conferiu",
+          "text": "Opcionalmente abra triangulo.tscn e execute F6: triangulo.gd cria uma única face com SurfaceTool em _ready, usando atributos antes dos vértices e ordem horária vista de cima. Ela é visual, sem colisão. Para sua própria arte, exporte glTF 2.0 (.glb) do Blender e repita a inspeção do passo 5; importar .blend diretamente requer Blender configurado.",
+          "expect": "Superfície, material e colisão são verificações distintas. CSG serve para prototipagem e pode custar CPU ao reconstruir; não use este laboratório para concluir desempenho. Registre importação, bake e testes no roteiro do projeto antes de considerá-los aprovados."
         }
       ]
     },
-    howItWorks: {
-      overview: "Para prototipar o level design (testar distâncias de pulo, corredores e escadas), usamos nós `CSG` com `use_collision = true`. Quando o layout da fase está divertido, substituímos por modelos finais `.glb` exportados do Blender (ou usamos sufixos automáticos de importação da Godot como `-col` no nome do objeto no Blender para gerar colisão automática!).",
-      anatomy: [
-        {
-          prop: "MeshInstance3D.mesh",
-          desc: "O recurso geométrico (`BoxMesh`, `SphereMesh`, `ArrayMesh`) que define os vértices e triângulos."
-        },
-        {
-          prop: "CSGShape3D.operation (Union / Subtraction / Intersection)",
-          desc: "Define se um bloco CSG filho adiciona volume ou escava um buraco no bloco CSG pai."
-        },
-        {
-          prop: "CSGShape3D.use_collision = true",
-          desc: "Gera colisão física automática acompanhando todos os recortes e buracos do CSG."
-        },
-        {
-          prop: "Menu Malha -> Criar Forma de Colisão...",
-          desc: "No topo da viewport 3D, cria automaticamente um `StaticBody3D + CollisionShape3D` para qualquer `MeshInstance3D` selecionado."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Prototipando Salas e Arcos Steampunk com CSG (Union + Subtraction)",
-        whenToUse: "Fase de Level Design (Greyboxing) para testar tamanhos de salas, portas, pontes e tubulações rapidamente.",
-        description: "Criamos um `CSGCombiner3D` com `use_collision = true`, adicionamos blocos no modo `Union` e usamos cilindros/caixas no modo `Subtraction` para abrir túneis e portas.",
-        code: `extends CSGCombiner3D
-
-func _ready() -> void:
-    # Ativa colisão física para toda a estrutura combinada de uma vez!
-    use_collision = true
-    
-    # Você também pode mover ou ativar recortes CSG via código para abrir passagens:
-    var buraco_porta: CSGBox3D = $RecortePorta
-    buraco_porta.operation = CSGShape3D.OPERATION_SUBTRACTION`,
-        pros: "Permite construir e testar uma fase 3D jogável inteira em 15 minutos direto dentro da Godot.",
-        cons: "CSG recalcula malhas na CPU; para o cenário final de produção, prefira malhas estáticas ou converta o CSG em `MeshInstance3D` pelo menu 'CSG -> Bake Mesh Instance'!"
+        "question": "Duplicar um MeshInstance3D significa duplicar sua malha e sua colisão?",
+        "answer": "Não. Os nós podem compartilhar Mesh, e um MeshInstance3D por si só não tem corpo físico. Tornar o recurso único permite editar uma variante; criar/configurar colisão é outra tarefa."
       },
       {
-        title: "Forma 2: Sufixos Mágicos de Importação do Blender (-col, -convcol, -navmesh)",
-        whenToUse: "Ao importar cenários ou objetos `.glb` / `.blend` modelados no Blender.",
-        description: "Basta nomear os objetos lá no Blender com sufixos especiais que a Godot cria os nós físicos automaticamente na hora de importar!",
-        code: `# Nomes dos objetos dentro do Blender ao exportar para .glb:
-#
-# "PonteBronze-col"      -> Cria MeshInstance3D + StaticBody3D Trimesh exato!
-# "BarrilVapor-convcol"  -> Cria colisão Convexa rápida (ideal para objetos móveis)!
-# "ColisaoSecreta-colonly" -> Cria APENAS a colisão invisível (sem desenhar a malha)!
-# "PisoSalao-navmesh"    -> Marca a malha automaticamente para navegação de IA!`,
-        pros: "Economiza horas de trabalho manual configurando colisões para cada peça de cenário importada.",
-        cons: "Use `-col` (Trimesh côncavo) apenas em cenários estáticos; para objetos que se movem (`RigidBody3D`), use sempre `-convcol` ou formas primitivas!"
+        "question": "Com B separada de A, o que resta nas três operações?",
+        "answer": "A menos B conserva A; união conserva ambas as partes; interseção fica vazia. Isso vale para as entradas deste exercício, sem tratar tangência como volume compartilhado."
       },
       {
-        title: "Forma 3: Gerando ou Modificando Malhas por Código (ImmediateMesh / SurfaceTool)",
-        whenToUse: "Para desenhar feixes de energia 3D, cabos suspensos, trilhos procedurais ou terrenos.",
-        description: "`SurfaceTool` permite construir triângulos por código definindo vértices, normais e UVs e gerar um `ArrayMesh` pronto para a GPU.",
-        code: `extends MeshInstance3D
-
-func criar_triangulo_bronze() -> void:
-    var st := SurfaceTool.new()
-    st.begin(Mesh.PRIMITIVE_TRIANGLES)
-    st.set_normal(Vector3.UP)
-    
-    st.set_uv(Vector2(0, 0)); st.add_vertex(Vector3(-1, 0, 0))
-    st.set_uv(Vector2(1, 0)); st.add_vertex(Vector3(1, 0, 0))
-    st.set_uv(Vector2(0.5, 1)); st.add_vertex(Vector3(0, 0, -2))
-    
-    # Entrega a malha finalizada para o MeshInstance3D
-    mesh = st.commit()`,
-        pros: "Liberdade total para geração procedural de geometria 3D.",
-        cons: "Mais avançado; para objetos comuns, use primitivas prontas ou modelos `.glb`."
+        "question": "Esconder o CSG original após Bake Mesh Instance basta?",
+        "answer": "Não. É preciso conferir visual duplicado e use_collision: a colisão do CSG pode continuar ativa quando oculto. O bake visual não substitui automaticamente toda configuração física."
+      },
+      {
+        "question": "-convcol transforma o objeto em RigidBody3D e preserva uma janela?",
+        "answer": "Não. O sufixo escolhe uma forma convexa para colisão, não transforma sozinho o objeto em corpo dinâmico. Um casco convexo preenche reentrâncias; escolha formas/corpo conforme a finalidade."
       }
     ],
-    simulator: {
-      type: "csg_boolean_3d",
-      title: "Laboratório de Geometria Booleana CSG 3D (Union, Subtraction, Intersection)",
-      description: "Alterne a operação entre `UNION`, `SUBTRACTION` e `INTERSECTION` e mova o cilindro cortador sobre o bloco de bronze para ver como o CSG esculpe túneis e arcos 3D!"
-    },
-    quiz: {
-      question: "Qual propriedade de um nó `CSGBox3D` ou `CSGCombiner3D` permite que o jogador já caminhe e colida com os blocos e buracos esculpidos sem precisar criar um `StaticBody3D` manual?",
-      options: [
-        "use_collision = true",
-        "flip_h = true",
-        "one_shot = true",
-        "autoplay = true"
-      ],
-      correctIndex: 0,
-      explanation: "Isso mesmo! Ativar `use_collision = true` no nó CSG raiz gera toda a colisão física automaticamente respeitando inclusive os buracos feitos com `Subtraction`!"
-    }
+    "pitfalls": [
+      {
+        "title": "A subtração não abriu o buraco",
+        "text": "Confira se A e B pertencem à mesma árvore CSG, sua ordem, a operação de B e a sobreposição em 3D. B precisa atravessar a profundidade para abrir uma passagem. Evite usar coincidências exatas de superfícies como prova de robustez."
+      },
+      {
+        "title": "Vejo o bloco, mas a consulta não encontra contato",
+        "text": "Confira use_collision da raiz, camada consultada, coordenadas e atualização adiada. Um raio pela janela deve falhar mesmo com colisão ativa. MeshInstance3D visual não cria colisão por conta própria."
+      },
+      {
+        "title": "A versão convertida ficou sobreposta ou ainda bloqueia passagem",
+        "text": "O original permanece na árvore. Confira visibilidade e desligue sua colisão antes de usar apenas a nova versão. CollisionShape3D deve ficar sob o corpo adequado; preserve seu Transform."
+      },
+      {
+        "title": "O arquivo importado mudou ou perdeu um visual",
+        "text": "Confira opções de sufixos e o que cada nome pede. -colonly e -navmesh removem a malha visual original. Não edite arquivos gerados em .godot como fonte; altere o arquivo de origem/configuração e reimporte, preservando mudanças de jogo numa cena própria."
+      }
+    ],
+    "summary": "Mesh descreve geometria; MeshInstance3D a instancia; colisão precisa de configuração e teste próprios. CSG aplica operações sobre uma hierarquia ordenada e ajuda no protótipo. Converter e importar exigem conferir o resultado visual, o físico e os recursos, sem presumir que um valida os outros.",
+    "next": "Na aula 3D 4, avance para CharacterBody3D, gravidade e rampas. A distinção entre a malha desenhada e a forma física será essencial para interpretar contatos.",
+    "sources": [
+      {
+        "label": "MeshInstance3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_meshinstance3d.html"
+      },
+      {
+        "label": "CSGShape3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_csgshape3d.html"
+      },
+      {
+        "label": "CSGBox3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_csgbox3d.html"
+      },
+      {
+        "label": "Prototipagem CSG (guia com aviso de atualização)",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/csg_tools.html"
+      },
+      {
+        "label": "Formatos de importação",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/assets_pipeline/importing_3d_scenes/available_formats.html"
+      },
+      {
+        "label": "Sufixos de importação",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/assets_pipeline/importing_3d_scenes/node_type_customization.html"
+      },
+      {
+        "label": "SurfaceTool",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_surfacetool.html"
+      },
+      {
+        "label": "ConcavePolygonShape3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_concavepolygonshape3d.html"
+      },
+      {
+        "label": "Consulta de raios: contexto de física",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/physics/ray-casting.html"
+      },
+      {
+        "label": "Parâmetros do raio 3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_physicsrayqueryparameters3d.html"
+      },
+      {
+        "label": "Recursos e compartilhamento",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/scripting/resources.html"
+      }
+    ]
   },
+  "approaches": [
+    {
+      "title": "1. Controlador da bancada e consulta física",
+      "whenToUse": "Para entender os controles da cena oficina.tscn depois das previsões.",
+      "description": "oficina.gd fica na raiz Oficina, com Combinacao/B e Camera3D fornecidos. Cria interface e consulta o espaço físico apenas por comando. Restaura operação, valores e colisão desligada. A versão web usa outra implementação, puramente geométrica.",
+      "code": "extends Node3D\n\n@onready var csg: CSGCombiner3D = $Combinacao\n@onready var recorte: CSGBox3D = $Combinacao/B\nvar operacao: OptionButton\nvar deslocamento: HSlider\nvar ponto_x: HSlider\nvar ponto_y: HSlider\nvar colisao: CheckBox\nvar leitura: Label\nvar retorno: Label\nvar ocupada := false\nvar revisao := 0\nvar raio_pendente: Dictionary = {}\n\nfunc _ready() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 400)\n    box.custom_minimum_size.x = 928\n    layer.add_child(box)\n    operacao = OptionButton.new()\n    operacao.add_item(\"1: Subtracao A menos B\", CSGShape3D.OPERATION_SUBTRACTION)\n    operacao.add_item(\"2: Uniao A ou B\", CSGShape3D.OPERATION_UNION)\n    operacao.add_item(\"3: Intersecao A e B\", CSGShape3D.OPERATION_INTERSECTION)\n    operacao.item_selected.connect(func(_i: int): aplicar())\n    box.add_child(operacao)\n    var grid := GridContainer.new()\n    grid.columns = 3\n    box.add_child(grid)\n    deslocamento = slider(grid, \"Centro X de B\", -4, 4, 0)\n    ponto_x = slider(grid, \"Consulta X\", -5, 5, 0)\n    ponto_y = slider(grid, \"Consulta Y\", -2, 2, 0)\n    colisao = CheckBox.new()\n    colisao.text = \"Gerar colisao estatica na raiz CSG (use_collision)\"\n    colisao.toggled.connect(func(_on: bool): aplicar())\n    box.add_child(colisao)\n    var row := HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"C: centralizar B\", func(): deslocamento.value = 0)\n    botao(row, \"P: separar B\", func(): deslocamento.value = 4)\n    botao(row, \"R: restaurar\", restaurar)\n    botao(row, \"V: consultar raio fisico\", consultar_raio)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(leitura)\n    retorno = Label.new()\n    retorno.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(retorno)\n    $Camera3D.position = Vector3(0, 1, 12)\n    $Camera3D.look_at(Vector3(0, -2, 0), Vector3.UP)\n    restaurar()\n\nfunc slider(parent: Node, titulo: String, minimo: float, maximo: float, inicial: float) -> HSlider:\n    var box := VBoxContainer.new()\n    box.custom_minimum_size.x = 300\n    parent.add_child(box)\n    var label := Label.new()\n    label.text = titulo\n    box.add_child(label)\n    var controle := HSlider.new()\n    controle.min_value = minimo\n    controle.max_value = maximo\n    controle.step = 0.25\n    controle.value = inicial\n    controle.value_changed.connect(func(_v: float): aplicar())\n    box.add_child(controle)\n    return controle\n\nfunc botao(parent: Node, texto: String, acao: Callable) -> void:\n    var button := Button.new()\n    button.text = texto\n    button.pressed.connect(acao)\n    parent.add_child(button)\n\nfunc restaurar() -> void:\n    operacao.select(0)\n    deslocamento.set_value_no_signal(0)\n    ponto_x.set_value_no_signal(0)\n    ponto_y.set_value_no_signal(0)\n    colisao.set_pressed_no_signal(false)\n    aplicar()\n\nfunc aplicar() -> void:\n    if not is_instance_valid(leitura):\n        return\n    revisao += 1\n    recorte.operation = operacao.get_selected_id()\n    recorte.position.x = deslocamento.value\n    csg.use_collision = colisao.button_pressed\n    leitura.text = \"A=4x3x1, B=2x2x1.4 | B.x=%.2f | consulta XY=(%.2f, %.2f) | colisao=%s\" % [deslocamento.value, ponto_x.value, ponto_y.value, csg.use_collision]\n    retorno.text = \"Valores alterados: consulte novamente. Raio em Z de +4 a -4; camada 1. Sem personagem.\"\n\nfunc consultar_raio() -> void:\n    if ocupada:\n        return\n    ocupada = true\n    var revisao_consultada := revisao\n    # CSG atualiza dados de forma adiada; consultar depois da atualização visual/física.\n    await get_tree().process_frame\n    await get_tree().physics_frame\n    if revisao_consultada != revisao:\n        retorno.text = \"Parametros mudaram durante a espera; consulte novamente.\"\n        ocupada = false\n        return\n    var de := Vector3(ponto_x.value, ponto_y.value, 4)\n    var ate := Vector3(ponto_x.value, ponto_y.value, -4)\n    raio_pendente = {\"de\": de, \"ate\": ate, \"revisao\": revisao_consultada}\n\nfunc _physics_process(_delta: float) -> void:\n    if raio_pendente.is_empty():\n        return\n    var pedido := raio_pendente\n    raio_pendente = {}\n    if pedido.revisao != revisao:\n        retorno.text = \"Parametros mudaram antes da consulta; consulte novamente.\"\n        ocupada = false\n        return\n    # Acesso ao espaço físico apenas no callback de física.\n    var query := PhysicsRayQueryParameters3D.create(pedido.de, pedido.ate, 1)\n    query.collide_with_bodies = true\n    query.collide_with_areas = false\n    var hit := get_world_3d().direct_space_state.intersect_ray(query)\n    retorno.text = \"Raio fisico: sem contato nesta consulta.\" if hit.is_empty() else \"Raio fisico atingiu: %s em %s\" % [hit.collider.name, hit.position]\n    ocupada = false\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_A: deslocamento.value -= 0.25\n        KEY_D: deslocamento.value += 0.25\n        KEY_1: operacao.select(0); aplicar()\n        KEY_2: operacao.select(1); aplicar()\n        KEY_3: operacao.select(2); aplicar()\n        KEY_C: deslocamento.value = 0\n        KEY_P: deslocamento.value = 4\n        KEY_R: restaurar()\n        KEY_V: consultar_raio()\n        _: return\n    get_viewport().set_input_as_handled()\n",
+      "pros": "Separa alteração visual de uma consulta física real e informa quando repetir.",
+      "cons": "Execução real pendente. O raio não substitui testes de personagem; não implementa bake/importação em runtime."
+    },
+    {
+      "title": "2. Nomes de importação: o que pedir ao importador",
+      "language": "text",
+      "whenToUse": "Ao inspecionar exemplos.glb ou nomear sua própria malha de origem.",
+      "description": "Este quadro é texto de referência, não um script GDScript. O arquivo .glb de apoio tem os quatro nomes descritos; examine a hierarquia resultante na Godot. Usar um formato suportado não garante que todo material/rig terá o mesmo resultado.",
+      "code": "Exemplos de nomes de objetos de malha no arquivo de origem:\n\nSuporteVisual          -> malha visual, sem colisão por este nome.\nSuporte-col            -> visual com colisão estática triangular.\nSuporte-convcol        -> visual com forma convexa; não cria RigidBody3D por si só.\nColisao-colonly        -> colisão estática sem a malha visual original.\n\nO arquivo exemplos.glb incluído contém esses quatro cubos, com centros\nX=-2, 0, 2 e 4 e aresta 1. Não contém texturas externas, animação ou rig.\nConfira no importador da Godot 4.5, com nodes/use_node_type_suffixes ativo.\n\nObservação: -navmesh converte a malha em navegação e remove a malha visual\noriginal na importação. Não é usado neste fixture. Não gera uma IA pronta.\n\nPara um corpo dinâmico, configure o corpo e formas adequadas separadamente.\nUm casco convexo não preserva furos; formas triangulares côncavas são para\ngeometria estática, não uma escolha universal para objetos móveis.\n\nExporte .glb do Blender via glTF 2.0 para trocar a malha de teste por sua arte.\nImportar .blend diretamente requer Blender instalado/configurado. Isso não é\nnecessário para importar este .glb. Nenhum desses fluxos foi executado no\nmotor/Blender neste ambiente; ver roteiro-testes.md.\n",
+      "pros": "Permite comparar casos com um arquivo pequeno, sem depender de Blender instalado.",
+      "cons": "O fixture não valida exportação de Blender, materiais complexos, animação, rig ou desempenho de colisão."
+    },
+    {
+      "title": "3. Extensão: uma face com SurfaceTool",
+      "whenToUse": "Depois de distinguir recursos, nós e colisão; extensão opcional.",
+      "description": "triangulo.gd está no MeshInstance3D de triangulo.tscn. O método _ready executa a construção, atributos são definidos antes dos vértices, e a ordem horária vista de cima corresponde à face superior. A cena já fornece câmera, luz e material.",
+      "code": "extends MeshInstance3D\n\nfunc _ready() -> void:\n    var st := SurfaceTool.new()\n    st.begin(Mesh.PRIMITIVE_TRIANGLES)\n    st.set_normal(Vector3.UP)\n    # Ordem horária vista de cima (+Y), conforme convenção de faces da Godot.\n    st.set_uv(Vector2(0, 1))\n    st.add_vertex(Vector3(-1, 0, 0))\n    st.set_uv(Vector2(0.5, 0))\n    st.add_vertex(Vector3(0, 0, -2))\n    st.set_uv(Vector2(1, 1))\n    st.add_vertex(Vector3(1, 0, 0))\n    mesh = st.commit()\n    # Geometria visual; nenhuma colisão foi criada.\n",
+      "pros": "Mostra o mínimo para criar um ArrayMesh sem um modelador externo.",
+      "cons": "Uma face não é um sólido fechado nem possui colisão. Não usar como exemplo de malha manifold para booleana CSG."
+    }
+  ],
+  "simulator": {
+    "type": "csg_boolean_3d",
+    "title": "Laboratório: as mesmas caixas, três operações",
+    "description": "Seção XY em Z=0 de A=(4,3,1) e B=(2,2,1.4), com centros Y=Z=0. Diagrama analítico em Canvas/JavaScript, não motor CSG. Compara entradas e material resultante em escala igual. Não executa física, importação ou bake. A área da seção não é volume nem medida de desempenho.",
+    "guide": [
+      {
+        "title": "Preveja a área",
+        "text": "R: B centralizada. A tem 12 u² e B tem 4 u² nesta seção. Subtração=8, união=12 e interseção=4. B.x=1,5 dá sobreposição 3 e resultados 9/13/3. As dimensões não mudam entre operações."
+      },
+      {
+        "title": "Separe e repita",
+        "text": "Com foco no desenho: A/D ou setas movem B em X por 0,25; 1 subtração, 2 união, 3 interseção; C centraliza, P separa (X=4), R restaura. Há botões e seletor. O modelo fica parado sem ajuste e aceita controles em pausa."
+      },
+      {
+        "title": "Consulte um ponto",
+        "text": "A cruz branca usa sliders X/Y. O painel informa interior de A, B e resultado. Pontos sobre limites recebem aviso separado: o exercício não usa uma escolha de borda para afirmar tolerância/topologia real. Tangência tem área de interseção zero."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Depois de Bake Mesh Instance, você escondeu o CSG original, mas ainda há contato físico inesperado. Qual verificação é adequada?",
+    "options": [
+      "Conferir e desligar use_collision do CSG original, verificar a nova colisão e testar novamente; ocultar o visual não basta.",
+      "Apenas esconder a nova malha: toda malha gera colisão automaticamente.",
+      "Trocar -col por -convcol: isso cria um RigidBody3D e resolve qualquer janela.",
+      "Aumentar o brilho do material para atualizar a física."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Visual e colisão são independentes; confira qual versão continua ativa.",
+      "MeshInstance3D não cria corpo físico sozinho. Procure a forma/corpo ou o CSG ainda ativo.",
+      "O sufixo escolhe uma forma; não cria automaticamente um corpo dinâmico e pode preencher reentrâncias.",
+      "Material não controla as formas de colisão."
+    ],
+    "explanation": "O CSG pode continuar com colisão ativa quando oculto. O bake visual não remove automaticamente o original nem configura toda a versão física. Verifique as duas versões e seus corpos/formas no motor."
+  }
+},
 
   // ==========================================================================
   // NÍVEL II — INICIANTE (Mecânico de Bancada)
   // ==========================================================================
-  {
-    id: "3d-init-character-physics",
-    area: "3d",
-    level: "iniciante",
-    levelLabel: "Iniciante",
-    title: "4. Corpos Físicos 3D e Movimentação (CharacterBody3D, Rampas e Escadas)",
-    subtitle: "Como programar movimentação 3D sólida em metros/segundo, subir ladeiras até o ângulo limite e lidar com gravidade tridimensional.",
-    nodesUsed: ["CharacterBody3D", "RigidBody3D", "StaticBody3D", "CollisionShape3D"],
-    feynman: {
-      title: "Explicação Feynman: A Cápsula Deslizante no Mundo de Metros",
-      explanation: "Por que quase todo personagem de jogo 3D usa uma **Cápsula (`CapsuleShape3D`)** como forma de colisão em vez de uma caixa quadrada? Imagine tentar empurrar uma caixa de sapato quadrada por uma calçada cheia de pequenos degraus: a quina viva da caixa engancha em qualquer desnível! Já a cápsula tem o fundo arredondado igual a um boneco 'João-Bobo', então ela desliza macio por cima de pequenos degraus e rampas! No `CharacterBody3D`, tudo funciona igual ao irmão 2D, com duas diferenças vitais: 1) pular agora é **positivo** (`velocity.y = +5.5`), porque o céu é `+Y`; e 2) as velocidades são em **metros por segundo** (ex: `5.0` a `8.0` m/s, e não `300.0` como nos pixels do 2D!).",
-      analogies: [
+{
+  "id": "3d-init-character-physics",
+  "area": "3d",
+  "level": "iniciante",
+  "levelLabel": "Iniciante",
+  "title": "4. CharacterBody3D: movimento, salto e rampas",
+  "subtitle": "Integre gravidade, mova com velocidade e interprete os contatos sem confundir chão, parede e degrau.",
+  "nodesUsed": [
+    "CharacterBody3D",
+    "StaticBody3D",
+    "CollisionShape3D",
+    "CapsuleShape3D"
+  ],
+  "feynman": {
+    "title": "Você pede o movimento; o corpo informa os contatos",
+    "explanation": "CharacterBody3D é controlado pelo seu script. Ele não começa a cair só por existir: você integra a gravidade na velocidade e chama move_and_slide para mover e resolver contatos. A cápsula é uma forma comum para personagens, mas não garante subir escadas ou passar por qualquer quina. Uma superfície só pode ser chão quando há contato e sua orientação é compatível com up_direction e o limite de inclinação. Durante um salto, estar acima de uma rampa não significa estar apoiado nela.",
+    "analogies": [
+      {
+        "term": "Velocidade e deslocamento",
+        "analogy": "Velocidade diz quantas unidades por segundo você pede. Gravidade muda essa velocidade ao longo do tempo. move_and_slide aplica o passo de física; multiplicar velocity por delta antes da chamada mistura as duas grandezas."
+      },
+      {
+        "term": "Chão e normal",
+        "analogy": "O chão não é uma etiqueta permanente da rampa. O corpo precisa encontrar uma superfície e classificar o contato em relação ao seu “cima”."
+      },
+      {
+        "term": "Snap e salto",
+        "analogy": "Snap pode ajudar a manter o contato descendente com o chão ao alcance. Não deve prender o personagem que está subindo num salto, nem cria um algoritmo para escalar degraus."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Nesta prática adotamos 1 unidade como 1 metro, +Y para cima e gravidade do projeto em −Y. velocity usa unidades/s; o script acrescenta get_gravity() × delta quando precisa cair e atribui velocidade vertical ao salto. Isso não é um impulso físico de RigidBody3D. O corpo e os ancestrais ficam com escala 1, e o corpo gira somente em Y. Gravidade arbitrária exigiria adaptar movimento, salto e up_direction; não é implementada aqui.",
+    "anatomy": [
+      {
+        "prop": "CharacterBody3D, StaticBody3D e RigidBody3D",
+        "desc": "CharacterBody3D segue movimento por código; StaticBody3D fornece geometria estática; RigidBody3D tem movimento controlado pela simulação física. O projeto usa os dois primeiros. MeshInstance3D desenha, CollisionShape3D com recurso de forma participa da colisão."
+      },
+      {
+        "prop": "_physics_process, velocity e move_and_slide()",
+        "desc": "Calcule a entrada e atualize velocity no passo de física. get_gravity retorna o vetor configurado, não necessariamente (0,−9.8,0). move_and_slide usa velocity sem delta extra e pode modificá-la ao resolver contatos. Não substitua o movimento normal por mudanças diretas de position; reposicionar é reservado ao reinício desta bancada."
+      },
+      {
+        "prop": "is_on_floor e get_floor_angle",
+        "desc": "is_on_floor descreve a última chamada de move_and_slide. Antes da chamada você lê o passo anterior; depois, o resultado atualizado. get_floor_angle/get_floor_normal só são válidos após a chamada e com chão confirmado. A normal de colisão pode diferir da normal geométrica ideal."
+      },
+      {
+        "prop": "up_direction e floor_max_angle",
+        "desc": "No modo grounded, up_direction=UP define a referência de cima. floor_max_angle é em radianos; 45° vira deg_to_rad(45). Ele classifica chão/teto em relação a parede, não é um controle que por si só determina todo movimento ou escorregamento."
+      },
+      {
+        "prop": "floor_snap_length e floor_stop_on_slope",
+        "desc": "Snap define alcance na direção oposta a up_direction para manter ligação com chão; não é aplicado automaticamente quando há velocidade ascendente. floor_stop_on_slope ajuda a permanecer parado numa rampa reconhecida como chão. Margens, contatos e geometria também importam; nenhuma dessas opções é um step-up de escadas."
+      },
+      {
+        "prop": "floor_constant_speed e leituras de movimento",
+        "desc": "A prática ativa floor_constant_speed e usa snap para comparar descida no motor. velocity é a solicitação/valor ajustado; get_real_velocity informa o movimento real da última chamada, que pode incluir deslocamento vertical na rampa. get_slide_collision_count conta colisões que mudaram direção, não todos os contatos possíveis."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "jogador.gd é o controlador principal. O projeto pronto inclui InputMap registrado por oficina.gd, formas, pista, câmera e interface. Ao copiar apenas o controlador para outro projeto, configure as ações descritas no quadro de configuração. O restante da bancada é apoio para experimentar.",
+    "duration": "70–95 min com testes de contato e variações (estimativa)",
+    "prerequisite": "Aulas 3D 1–3: referências, Basis, malha versus forma física e cenas. Saber ler _physics_process e entrada. Referência Godot 4.5, GDScript, Compatibility, desktop. Projeto revisado documentalmente; execução no motor pendente.",
+    "objectives": [
+      "Mover um CharacterBody3D usando velocidade, gravidade e salto no passo de física, sem delta duplicado.",
+      "Interpretar chão/parede e comparar limite de inclinação, snap e velocidade real sob condições explícitas.",
+      "Reiniciar ensaios e reconhecer o que a cápsula e o controlador básico não resolvem em degraus."
+    ],
+    "practice": {
+      "title": "Prática guiada: a pista do autômato",
+      "intro": "O projeto tem pista plana, subida, patamar, descida e uma faixa separada com três degraus. O jogador usa cápsula física de raio 0,3 e altura 1,8. Escala dos corpos fica em 1. Não há RigidBody, sistema de empurrão, coyote time, jump buffer ou step-up implementados.",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── Inicio / Subida / Topo / Descida / Fim (StaticBody3D)\n│   ├── Visual (MeshInstance3D / BoxMesh)\n│   └── Colisao (CollisionShape3D / BoxShape3D)\n├── BaseDegraus / Degrau1–3 (StaticBody3D)\n├── Jogador (CharacterBody3D / jogador.gd; classe JogadorDaOficina3D)\n│   ├── Colisao (CollisionShape3D, Y=0.9; cápsula 0.3 × 1.8)\n│   └── Visual (MeshInstance3D / CapsuleMesh, Y=0.9)\n├── Camera3D ortográfica e atual\n└── DirectionalLight3D\n\nCenário: layer 1, mask 2; jogador: layer 2, mask 1.\nOficina registra ações e cria interface em runtime.",
+      "download": {
+        "url": "assets/aula-3d-04-character-rampas.zip",
+        "label": "Baixar projeto de apoio: personagem, salto e rampas"
+      },
+      "downloadNote": "Sete arquivos locais: projeto, cena, dois scripts, configuração, leitura e roteiro. Revisados documentalmente, sem compilação/execução no motor neste ambiente.",
+      "steps": [
         {
-          term: "CapsuleShape3D",
-          analogy: "O formato ideal para personagens 3D: não engancha nas quinas de rampas nem ao girar perto de paredes."
+          "title": "Inspecione forma, escala e ações",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn. Selecione Jogador/Colisao: a origem do corpo fica nos pés, enquanto a cápsula está em Y=0,9, com altura 1,8 e raio 0,3. Confira as formas BoxShape3D da pista e camadas/máscaras. A malha visual não substitui nenhuma delas.",
+          "expect": "Os corpos/ancestrais estão com escala 1; tamanho da forma é ajustado no recurso. oficina.gd registra mover_esquerda/direita/frente/tras e pular se ainda não existirem. Copiar só jogador.gd exige configurar essas ações."
         },
         {
-          term: "Velocidades em Metros/Segundo",
-          analogy: "Andar = `3.5 m/s`, Correr = `7.0 m/s`, Pulo = `+4.8 m/s`, Gravidade = `-9.8 m/s²`."
+          "title": "Mova e pare no plano",
+          "text": "Execute F6. Espere o contato inicial se estabelecer. Segure WASD ou setas; solte para parar. Os botões aplicam entrada por 0,25 s. O controlador usa direção relativa ao yaw do corpo, expressa no mundo, e limita a entrada para a diagonal não ganhar velocidade. Q gira o corpo 90°. Esc libera foco dos sliders para voltar ao teclado de jogo.",
+          "expect": "Sem comando horizontal não há caminhada automática. A queda inicial até a pista vem do código de gravidade. velocity horizontal não é multiplicada por delta antes de move_and_slide. A câmera é fixa e não define a direção de entrada nesta aula."
         },
         {
-          term: "floor_max_angle (45° padrão)",
-          analogy: "A inclinação máxima de ladeira que o personagem consegue subir andando antes de escorregar como parede íngreme."
+          "title": "Salte e leia o contato depois do movimento",
+          "text": "No plano, pressione Espaço uma vez e observe a subida, a descida e o pouso. Com velocidade inicial 5 e gravidade 9,8, a estimativa contínua é altura 5²/(2×9,8)≈1,28 e retorno ao mesmo nível em 2×5/9,8≈1,02 s, sem obstáculos. O motor usa passos discretos e colisões; confira valores reais, não igualdade exata.",
+          "expect": "Durante o salto, is_on_floor deve ficar falso depois do movimento; não há salto duplo. O pedido é consumido no tick, sem buffer/coyote. +Y positivo é válido para a convenção desta prática, não para todo projeto de gravidade arbitrária."
         },
         {
-          term: "floor_snap_length",
-          analogy: "Um 'ímã de sola de sapato' que mantém o personagem colado no chão quando ele desce uma rampa correndo, em vez de sair quicando no ar!"
+          "title": "Compare a rampa com o limite",
+          "text": "R reposiciona no início mantendo os parâmetros. Com rampa 30° e limite 45°, avance para a subida e pare. Compare velocity, real_velocity, chão e ângulo lido apenas quando válido. Depois ajuste a rampa para 55° com limite 45°; a alteração reinicia o ensaio. Volte a aproximar e observe chão/parede e movimento efetivo.",
+          "expect": "A inclinação acima do limite deixa de ser classificada como chão nesse contato; não significa “escorregar sempre da mesma forma”. A resposta depende das opções e do resolvedor. floor_stop_on_slope não resolve uma parede que não foi classificada como chão."
+        },
+        {
+          "title": "Compare snap na descida sem colar o salto",
+          "text": "Volte a 30°/45°, snap=0,1. Use P para ir ao patamar e caminhe na direção da descida, no mundo +X quando o corpo estiver sem giro. Compare com snap=0, repetindo o posicionamento. A prática ativa floor_constant_speed. Observe perda/manutenção de contato e velocidade real, sem exigir que todo frame produza uma diferença visível.",
+          "expect": "Snap tem alcance e condições; não substitui colisão. No salto ascendente, ele não deve impedir desprender do chão. A comparação depende de velocidade, passos de física, margens e geometria; registre o resultado real no motor."
+        },
+        {
+          "title": "Teste os degraus sem presumir step-up",
+          "text": "Use T para a faixa de degraus em Z=6. Aproxime-se em +X e compare a face vertical com uma rampa. A cápsula pode suavizar alguns contatos, mas o controlador não contém algoritmo para elevar o corpo sobre o degrau. Tente o salto por comando e observe as leituras. R retorna à pista principal.",
+          "expect": "Não há garantia de subida automática. Um sistema de step-up exigiria consultas e validações próprias; não foi implementado. Também não há infinite_inertia em CharacterBody3D na Godot 4 nem empurrão customizado de RigidBody neste projeto."
+        },
+        {
+          "title": "Repita e registre limites",
+          "text": "Use Restaurar tudo para repor rampa 30°, limite 45°, snap 0,1 e salto 5 sem recarregar. R apenas reposiciona e zera velocidade/entrada/tempo; P/T também reiniciam o contato. Pausar personagem preserva o último resultado de movimento. No navegador, pause e use Avançar 0,10 s para observar o modelo por passos.",
+          "expect": "Depois de teleporte o contato é revalidado antes de permitir salto. Na pausa, leituras são do último movimento. O navegador é um modelo pontual em seção XY; não valida a cápsula, move_and_slide ou subida de escadas da Godot."
         }
       ]
     },
-    howItWorks: {
-      overview: "No `CharacterBody3D`, `velocity` é um `Vector3`. Enquanto `velocity.y` cuida da gravidade (`get_gravity().y`) e do pulo, os eixos horizontais `velocity.x` e `velocity.z` cuidam da caminhada pelo chão.",
-      anatomy: [
-        {
-          prop: "get_gravity() -> Vector3(0, -9.8, 0)",
-          desc: "Retorna o vetor de gravidade 3D atual (já levando em conta se o personagem entrou numa Area3D de baixa gravidade!)."
-        },
-        {
-          prop: "velocity.y = forca_pulo (+4.5 a +6.5)",
-          desc: "No 3D, subir é +Y, então o impulso de pulo é sempre um número POSITIVO!"
-        },
-        {
-          prop: "floor_stop_on_slope = true",
-          desc: "Impede que o personagem escorregue sozinho para trás quando para no meio de uma rampa."
-        },
-        {
-          prop: "get_slide_collision_count()",
-          desc: "Permite descobrir em quais objetos 3D o jogador esbarrou durante o `move_and_slide()` (útil para empurrar caixas RigidBody3D!)."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Movimentação 3D Padrão Relativa à Orientação do Corpo",
-        whenToUse: "Personagens em 1ª pessoa (FPS) ou 3ª pessoa onde o corpo gira junto com a direção da câmera.",
-        description: "Multiplicamos a `transform.basis` pelo vetor de entrada `(input.x, 0, input.y)` para que apertar 'W' sempre ande para a frente atual do personagem.",
-        code: `extends CharacterBody3D
-
-@export var velocidade: float = 6.0
-@export var forca_pulo: float = 5.0
-
-func _physics_process(delta: float) -> void:
-    # 1. Gravidade 3D (aponta para -Y)
-    if not is_on_floor():
-        velocity += get_gravity() * delta
-
-    # 2. Pulo 3D (aponta para +Y!)
-    if Input.is_action_just_pressed("ui_accept") and is_on_floor():
-        velocity.y = forca_pulo
-
-    # 3. Direção horizontal relativa para onde o corpo está virado
-    var input_dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-    var direcao := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
-    
-    if direcao != Vector3.ZERO:
-        velocity.x = direcao.x * velocidade
-        velocity.z = direcao.z * velocidade
-    else:
-        velocity.x = move_toward(velocity.x, 0.0, velocidade * 8.0 * delta)
-        velocity.z = move_toward(velocity.z, 0.0, velocidade * 8.0 * delta)
-
-    move_and_slide()`,
-        pros: "Responsivo, respeita áreas de gravidade com `get_gravity()` e possui frenagem suave nos eixos X e Z.",
-        cons: "Não altere `velocity.y` no bloco de frenagem horizontal, senão você cancela a gravidade!"
+        "question": "Por que multiplicar gravidade por delta, mas não velocity antes de move_and_slide?",
+        "answer": "Gravidade é aceleração e muda a velocidade ao longo do tempo. velocity já é velocidade; move_and_slide usa o passo de física internamente. Multiplicar antes mistura velocidade com deslocamento."
       },
       {
-        title: "Forma 2: Empurrando Objetos Físicos (RigidBody3D) ao Caminhar Contra Eles",
-        whenToUse: "Quando seu personagem 3D precisa empurrar barris, engrenagens soltas ou caixotes pelo chão.",
-        description: "Após o `move_and_slide()`, percorremos as colisões registradas e aplicamos um impulso nos `RigidBody3D` atingidos.",
-        code: `extends CharacterBody3D
-
-@export var forca_empurrao: float = 2.2
-
-func empurrar_objetos_soltos() -> void:
-    for i in get_slide_collision_count():
-        var colisao := get_slide_collision(i)
-        var objeto := colisao.get_collider()
-        if objeto is RigidBody3D:
-            # Empurra na direção oposta à normal da batida (apenas na horizontal)
-            var dir_empurrao := -colisao.get_normal()
-            dir_empurrao.y = 0.0
-            objeto.apply_central_impulse(dir_empurrao.normalized() * forca_empurrao)`,
-        pros: "Evita que um personagem `CharacterBody3D` saia arremessando barris a 100 km/h com força infinita.",
-        cons: "Desative ou ajuste `infinite_inertia` se quiser que objetos muito pesados bloqueiem o jogador."
+        "question": "Um ângulo de 30° com limite 45° garante is_on_floor=true durante o salto?",
+        "answer": "Não. É preciso contato e classificação compatível. is_on_floor relata a última chamada de movimento; estar acima da rampa não é estar apoiado nela."
       },
       {
-        title: "Forma 3: Coyote Time & Jump Buffer em 3D (Pulo Perdoável de Jogo AAA)",
-        whenToUse: "Jogos de plataforma 3D ou ação onde o pulo precisa parecer justo e responsivo.",
-        description: "Damos `0.12s` de tolerância para o jogador pular logo após sair da borda de uma plataforma (*Coyote Time*).",
-        code: `extends CharacterBody3D
-
-var tempo_coyote: float = 0.0
-const TOLERANCIA_COYOTE: float = 0.12
-@export var forca_pulo: float = 5.2
-
-func atualizar_pulo_perdoavel(delta: float) -> void:
-    if is_on_floor():
-        tempo_coyote = TOLERANCIA_COYOTE
-    else:
-        tempo_coyote -= delta
-        
-    if Input.is_action_just_pressed("ui_accept") and tempo_coyote > 0.0:
-        velocity.y = forca_pulo
-        tempo_coyote = 0.0 # Consome o pulo!`,
-        pros: "Elimina a frustração de 'apertei o botão de pulo na beiradinha e o boneco caiu direto!'.",
-        cons: "Lembre-se de zerar `tempo_coyote` no instante do pulo para não permitir pulo duplo acidental."
+        "question": "Cápsula e floor_snap_length garantem subir escadas?",
+        "answer": "Não. A forma e o snap ajudam em determinados contatos. Subir um degrau por step-up exige lógica própria; uma face vertical pode continuar sendo parede."
+      },
+      {
+        "question": "get_gravity sempre aponta para −Y e salto sempre usa Y positivo?",
+        "answer": "Não. O vetor depende da configuração e áreas; nossa prática fixa −Y/+Y. Gravidade arbitrária exige adaptar salto, direção horizontal e up_direction de forma coerente."
       }
     ],
-    simulator: {
-      type: "character_3d_slopes",
-      title: "Laboratório de CharacterBody3D: Gravidade em Metros, Rampas (`floor_max_angle`) e Snap",
-      description: "Teste o autômato 3D subindo e descendo rampas de bronze, altere o ângulo da ladeira, a força do pulo (+Y) e o `floor_snap_length`!"
-    },
-    quiz: {
-      question: "Por que em um `CharacterBody2D` o pulo usa um valor negativo (`velocity.y = -450`), mas em um `CharacterBody3D` o pulo usa um valor positivo pequeno (`velocity.y = 5.0`)?",
-      options: [
-        "Porque no 3D o personagem pula para baixo.",
-        "Porque no 3D o eixo +Y aponta para cima (céu) e a unidade padrão é em metros/segundo (1.0 = 1 metro), enquanto no 2D o topo da tela é -Y e a unidade é em pixels!",
-        "Porque no 3D não existe gravidade.",
-        "É apenas uma escolha estética sem efeito na física."
-      ],
-      correctIndex: 1,
-      explanation: "Exato! No 3D subir é `+Y` e `5.0` significa `5 metros por segundo` para o alto, lutando contra a gravidade de `-9.8 m/s²`."
-    }
-  },
-
-  {
-    id: "3d-init-cameras-springarm",
-    area: "3d",
-    level: "iniciante",
-    levelLabel: "Iniciante",
-    title: "5. Câmeras 3D, Visão 1ª Pessoa (FPS) e 3ª Pessoa com SpringArm3D",
-    subtitle: "Como capturar o movimento do mouse, limitar o pescoço em 90 graus e usar o braço retrátil que impede a câmera de entrar dentro das paredes.",
-    nodesUsed: ["Camera3D", "SpringArm3D", "InputEventMouseMotion"],
-    feynman: {
-      title: "Explicação Feynman: O Capacete de Mergulhador e o Bastão de Selfie com Mola",
-      explanation: "Existem dois jeitos clássicos de enxergar um mundo 3D. Na **1ª Pessoa (FPS)**, a `Camera3D` fica dentro dos olhos do boneco: quando você mexe o mouse para os lados, você gira o CORPO inteiro (eixo Y); quando mexe o mouse para cima e para baixo, você inclina só a CABEÇA (eixo X), travando entre `-85°` e `+85°` para não dar cambalhota com o pescoço! Já na **3ª Pessoa**, a câmera fica atrás das costas do boneco. Mas e se o jogador encostar de costas numa parede? A câmera atravessaria o tijolo e mostraria o lado de fora do mapa! Para resolver isso sem matemática difícil, a Godot tem o **`SpringArm3D` (Braço de Mola)**: um bastão de selfie invisível com uma mola que encolhe sozinho quando bate na parede, trazendo a câmera para perto dos ombros do jogador!",
-      analogies: [
-        {
-          term: "Input.MOUSE_MODE_CAPTURED",
-          analogy: "Prende e esconde a setinha do mouse no centro da janela para você poder girar a câmera 3D infinitamente sem o cursor sair da tela."
-        },
-        {
-          term: "clampf(rotacao_x, deg_to_rad(-85), deg_to_rad(85))",
-          analogy: "O limite anatômico do pescoço humano: permite olhar para o chão e para o teto sem virar a cabeça de ponta-cabeça."
-        },
-        {
-          term: "SpringArm3D (spring_length)",
-          analogy: "Um bastão de selfie retrátil: tem um comprimento desejado (ex: `4.5 metros`), mas se encostar numa parede se retrai na hora!"
-        },
-        {
-          term: "Camera3D.fov (Field of View — Padrão 75°)",
-          analogy: "A abertura da lente: diminuir o FOV para `40°` dá efeito de luneta (Zoom); aumentar para `90°` quando o jogador corre dá sensação de alta velocidade!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Em jogos 3D, a hierarquia limpa separa os eixos de rotação: o `CharacterBody3D` (ou um nó `PivoHorizontal`) gira apenas no eixo `Y` (esquerda/direita), e dentro dele um nó `Cabeca` ou `SpringArm3D` gira apenas no eixo `X` (cima/baixo).",
-      anatomy: [
-        {
-          prop: "Input.mouse_mode = Input.MOUSE_MODE_CAPTURED",
-          desc: "Trava o cursor do mouse para leitura de `event.relative` em jogos 3D."
-        },
-        {
-          prop: "SpringArm3D.spring_length",
-          desc: "Distância máxima em metros que a câmera fica afastada do pivô quando não há obstáculos."
-        },
-        {
-          prop: "SpringArm3D.add_excluded_object(self.get_rid())",
-          desc: "Ensina o bastão de mola a ignorar o próprio corpo do jogador para não encolher à toa!"
-        },
-        {
-          prop: "Camera3D.current = true / make_current()",
-          desc: "Define qual câmera 3D da cena está transmitindo imagem para a tela no momento."
-        }
-      ]
-    },
-    approaches: [
+    "pitfalls": [
       {
-        title: "Forma 1: Câmera em 1ª Pessoa (FPS) com Limite de Pescoço",
-        whenToUse: "Jogos de exploração, tiro em primeira pessoa, terror ou simuladores de oficina.",
-        description: "Giramos o corpo (`self`) no eixo Y e o nó filho `$Cabeca` no eixo X com `clampf`.",
-        code: `extends CharacterBody3D
-
-@export var sensibilidade_mouse: float = 0.0025
-@onready var cabeca: Node3D = $Cabeca
-
-func _ready() -> void:
-    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-
-func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-        # 1. Gira o corpo inteiro para a esquerda/direita (Yaw - Eixo Y)
-        rotate_y(-event.relative.x * sensibilidade_mouse)
-        # 2. Inclina apenas a cabeça para cima/baixo (Pitch - Eixo X)
-        cabeca.rotate_x(-event.relative.y * sensibilidade_mouse)
-        # 3. Trava o pescoço entre -85 graus e +85 graus
-        cabeca.rotation.x = clampf(cabeca.rotation.x, deg_to_rad(-85.0), deg_to_rad(85.0))`,
-        pros: "Movimento de mouse imediato, preciso e nunca entorta o eixo Z (Roll) da câmera.",
-        cons: "Adicione uma tecla (como ESC) para devolver `Input.mouse_mode = Input.MOUSE_MODE_VISIBLE` nos menus!"
+        "title": "O personagem atravessa ou não encontra a pista",
+        "text": "Confira CollisionShape3D habilitado, recurso não vazio, corpo StaticBody3D, camada/máscara e escala dos ancestrais. A malha desenhada sozinha não gera contato."
       },
       {
-        title: "Forma 2: Câmera Orbital em 3ª Pessoa com SpringArm3D (Sem Atravessar Paredes)",
-        whenToUse: "RPGs de ação, aventura 3D, plataforma 3D (estilo Zelda, Dark Souls, Mario Odyssey).",
-        description: "Colocamos a `Camera3D` como filha de um `SpringArm3D`. Quando o personagem anda, o modelo visual (`$ModeloVisual`) gira suavemente para olhar na direção do movimento independente da câmera!",
-        code: `extends Node3D # Nó Pivô da Câmera 3ª Pessoa
-
-@export var sensibilidade: float = 0.003
-@onready var braco_mola: SpringArm3D = $SpringArm3D
-
-func _ready() -> void:
-    # Impede o SpringArm de colidir com o próprio jogador (Pai)
-    if get_parent() is CollisionObject3D:
-        braco_mola.add_excluded_object(get_parent().get_rid())
-
-func _unhandled_input(event: InputEvent) -> void:
-    if event is InputEventMouseMotion:
-        rotation.y -= event.relative.x * sensibilidade
-        rotation.x = clampf(
-            rotation.x - event.relative.y * sensibilidade,
-            deg_to_rad(-65.0),
-            deg_to_rad(30.0)
-        )`,
-        pros: "O `SpringArm3D` cuida de toda a matemática de colisão da câmera contra paredes e tetos automaticamente.",
-        cons: "Configure um `SphereShape3D` pequeno (`0.2m`) na propriedade `shape` do `SpringArm3D` para evitar que a quina da lente entre na parede."
+        "title": "O salto não acontece ou repete no ar",
+        "text": "Confira a ação pular e a leitura de chão. O pedido deve ser consumido uma vez e só ser aceito com contato válido. Após reset aguarde revalidação. No navegador, foco deve estar no desenho."
       },
       {
-        title: "Forma 3: FOV Dinâmico de Velocidade / Luneta com Tween",
-        whenToUse: "Quando o jogador ativa o Sprint a vapor, usa um Dash ou mira com uma luneta telescópica.",
-        description: "Animamos suavemente a propriedade `fov` da `Camera3D` usando um `Tween`.",
-        code: `extends Camera3D
-
-var tween_fov: Tween
-
-func ajustar_lente_velocidade(correndo_turbo: bool) -> void:
-    if tween_fov:
-        tween_fov.kill()
-    tween_fov = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-    var fov_alvo: float = 92.0 if correndo_turbo else 75.0
-    tween_fov.tween_property(self, "fov", fov_alvo, 0.25)`,
-        pros: "Cria sensação cinematográfica de impulso e velocidade sem adicionar nenhum custo gráfico.",
-        cons: "Evite passar de 105° de FOV para não distorcer os cantos da tela (efeito olho de peixe)."
+        "title": "O corpo anda enquanto altero controles",
+        "text": "Na Godot, sliders com foco suspendem a leitura do teclado de jogo; Esc libera foco. No navegador, atalhos pertencem apenas à cena e cada toque gera uma caminhada curta, sem repetição automática."
+      },
+      {
+        "title": "A rampa é chão, mas a velocidade vertical não é zero",
+        "text": "Subir/descer envolve deslocamento real vertical. Compare a solicitação velocity com get_real_velocity após mover. Não use só velocity.y para decidir se há chão."
+      },
+      {
+        "title": "O ensaio web parou em contato íngreme",
+        "text": "O modelo encerra esse caso em vez de fingir escorregamento de parede. Restaure ou use um preset. Para resolver cápsula/parede/escorregamento, teste a cena no motor."
       }
     ],
-    simulator: {
-      type: "springarm_camera_3d",
-      title: "Laboratório de SpringArm3D (Colisão de Câmera) & Campo de Visão (FOV)",
-      description: "Aproxime uma parede de ferro atrás do personagem e veja como o `SpringArm3D` encolhe o bastão automaticamente para a `Camera3D` nunca atravessar o obstáculo!"
-    },
-    quiz: {
-      question: "Qual é a função principal do nó `SpringArm3D` quando usado como pai de uma `Camera3D` em jogos de 3ª pessoa?",
-      options: [
-        "Fazer o personagem pular mais alto.",
-        "Manter a câmera a uma distância definida atrás do jogador, encolhendo automaticamente o braço quando há uma parede ou obstáculo no caminho para a câmera não atravessar o cenário.",
-        "Substituir a luz do sol.",
-        "Tocar efeitos sonoros de mola."
-      ],
-      correctIndex: 1,
-      explanation: "Perfeito! O `SpringArm3D` projeta um sensor para trás e ajusta a posição da `Camera3D` filha em tempo real sempre que uma parede bloqueia a visão!"
-    }
+    "summary": "CharacterBody3D precisa de código de movimento e gravidade. Velocidade, contato e referência de cima têm papéis diferentes. Uma rampa só é chão quando há contato e classificação adequada; snap ajuda sob condições, e cápsula não é algoritmo de escadas.",
+    "next": "Na aula 3D 5, estude Camera3D e SpringArm3D. A câmera de observação desta bancada é fixa; movimento relativo à câmera e colisão do braço serão tratados separadamente.",
+    "sources": [
+      {
+        "label": "CharacterBody3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_characterbody3d.html"
+      },
+      {
+        "label": "Usando CharacterBody2D/3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/physics/using_character_body_2d.html"
+      },
+      {
+        "label": "Movimento no primeiro jogo 3D",
+        "url": "https://docs.godotengine.org/en/4.5/getting_started/first_3d_game/03.player_movement_code.html"
+      },
+      {
+        "label": "PhysicsBody3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_physicsbody3d.html"
+      },
+      {
+        "label": "CapsuleShape3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_capsuleshape3d.html"
+      }
+    ]
   },
+  "approaches": [
+    {
+      "title": "1. Controlador do personagem",
+      "whenToUse": "Na cena fornecida, ou em outra com a mesma configuração de ações e forma.",
+      "description": "jogador.gd está em Jogador e declara a classe JogadorDaOficina3D usada pela bancada. Corpo e ancestrais com escala 1; yaw como único giro do corpo. A leitura de chão anterior decide o salto, e move_and_slide atualiza o resultado. InputMap está no script de apoio ou deve ser criado no seu projeto.",
+      "code": "class_name JogadorDaOficina3D\nextends CharacterBody3D\n\n@export var velocidade: float = 2.0\n@export var velocidade_salto: float = 5.0\nvar pausado := false\nvar revalidando_contato := true\nvar salto_pedido := false\nvar entrada_virtual := Vector2.ZERO\nvar tempo_virtual := 0.0\nvar tempo := 0.0\n\nfunc restaurar(destino: Vector3) -> void:\n    global_position = destino\n    rotation = Vector3.ZERO\n    velocity = Vector3.ZERO\n    salto_pedido = false\n    entrada_virtual = Vector2.ZERO\n    tempo_virtual = 0.0\n    tempo = 0.0\n    revalidando_contato = true\n\nfunc andar_por_botao(entrada: Vector2) -> void:\n    entrada_virtual = entrada.limit_length(1.0)\n    tempo_virtual = 0.25\n\nfunc pedir_salto() -> void:\n    salto_pedido = true\n\nfunc _physics_process(delta: float) -> void:\n    if pausado:\n        return\n    tempo += delta\n    # is_on_floor descreve o Ãºltimo move_and_slide, nÃ£o uma consulta nova.\n    var apoiado := is_on_floor() and not revalidando_contato\n    var interface_em_foco := get_viewport().gui_get_focus_owner() != null\n    var entrada := Vector2.ZERO\n    if not interface_em_foco:\n        entrada = Input.get_vector(\"mover_esquerda\", \"mover_direita\", \"mover_frente\", \"mover_tras\")\n    if tempo_virtual > 0.000001:\n        entrada = entrada_virtual\n        tempo_virtual = maxf(0.0, tempo_virtual - delta)\n    # Corpo e ancestrais com escala 1; corpo gira somente em Y.\n    var direcao := global_transform.basis * Vector3(entrada.x, 0, entrada.y)\n    direcao.y = 0\n    direcao = direcao.limit_length(1.0)\n    velocity.x = direcao.x * velocidade\n    velocity.z = direcao.z * velocidade\n    if not apoiado:\n        velocity += get_gravity() * delta\n    var teclado_pediu := not interface_em_foco and Input.is_action_just_pressed(\"pular\")\n    if (salto_pedido or teclado_pediu) and apoiado:\n        velocity.y = velocidade_salto\n    # Pedido Ã© consumido no tick; sem buffer/coyote e sem salto duplo.\n    salto_pedido = false\n    # velocity estÃ¡ em unidades/s; move_and_slide aplica o passo de tempo.\n    move_and_slide()\n    revalidando_contato = false\n\n",
+      "pros": "Fluxo explícito de entrada, gravidade, salto, movimento e revalidação após reset.",
+      "cons": "Sem coyote/buffer, step-up, gravidade arbitrária, câmera relativa ou política de empurrão. Input virtual dura 0,25 s; teclado é sustentado no motor."
+    },
+    {
+      "title": "2. Configuração da cena e ações",
+      "language": "text",
+      "whenToUse": "Para conferir dependências antes de copiar o controlador.",
+      "description": "Texto de referência, não GDScript. A cena já contém malhas e formas independentes, piso estático, cápsula e filtros. A convenção de unidades desta prática é 1 u = 1 m.",
+      "code": "Referência Godot 4.5 / Compatibility / desktop.\n\nJogador: CharacterBody3D, escala (1,1,1), só yaw no corpo.\nColisao: CollisionShape3D em Y=0.9, CapsuleShape3D radius=0.3 height=1.8.\nVisual: MeshInstance3D / CapsuleMesh, não substitui a forma física.\nCharacterBody3D: layer=2, mask=1, modo grounded, up_direction=UP.\nPista: StaticBody3D layer=1, mask=2, BoxShape3D sem escala não uniforme.\nfloor_max_angle: deg_to_rad(45), não o número 45 em radianos.\nfloor_snap_length=0.1; floor_stop_on_slope=true; floor_constant_speed=true.\nGravidade do projeto: 9.8 em -Y. O script integra get_gravity() * delta.\nvelocity: unidades/s. move_and_slide() sem multiplicar velocity por delta.\n\nOficina registra InputMap se a ação ainda não existir:\nmover_esquerda: A/seta esquerda; mover_direita: D/seta direita;\nmover_frente: W/seta cima; mover_tras: S/seta baixo; pular: Espaço.\nSe copiar só jogador.gd para outro projeto, configure essas ações.\n\nWASD/setas sustentadas no motor; botões andam por 0.25 s.\nR início; P topo; T pista de degraus; Q gira corpo 90 graus.\nEsc libera foco de sliders para o teclado de jogo.\nAlterar parâmetros reinicia a posição. R reposiciona sem zerar parâmetros.\nNão há step-up, jump buffer/coyote, impulso customizado ou infinite_inertia.\nRigidBody3D não é usado neste projeto; a política de empurrão é outro problema.\n",
+      "pros": "Evita testar um controlador sem forma, pista ou ações configuradas.",
+      "cons": "Configuração descrita não substitui execução real e inspeção de contatos."
+    },
+    {
+      "title": "3. Interface e pista de apoio",
+      "whenToUse": "Para estudar como os ensaios são configurados e reiniciados.",
+      "description": "oficina.gd fica na raiz da cena; registra ações se ausentes, cria interface e ajusta rampas/parametrização. Alterar geometria reinicia o personagem. R reposiciona; Restaurar tudo repõe também parâmetros. Leituras mostram o último move_and_slide.",
+      "code": "extends Node3D\n\n@onready var jogador: JogadorDaOficina3D = $Jogador\nvar leitura: Label\nvar rampa: HSlider\nvar limite: HSlider\nvar snap: HSlider\nvar salto: HSlider\nvar pausa: Button\n\nfunc _ready() -> void:\n    registrar_acao(\"mover_esquerda\", [KEY_A, KEY_LEFT])\n    registrar_acao(\"mover_direita\", [KEY_D, KEY_RIGHT])\n    registrar_acao(\"mover_frente\", [KEY_W, KEY_UP])\n    registrar_acao(\"mover_tras\", [KEY_S, KEY_DOWN])\n    registrar_acao(\"pular\", [KEY_SPACE])\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 405)\n    box.custom_minimum_size.x = 1048\n    layer.add_child(box)\n    var grid := GridContainer.new()\n    grid.columns = 4\n    box.add_child(grid)\n    rampa = slider(grid, \"Rampa: graus\", 10, 60, 5, 30)\n    limite = slider(grid, \"Chao: graus\", 15, 60, 5, 45)\n    snap = slider(grid, \"Snap: unidades\", 0, 0.3, 0.05, 0.1)\n    salto = slider(grid, \"Salto: unidades/s\", 4, 7, 0.5, 5)\n    var row := HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"A: esquerda 0,25 s\", func(): jogador.andar_por_botao(Vector2.LEFT))\n    botao(row, \"D: direita 0,25 s\", func(): jogador.andar_por_botao(Vector2.RIGHT))\n    botao(row, \"W: frente 0,25 s\", func(): jogador.andar_por_botao(Vector2.UP))\n    botao(row, \"S: tras 0,25 s\", func(): jogador.andar_por_botao(Vector2.DOWN))\n    botao(row, \"Espaco: salto\", jogador.pedir_salto)\n    row = HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"R: inicio\", reiniciar)\n    botao(row, \"P: alto\", func(): posicionar(Vector3(4, altura() + 0.06, 0)))\n    botao(row, \"T: degraus\", func(): posicionar(Vector3(-2, 0.06, 6)))\n    botao(row, \"Q: girar corpo 90 graus\", func(): jogador.rotate_y(PI / 2))\n    pausa = botao(row, \"Pausar personagem\", alternar_pausa)\n    botao(row, \"Restaurar tudo\", restaurar_tudo)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(leitura)\n    var ajuda := Label.new()\n    ajuda.text = \"WASD/setas: segure para andar. Espaco salta. Esc libera foco da interface. R/P/T/Q: presets/giro. Sem subida automatica de escadas.\"\n    ajuda.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(ajuda)\n    $Camera3D.position = Vector3(5, 9, 18)\n    $Camera3D.look_at(Vector3(3, -2, 2), Vector3.UP)\n    atualizar()\n\nfunc registrar_acao(nome: String, teclas: Array) -> void:\n    if InputMap.has_action(nome):\n        return\n    InputMap.add_action(nome)\n    for tecla in teclas:\n        var evento := InputEventKey.new()\n        evento.physical_keycode = tecla\n        InputMap.action_add_event(nome, evento)\n\nfunc slider(parent: Node, titulo: String, minimo: float, maximo: float, passo: float, inicial: float) -> HSlider:\n    var box := VBoxContainer.new()\n    box.custom_minimum_size.x = 250\n    parent.add_child(box)\n    var label := Label.new()\n    label.text = titulo\n    box.add_child(label)\n    var control := HSlider.new()\n    control.min_value = minimo\n    control.max_value = maximo\n    control.step = passo\n    control.value = inicial\n    control.value_changed.connect(func(_v: float): atualizar())\n    box.add_child(control)\n    return control\n\nfunc botao(parent: Node, texto: String, acao: Callable) -> Button:\n    var button := Button.new()\n    button.text = texto\n    button.focus_mode = Control.FOCUS_NONE\n    button.pressed.connect(acao)\n    parent.add_child(button)\n    return button\n\nfunc altura() -> float:\n    return 3.0 * tan(deg_to_rad(rampa.value))\n\nfunc caixa(nome: String, tamanho: Vector3, centro: Vector3, giro: float) -> void:\n    var corpo: StaticBody3D = get_node(nome)\n    corpo.position = centro\n    corpo.rotation.z = giro\n    var visual: MeshInstance3D = corpo.get_node(\"Visual\")\n    var colisao: CollisionShape3D = corpo.get_node(\"Colisao\")\n    var malha: BoxMesh = visual.mesh\n    var forma: BoxShape3D = colisao.shape\n    malha.size = tamanho\n    forma.size = tamanho\n\nfunc atualizar() -> void:\n    if not is_instance_valid(salto):\n        return\n    var angulo := deg_to_rad(rampa.value)\n    var h := altura()\n    caixa(\"Subida\", Vector3(3 / cos(angulo), 0.3, 4), Vector3(1.5 + sin(angulo) * 0.15, h / 2 - cos(angulo) * 0.15, 0), angulo)\n    caixa(\"Topo\", Vector3(2, 0.3, 4), Vector3(4, h - 0.15, 0), 0)\n    caixa(\"Descida\", Vector3(3 / cos(angulo), 0.3, 4), Vector3(6.5 - sin(angulo) * 0.15, h / 2 - cos(angulo) * 0.15, 0), -angulo)\n    jogador.floor_max_angle = deg_to_rad(limite.value)\n    jogador.floor_snap_length = snap.value\n    jogador.velocidade_salto = salto.value\n    # Alterar a geometria reinicia o ensaio; sem mover a rampa sob o personagem.\n    reiniciar()\n\nfunc posicionar(ponto: Vector3) -> void:\n    jogador.restaurar(ponto)\n\nfunc reiniciar() -> void:\n    posicionar(Vector3(-2, 0.06, 0))\n\nfunc restaurar_tudo() -> void:\n    rampa.set_value_no_signal(30)\n    limite.set_value_no_signal(45)\n    snap.set_value_no_signal(0.1)\n    salto.set_value_no_signal(5)\n    atualizar()\n\nfunc alternar_pausa() -> void:\n    jogador.pausado = not jogador.pausado\n    pausa.text = \"Retomar personagem\" if jogador.pausado else \"Pausar personagem\"\n\nfunc _process(_delta: float) -> void:\n    if not is_instance_valid(leitura):\n        return\n    var piso := is_instance_valid(jogador) and jogador.is_on_floor() and not jogador.revalidando_contato\n    var angulo := \"%.2f graus\" % rad_to_deg(jogador.get_floor_angle()) if piso else \"sem chao valido\"\n    leitura.text = \"Ultimo move_and_slide: chao=%s parede=%s angulo=%s colisoes com mudanca=%d\\nposition=%s | velocity=%s | real_velocity=%s\\nRampa=%.0f limite=%.0f snap=%.2f salto=%.1f | %.2f s | pausado=%s\" % [piso, jogador.is_on_wall(), angulo, jogador.get_slide_collision_count(), jogador.global_position, jogador.velocity, jogador.get_real_velocity(), rampa.value, limite.value, snap.value, salto.value, jogador.tempo, jogador.pausado]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo or event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    if event.keycode == KEY_ESCAPE:\n        var foco := get_viewport().gui_get_focus_owner()\n        if foco != null:\n            foco.release_focus()\n    elif get_viewport().gui_get_focus_owner() == null:\n        match event.keycode:\n            KEY_R: reiniciar()\n            KEY_P: posicionar(Vector3(4, altura() + 0.06, 0))\n            KEY_T: posicionar(Vector3(-2, 0.06, 6))\n            KEY_Q: jogador.rotate_y(PI / 2)\n            _: return\n    else:\n        return\n    get_viewport().set_input_as_handled()\n",
+      "pros": "Permite repetir rampa/descida/degraus sem recarregar o projeto.",
+      "cons": "Câmera, interface e extremos ainda precisam de conferência no motor. Não é sistema de câmera livre ou editor de fases."
+    }
+  ],
+  "simulator": {
+    "type": "character_3d_slopes",
+    "title": "Laboratório: apoio, salto e descida por comando",
+    "description": "Modelo Canvas/JS em seção XY com pés pontuais, integração fixa em 1/120 s e gravidade −9,8 u/s². Caminhada é 2 u/s em X, sem reproduzir floor_constant_speed. Não usa Godot, cápsula física ou move_and_slide. Subida íngreme é uma barreira simplificada; contato íngreme em queda encerra o ensaio. Não calcula escorregamento, tetos, step-up ou contatos reais.",
+    "guide": [
+      {
+        "title": "Controle o ensaio",
+        "text": "Com foco no desenho: A/D ou setas andam por 0,25 s por toque, S interrompe a caminhada, Espaço salta, P começa no alto, R restaura parâmetros/posição. Repetição automática da tecla é ignorada. Há botões equivalentes."
+      },
+      {
+        "title": "Pause e preveja",
+        "text": "Pause, peça um salto e avance 0,10 s: com salto 5, o modelo chega a y=0,451 e vy=4,020. No plano, altura máxima contínua≈1,28 e retorno≈1,02 s. Só aceita novo salto após apoio. Um ângulo permitido não dá chão durante o voo."
+      },
+      {
+        "title": "Compare a descida",
+        "text": "Com rampa 30°/limite 45°, P coloca os pés no patamar em X=4,8. D atravessa o início da descida. Compare snap 0,1 e zero, repetindo P após mudar parâmetro. Alterações reiniciam o ensaio. O gap do modelo é avaliado a cada passo fixo; não representa o solver de snap da Godot."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Depois de move_and_slide, o personagem está no ar acima de uma rampa de 30°, com floor_max_angle=45°. Qual interpretação é correta?",
+    "options": [
+      "is_on_floor não fica true só pelo ângulo permitido: é preciso contato classificado como chão na última chamada de movimento.",
+      "is_on_floor deve ser true porque 30° é menor que 45°, mesmo sem contato.",
+      "floor_snap_length deve prender o corpo à rampa durante toda a subida do salto.",
+      "A cápsula garante que a próxima face vertical será subida como degrau."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Contato e classificação são necessários; posição acima da rampa não basta.",
+      "Comparar ângulos não cria contato. A leitura pertence à última chamada de movimento.",
+      "Snap automático não é aplicado quando há velocidade ascendente em up_direction.",
+      "A forma não implementa um algoritmo de step-up."
+    ],
+    "explanation": "is_on_floor relata o contato classificado pela última chamada de move_and_slide. O limite de ângulo participa da classificação, mas não é uma detecção de chão à distância."
+  }
+},
 
-  {
-    id: "3d-init-areas-raycasts-picking",
-    area: "3d",
-    level: "iniciante",
-    levelLabel: "Iniciante",
-    title: "6. Sensores Espaciais (Area3D), Mira Laser (RayCast3D) e Clique no Mundo 3D",
-    subtitle: "Como interagir com portas/alavancas, criar armas de tiro instantâneo no centro da tela e clicar no chão 3D com o mouse.",
-    nodesUsed: ["Area3D", "RayCast3D", "ShapeCast3D", "Camera3D.project_ray_origin"],
-    feynman: {
-      title: "Explicação Feynman: O Dedo Invisível do Jogador e o Raio que Sai da Lente",
-      explanation: "Em um jogo 3D, quando você olha para uma alavanca de bronze na parede e aperta a tecla `E` para puxá-la, como o jogo sabe para qual objeto você está olhando? Nós colocamos um **`RayCast3D`** curtinho (de `2.5 metros`) saindo bem do meio da `Camera3D` para a frente (`target_position = Vector3(0, 0, -2.5)`): ele funciona como um braço invisível que toca o objeto à sua frente! E em jogos vistos de cima (como Diablo, League of Legends ou The Sims), quando você clica com o mouse na tela 2D, como descobrir em qual ponto do chão 3D você clicou? A `Camera3D` tem uma função mágica que transforma o clique 2D do vidro da tela num raio 3D que viaja até tocar o piso!",
-      analogies: [
+{
+  "id": "3d-init-cameras-springarm",
+  "area": "3d",
+  "level": "iniciante",
+  "levelLabel": "Iniciante",
+  "title": "5. Camera3D e SpringArm3D: visão e colisão",
+  "subtitle": "Separe rotação, distância e campo de visão; compare câmera orbital e primeira pessoa com controles que você pode repetir.",
+  "nodesUsed": [
+    "Camera3D",
+    "SpringArm3D",
+    "Node3D",
+    "InputEventMouseMotion"
+  ],
+  "feynman": {
+    "title": "Olhar, afastar e abrir o enquadramento são ações diferentes",
+    "explanation": "A câmera define de onde e para onde você vê. Girar o pivot muda a direção; afastar a câmera muda sua posição e a relação aparente entre objetos próximos e distantes. Alterar o FOV abre ou fecha o campo de visão sem exigir esse deslocamento. O SpringArm3D consulta a geometria física e pode recolher a câmera orbital quando encontra um obstáculo. Ele precisa de hierarquia, formas e filtros coerentes; não é uma garantia universal contra atravessar paredes.",
+    "analogies": [
+      {
+        "term": "Yaw e pitch",
+        "analogy": "Yaw gira o suporte em torno do eixo Y; pitch inclina uma peça filha em torno de X. Separar os suportes torna mais fácil limitar a inclinação sem misturar os dois controles."
+      },
+      {
+        "term": "Distância e FOV",
+        "analogy": "Dar um passo para trás muda seu ponto de observação. Abrir mais o enquadramento a partir do mesmo ponto mostra mais da cena. Os resultados não são equivalentes para perspectiva e paralaxe."
+      },
+      {
+        "term": "Braço e consulta",
+        "analogy": "O comprimento desejado é um alcance de teste. Havendo geometria física consultada no caminho, a posição dos filhos pode ser aproximada do pivot. Uma parede ausente da máscara não participa dessa decisão."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. Camera3D olha para −Z local; o braço consulta em +Z local, colocando a orbital atrás de um pivot voltado para frente. O projeto mantém escala 1 e alvo fixo: não contém locomoção nem promete girar um modelo com o movimento. Uma Camera3D fica atual por Viewport; make_current troca a câmera desse Viewport, sem destruir a anterior.",
+    "anatomy": [
+      {
+        "prop": "Yaw → Pitch → SpringArm3D → Camera3D",
+        "desc": "Yaw gira em Y, Pitch em X. A câmera orbital é filha direta do braço, sem deslocamento local manual competindo com ele. A origem elevada do pivot é escolhida para o alvo. O limite ±65° é uma decisão deste projeto, ajustável ao jogo e ao conforto."
+      },
+      {
+        "prop": "spring_length, margin e get_hit_length()",
+        "desc": "spring_length é o comprimento solicitado; get_hit_length informa o comprimento calculado pelo braço na consulta física. margin recua em relação ao candidato de colisão. Leia após o motor atualizar e não confunda com distância de outra câmera atual. O braço funciona por passo de física; não há suavização temporal configurada nesta bancada."
+      },
+      {
+        "prop": "Shape vazia, câmera direta ou esfera explícita",
+        "desc": "Com shape vazia e Camera3D filha direta, a Godot usa uma pirâmide ligada ao near plane. Uma shape explícita substitui essa escolha. Sem shape e sem câmera direta, há fallback para raio, menos adequado à extensão da câmera. Esfera é uma alternativa; raio 0,25 não serve universalmente para toda lente/cena."
+      },
+      {
+        "prop": "collision_mask e add_excluded_object(RID)",
+        "desc": "São filtros de física. O projeto usa parede/piso na camada 1, alvo na2, máscara 3 e exclusão explícita do RID do alvo. camera.cull_mask controla visibilidade de renderização e não substitui essa máscara. Máscara errada, forma ausente e colisão inicial precisam de diagnóstico próprio."
+      },
+      {
+        "prop": "FOV em graus, perspectiva e keep_aspect",
+        "desc": "fov aplica-se à perspectiva. Com KEEP_HEIGHT, 75° é vertical; em 16:9 o horizontal é aproximadamente 107,51°. Com KEEP_WIDTH o eixo preservado muda. O FOV horizontal é 2atan(tan(FOVv/2) × aspecto). Converter graus/radianos é obrigatório ao calcular com trigonometria."
+      },
+      {
+        "prop": "near, mouse e primeira pessoa",
+        "desc": "near recorta a geometria próxima; reduzi-lo não resolve colisão e reduz precisão de profundidade. Em mouse capturado usamos screen_relative, sem escala de conteúdo, e sensibilidade em radianos/pixel. Captura é explícita; Esc e perda de foco liberam. A câmera FPS está no pivot, fora do braço, e oculta o visual do alvo."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "O controlador camera_rig.gd exige a hierarquia descrita abaixo. O ZIP fornece oficina.gd para criá-la, além de parede física, alvo, luz e interface. Ao copiar só o controlador, monte os mesmos nomes/caminhos e dependências. Não é um controlador completo de personagem.",
+    "duration": "55–80 min com comparações e repetição (estimativa)",
+    "prerequisite": "Aulas 3D 1–4: eixos locais, transformações, malha versus colisão e corpos. Godot 4.5, GDScript, Compatibility, desktop. Cena/scripts revisados documentalmente; execução no motor pendente.",
+    "objectives": [
+      "Distinguir yaw/pitch, posição e FOV, identificando o eixo preservado pela projeção.",
+      "Configurar hierarquia, forma, máscara e exclusão do braço, reconhecendo seus limites.",
+      "Alternar orbital/FPS e repetir testes com captura/liberação de mouse e reinício previsíveis."
+    ],
+    "practice": {
+      "title": "Prática guiada: a oficina de enquadramento",
+      "intro": "O alvo permanece fixo para isolar a câmera. A cena inicial é mínima; oficina.gd constrói a hierarquia em runtime. Não há personagem andando, tiros, gravidade ou suavização de câmera. A bancada tem botões para todas as rotações discretas, além de mouse capturado.",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── Rig (Node3D / camera_rig.gd; alvo fixo)\n│   ├── Alvo (StaticBody3D, camada 2; excluído por RID)\n│   │   ├── Colisao (CollisionShape3D / CapsuleShape3D)\n│   │   └── Visual (MeshInstance3D / CapsuleMesh)\n│   └── Yaw (Node3D, Y=1,3; gira em Y)\n│       └── Pitch (Node3D; gira em X)\n│           ├── Braco (SpringArm3D, +Z; máscara 3)\n│           │   └── Orbital (Camera3D; filha direta)\n│           └── FPS (Camera3D; fora do braço)\n├── Piso / Parede / ReferenciaFrontal (StaticBody3D, camada 1)\n└── Luz / Ambiente / Interface\n\nConstruída em runtime. Escala 1; perspectiva KEEP_HEIGHT.\nVeja a aba de configuração para todos os valores e controles.",
+      "download": {
+        "url": "assets/aula-3d-05-camera-springarm.zip",
+        "label": "Baixar projeto de apoio: câmeras e braço"
+      },
+      "downloadNote": "Sete arquivos locais com cena, dois scripts, configuração e roteiro de homologação. Execução na Godot pendente.",
+      "steps": [
         {
-          term: "RayCast3D de Interação (2.5m na Câmera)",
-          analogy: "O alcance do braço do jogador: se o laser curto da câmera tocar algo do grupo `'interagivel'`, aparece na tela '[E] Abrir Válvula'."
+          "title": "Confira hierarquia e referência",
+          "text": "Extraia o projeto inteiro, importe project.godot e execute oficina.tscn. Durante a execução, abra a árvore Remota: Orbital deve ser filha direta de Braco; FPS é irmã de Braco, dentro de Pitch. Alvo tem corpo físico na camada 2 e é excluído pelo RID. Piso/parede ficam na1.",
+          "expect": "Uma câmera atual por Viewport. A orbital olha−Z, o braço consulta+Z. A hierarquia não depende de o pai imediato do rig ser um CollisionObject3D. Escala1 em todos os nós."
         },
         {
-          term: "RayCast3D Longo (100m — Hitscan)",
-          analogy: "Disparo instantâneo de rifle ou raio elétrico: descobre o ponto exato `get_collision_point()` e a inclinação `get_collision_normal()` para soltar faíscas na parede!"
+          "title": "Gire por comando e libere o mouse",
+          "text": "Use botões de yaw/pitch ou WASD/setas por toque. M ou o botão captura o mouse; mova para girar. Esc libera mouse e foco da UI; M recaptura. Alt-tab/perda de foco também libera. Sliders em foco suspendem os atalhos de giro até Esc. O limite de pitch é ±65°.",
+          "expect": "Sem entrada, o alvo e a câmera não giram automaticamente. Repetição de tecla e modificadores não geram passos adicionais. A sensibilidade 0,0025 usa radianos por pixel da tela, com screen_relative. O limite é configurável, não uma regra anatômica."
         },
         {
-          term: "Area3D",
-          analogy: "Bolha de detecção tridimensional para explosões, zonas de calor, coleta de itens e gatilhos de cutscenes."
+          "title": "Compare alcance e obstáculo",
+          "text": "Restaure; comprimento 4,5 u, parede faceZ3 u, margem 0,05 u, forma vazia. Observe o comprimento calculado, afaste a parede para 7 u e aproxime de novo. Registre a leitura após atualização física. Mantenha yaw/pitch0 para comparar a mesma direção.",
+          "expect": "O braço pode recolher diante da parede consultada e retornar ao alcance quando livre. A posição real depende da forma e do motor; não exija os números do modelo web. FOV também pode mudar o resultado da pirâmide automática."
         },
         {
-          term: "project_ray_origin / project_ray_normal",
-          analogy: "Transforma a posição `(x, y)` do cursor na janela 2D em um feixe 3D que entra dentro do mundo."
+          "title": "Faça o filtro falhar de propósito",
+          "text": "Desligue Consultar parede. Compare a câmera com a parede e volte a ligar. Depois compare shape vazia com esfera explícita 0,25. Inspecione as formas físicas: a malha visual da parede, sozinha, não produz uma consulta válida.",
+          "expect": "Ignorar a camada 1 permite interseção/oclusão; não é falha da câmera de renderização. Cull mask e collision_mask são filtros diferentes. Esfera substitui a pirâmide e não garante cobrir o near plane em todo enquadramento."
+        },
+        {
+          "title": "Altere FOV sem confundir com distância",
+          "text": "Alterne para FPS para isolar o centro da câmera, teste 45°,75° e 100° e redimensione a janela. KEEP_HEIGHT preserva o ângulo vertical, enquanto a largura visível muda com o aspecto. Volte à orbital e compare outra vez, registrando eventual mudança de colisão da pirâmide.",
+          "expect": "FOV altera a perspectiva projetada sem solicitar um deslocamento. Em16:9,75° vertical corresponde a≈107,51° horizontal. Não há limiar universal de conforto nem custo de renderização medido aqui. Reduzir near não é correção de parede."
+        },
+        {
+          "title": "Compare orbital e FPS e repita",
+          "text": "F alterna make_current: em FPS o visual do alvo some e a câmera usa a origem elevada do pivot; em orbital o braço controla a distância. R restaura visão, filtros, forma vazia, posições, 75°,4,5 u e cursor visível. Repita três vezes sem recarregar.",
+          "expect": "O valor hit ainda pertence ao braço mesmo quando a FPS está atual; não representa a posição FPS. A bancada não move o corpo. Integrar locomoção relativa à câmera da aula anterior exige um passo adicional de projeto."
+        },
+        {
+          "title": "Preveja e confira no laboratório web",
+          "text": "Com esfera 0,25, parede 3, margem 0,05 e L 4,5, preveja d=2,70 u. Desligue a máscara: d=4,50. Restaure e compare FOV 45/75 sem mudar d; troque 16:9 por1:1 para comparar FOV horizontal. A/D aproximam/afastam parede por 0,25 u, só com foco no desenho; R restaura.",
+          "expect": "O Canvas usa fórmula própria de esfera contra plano perpendicular. Origem já sobreposta gera aviso de condição insegura, sem prometer solução física. A pausa permite ajustar e reiniciar; não há movimento temporal para avançar."
         }
       ]
     },
-    howItWorks: {
-      overview: "Por padrão, o `RayCast3D` detecta apenas Corpos Físicos (`StaticBody3D`, `CharacterBody3D`, `RigidBody3D`). Se você quiser que ele detecte também sensores `Area3D` (como caixas de interação ou Hurtboxes), basta marcar `collide_with_areas = true` no Inspector do `RayCast3D`!",
-      anatomy: [
-        {
-          prop: "raycast.target_position = Vector3(0, 0, -3.0)",
-          desc: "Define para onde e até quantos metros o feixe aponta (para a frente da câmera é `-Z`)."
-        },
-        {
-          prop: "raycast.get_collision_point() -> Vector3",
-          desc: "Retorna a coordenada global 3D exata onde o feixe atingiu a superfície."
-        },
-        {
-          prop: "raycast.get_collision_normal() -> Vector3",
-          desc: "Retorna o vetor perpendicular à superfície atingida (essencial para alinhar buracos de bala e faíscas na parede)."
-        },
-        {
-          prop: "camera.project_ray_normal(mouse_pos)",
-          desc: "Retorna a direção 3D apontando da lente da câmera através do pixel clicado pelo mouse."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Sistema de Interação em 1ª/3ª Pessoa ('Aperte E para Acionar')",
-        whenToUse: "Portas, baús, alavancas, NPCs e itens que o jogador olha de perto para usar.",
-        description: "Um `RayCast3D` filho da `Camera3D` verifica a cada frame se há um objeto com o método `interagir()` na mira.",
-        code: `extends RayCast3D
-
-@export var rotulo_dica_ui: Label
-
-func _physics_process(_delta: float) -> void:
-    if is_colliding():
-        var objeto := get_collider()
-        if objeto and objeto.has_method("interagir"):
-            rotulo_dica_ui.text = "[E] Acionar Mecanismo"
-            rotulo_dica_ui.visible = true
-            if Input.is_action_just_pressed("interagir"):
-                objeto.interagir()
-            return
-    rotulo_dica_ui.visible = false`,
-        pros: "Extremamente leve e funciona para qualquer objeto que implemente `func interagir()`.",
-        cons: "Marque `collide_with_areas = true` se seus objetos interativos forem `Area3D`."
+        "question": "Por que a Camera3D deve ser filha direta quando shape está vazia?",
+        "answer": "Essa relação permite ao braço usar a pirâmide associada ao near plane. Sem câmera direta e sem shape, ele recorre a um raio. Uma shape explícita substitui a seleção automática."
       },
       {
-        title: "Forma 2: Impacto 3D Alinhado à Parede (Faíscas e Decals com Normal)",
-        whenToUse: "Disparos, magias ou ferramentas de solda que precisam criar faíscas apontando para fora da parede atingida.",
-        description: "Instanciamos o efeito no `get_collision_point()` e usamos `look_at()` na direção da `get_collision_normal()`!",
-        code: `extends RayCast3D
-
-@export var cena_faiscas: PackedScene
-
-func disparar_feixe_vapor() -> void:
-    force_raycast_update()
-    if not is_colliding():
-        return
-    var ponto: Vector3 = get_collision_point()
-    var normal: Vector3 = get_collision_normal()
-    
-    var faisca := cena_faiscas.instantiate() as Node3D
-    get_tree().current_scene.add_child(faisca)
-    faisca.global_position = ponto
-    # Alinha o efeito para jorrar perpendicular à parede atingida!
-    if abs(normal.dot(Vector3.UP)) < 0.99:
-        faisca.look_at(ponto + normal, Vector3.UP)`,
-        pros: "As faíscas e marcas de impacto ficam com o ângulo perfeito seja no chão, no teto ou numa rampa inclinada.",
-        cons: "Se a normal for exatamente igual a `Vector3.UP` (chão reto), passe `Vector3.RIGHT` como segundo argumento do `look_at`."
+        "question": "FOV 75° sempre significa 75° na horizontal?",
+        "answer": "Não. Em perspectiva com KEEP_HEIGHT é vertical; o horizontal depende do aspecto. Com KEEP_WIDTH é preservado o eixo horizontal."
       },
       {
-        title: "Forma 3: Clicar com o Mouse no Chão 3D (Click-to-Move / RTS / Isométrico)",
-        whenToUse: "Jogos estilo Diablo, Baldur's Gate, RTS ou construção de fábricas onde o mouse aponta no cenário 3D.",
-        description: "Projetamos um raio da `Camera3D` passando pela posição do mouse na tela e consultamos o `direct_space_state` 3D.",
-        code: `extends Node3D
-
-@export var camera: Camera3D
-
-func obter_ponto_clicado_no_mundo() -> Vector3:
-    var pos_mouse := get_viewport().get_mouse_position()
-    var origem := camera.project_ray_origin(pos_mouse)
-    var fim := origem + camera.project_ray_normal(pos_mouse) * 1000.0
-    
-    var espaco := get_world_3d().direct_space_state
-    var query := PhysicsRayQueryParameters3D.create(origem, fim)
-    var resultado := espaco.intersect_ray(query)
-    
-    if resultado.has("position"):
-        return resultado["position"]
-    return Vector3.ZERO`,
-        pros: "Funciona com qualquer ângulo de câmera (Perspectiva ou Ortográfica/Isométrica).",
-        cons: "Filtre `query.collision_mask` caso queira que o clique atravesse árvores e pegue apenas a camada do chão."
+        "question": "Por que a parede pode ser ignorada mesmo aparecendo na imagem?",
+        "answer": "Aparência depende da renderização. A consulta precisa de forma física, camada incluída na collision_mask e ausência de exclusão indevida. Cull mask da câmera não controla essa colisão."
+      },
+      {
+        "question": "FOV menor e câmera mais próxima são o mesmo zoom?",
+        "answer": "Não. FOV muda o enquadramento a partir do centro; deslocar a câmera muda o ponto de vista, a paralaxe e proporções relativas em profundidade. No braço automático, a mudança de pirâmide pode também afetar a colisão."
       }
     ],
-    simulator: {
-      type: "raycast_picking_3d",
-      title: "Laboratório de RayCast 3D, Ponto de Impacto & Alinhamento pela Normal",
-      description: "Mova a mira no espaço 3D sobre diferentes superfícies (chão, rampa e esfera de bronze) e veja como o feixe detecta o ponto de impacto e alinha a normal perpendicularmente!"
-    },
-    quiz: {
-      question: "Quando um `RayCast3D` atinge uma parede inclinada, qual método devolve o vetor perpendicular à superfície (usado para alinhar faíscas ou marcas de impacto)?",
-      options: [
-        "get_collision_normal()",
-        "get_viewport()",
-        "is_on_floor()",
-        "queue_free()"
-      ],
-      correctIndex: 0,
-      explanation: "Exato! `get_collision_point()` diz ONDE bateu, e `get_collision_normal()` diz QUAL É A INCLINAÇÃO da superfície naquele ponto exato!"
-    }
+    "pitfalls": [
+      {
+        "title": "A câmera orbital fica dentro do alvo",
+        "text": "Confira pivot, hierarquia e exclusão do RID. Não use get_parent().get_rid sem garantir o tipo/caminho. A bancada exclui Alvo explicitamente."
+      },
+      {
+        "title": "A parede é visível, mas o braço não reage",
+        "text": "Confira StaticBody3D, CollisionShape3D, camada 1 e máscara do braço. Reative a consulta. A mesh e o cull_mask não bastam."
+      },
+      {
+        "title": "O mouse não responde ou fica preso",
+        "text": "Use M/botão para capturar; confira foco da janela. Esc libera e remove foco da UI. O script só processa mouse capturado e libera ao perder foco."
+      },
+      {
+        "title": "O valor hit não acompanha a visão FPS",
+        "text": "Ele é medido no SpringArm3D; a FPS está fora do braço e não usa esse comprimento. Leia a câmera atual e o modo exibido."
+      },
+      {
+        "title": "Quinas ou origem sobreposta ainda dão problema",
+        "text": "Não trate raio, esfera ou pirâmide como garantia universal. Confira geometria, ponto inicial e dimensões do near plane. Reposicione o pivot e teste no motor antes de adicionar suavização."
+      }
+    ],
+    "summary": "Hierarquia separa yaw/pitch, o braço consulta física e a câmera projeta a cena. Distância, FOV e near têm funções diferentes. Filtros e exclusão importam; capture/libere a entrada explicitamente e repita ensaios antes de integrar locomoção.",
+    "next": "Na aula 3D 6, separe detecção por Area3D, consultas por RayCast3D e seleção pela posição do mouse. A consulta do braço não substitui esses sistemas.",
+    "sources": [
+      {
+        "label": "Camera3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_camera3d.html"
+      },
+      {
+        "label": "SpringArm3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_springarm3d.html"
+      },
+      {
+        "label": "Câmera de terceira pessoa e braço",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/spring_arm.html"
+      },
+      {
+        "label": "InputEventMouseMotion: screen_relative",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_inputeventmousemotion.html"
+      }
+    ]
   },
+  "approaches": [
+    {
+      "title": "1. Controlador da câmera",
+      "whenToUse": "Com a hierarquia fornecida, para experimentar yaw/pitch e trocar orbital/FPS.",
+      "description": "camera_rig.gd fica em Rig. A exclusão aponta para Alvo, não presume o tipo do pai. Captura explícita, Escape, foco e reinício fazem parte do exemplo. FPS não usa o braço; não há locomoção implementada.",
+      "code": "extends Node3D\n## Bancada de câmera, sem controlador de locomoção.\n@export var sensibilidade: float = 0.0025 # radianos por pixel da tela\n@onready var yaw: Node3D = $Yaw\n@onready var pitch: Node3D = $Yaw/Pitch\n@onready var braco: SpringArm3D = $Yaw/Pitch/Braco\n@onready var orbital: Camera3D = $Yaw/Pitch/Braco/Orbital\n@onready var fps: Camera3D = $Yaw/Pitch/FPS\n@onready var alvo: StaticBody3D = $Alvo\nvar primeira_pessoa := false\nvar modo_anterior: Input.MouseMode\n\nfunc _ready() -> void:\n    modo_anterior = Input.mouse_mode\n    braco.add_excluded_object(alvo.get_rid())\n    restaurar()\n\nfunc girar(horizontal: float, vertical: float) -> void:\n    yaw.rotation.y = wrapf(yaw.rotation.y + horizontal, -PI, PI)\n    # Limite de design configurável, não limite anatômico universal.\n    pitch.rotation.x = clampf(pitch.rotation.x + vertical, deg_to_rad(-65), deg_to_rad(65))\n\nfunc capturar() -> void:\n    var foco := get_viewport().gui_get_focus_owner()\n    if foco != null:\n        foco.release_focus()\n    Input.mouse_mode = Input.MOUSE_MODE_CAPTURED\n\nfunc liberar() -> void:\n    Input.mouse_mode = Input.MOUSE_MODE_VISIBLE\n\nfunc alternar() -> void:\n    primeira_pessoa = not primeira_pessoa\n    aplicar_modo()\n\nfunc aplicar_modo() -> void:\n    $Alvo/Visual.visible = not primeira_pessoa\n    if primeira_pessoa:\n        fps.make_current()\n    else:\n        orbital.make_current()\n\nfunc definir_fov(valor: float) -> void:\n    orbital.fov = valor\n    fps.fov = valor\n\nfunc restaurar() -> void:\n    liberar()\n    yaw.rotation = Vector3.ZERO\n    pitch.rotation = Vector3.ZERO\n    braco.spring_length = 4.5\n    braco.margin = 0.05\n    braco.collision_mask = 3 # paredes/piso: camada 1; alvo: camada 2, excluído por RID\n    braco.shape = null # Camera filha direta: pirâmide do near plane\n    definir_fov(75)\n    primeira_pessoa = false\n    aplicar_modo()\n\nfunc _input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:\n        liberar()\n        var foco := get_viewport().gui_get_focus_owner()\n        if foco != null:\n            foco.release_focus()\n        get_viewport().set_input_as_handled()\n\nfunc _unhandled_input(event: InputEvent) -> void:\n    if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:\n        girar(-event.screen_relative.x * sensibilidade, -event.screen_relative.y * sensibilidade)\n        get_viewport().set_input_as_handled()\n    if event is InputEventKey and event.pressed and not event.echo:\n        if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n            return\n        # Com UI em foco, suas teclas não comandam a bancada.\n        if get_viewport().gui_get_focus_owner() != null:\n            return\n        var passo := deg_to_rad(5)\n        match event.physical_keycode:\n            KEY_A, KEY_LEFT: girar(passo, 0)\n            KEY_D, KEY_RIGHT: girar(-passo, 0)\n            KEY_W, KEY_UP: girar(0, passo)\n            KEY_S, KEY_DOWN: girar(0, -passo)\n            KEY_F: alternar()\n            KEY_M: capturar()\n            KEY_R: get_parent().restaurar_tudo()\n            _: return\n        get_viewport().set_input_as_handled()\n\nfunc _notification(what: int) -> void:\n    if what == NOTIFICATION_APPLICATION_FOCUS_OUT:\n        liberar()\n\nfunc _exit_tree() -> void:\n    Input.mouse_mode = modo_anterior\n",
+      "pros": "Separação dos eixos, limite ajustável, mouse sem escala de conteúdo e recuperação da entrada.",
+      "cons": "Sem suavização, colisão da câmera FPS ou integração com CharacterBody3D. A execução no motor ainda precisa ser homologada."
+    },
+    {
+      "title": "2. Configuração e dependências",
+      "language": "text",
+      "whenToUse": "Antes de copiar o controlador ou interpretar as leituras.",
+      "description": "Referência textual. A hierarquia é criada em runtime pelo script da oficina. O projeto usa eventos físicos discretos e não exige InputMap.",
+      "code": "Godot 4.5 / GDScript / Compatibility / desktop\nAbra project.godot; F6 em oficina.tscn ou F5 no projeto.\nA cena e a UI são construídas por oficina.gd em runtime.\nOficina\n  Rig (Node3D / camera_rig.gd; alvo fixo)\n    Alvo (StaticBody3D; layer 2; cápsula raio0,3 altura1,8)\n      Colisao (Y=0,9)\n      Visual (Y=0,9)\n    Yaw (Node3D; Y=1,3; gira eixo Y)\n      Pitch (Node3D; gira eixo X; limite±65°)\n        Braco (SpringArm3D; +Z; máscara3; comprimento4,5; margem0,05)\n          Orbital (Camera3D; filha direta; olha−Z; near0,05)\n        FPS (Camera3D; mesma origem do pivot; sem braço)\n  Piso / Parede / ReferenciaFrontal (StaticBody3D; layer1)\n  DirectionalLight3D / WorldEnvironment / CanvasLayer\nEscala1 em todos os nós. Cameras KEEP_HEIGHT, perspectiva, FOV75°.\nNenhum InputMap exigido: eventos físicos discretos WASD/setas.\nNão há locomoção, gravidade, tiro ou rotação automática do alvo.\nM/botão captura mouse; Esc libera; perder foco libera; sair restaura modo anterior.\nMouse capturado: screen_relative, sensibilidade0,0025rad/pixel.\nF alterna câmera atual por make_current; visual oculto em FPS.\nW/S pitch e A/D yaw em5° por toque; echo/modificadores ignorados.\nUI com foco não gira; Esc libera foco. R/botão restaura parâmetros e visão.\nParede faceZ3, espessura0,2; piso também participa da máscara1.\nExclusão explícita do RID de Alvo. Máscara física não é cull_mask.\nForma vazia + Camera filha direta usa pirâmide near-plane; esfera explícita substitui.\nLeitura hit é resultado do braço, inclusive quando FPS está atual; não é posição FPS.\n",
+      "pros": "Explicita nomes, tipos, filtros, unidades e modos de câmera.",
+      "cons": "Não substitui inspeção da árvore Remota nem teste de contato real."
+    },
+    {
+      "title": "3. Montagem da oficina",
+      "whenToUse": "Para reproduzir os ensaios com parede, formas, interface e telemetria.",
+      "description": "oficina.gd cria alvo fixo, duas câmeras, braço, geometria, luz e controles. As leituras diferenciam desejado/hit e mostram modo atual. A máscara desligada ignora parede e piso da camada 1.",
+      "code": "extends Node3D\nvar rig\nvar parede: StaticBody3D\nvar leitura: Label\nvar controles: VBoxContainer\nvar distancia: HSlider\nvar comprimento: HSlider\nvar fov: HSlider\nvar mascara: CheckButton\nvar esfera: CheckButton\n\nfunc caixa(nome: String, centro: Vector3, tamanho: Vector3, cor: Color) -> StaticBody3D:\n    var corpo := StaticBody3D.new()\n    corpo.name = nome\n    corpo.position = centro\n    corpo.collision_layer = 1\n    corpo.collision_mask = 0\n    var forma := BoxShape3D.new()\n    forma.size = tamanho\n    var colisao := CollisionShape3D.new()\n    colisao.shape = forma\n    corpo.add_child(colisao)\n    var malha := MeshInstance3D.new()\n    var mesh := BoxMesh.new()\n    mesh.size = tamanho\n    malha.mesh = mesh\n    var material := StandardMaterial3D.new()\n    material.albedo_color = cor\n    malha.material_override = material\n    corpo.add_child(malha)\n    add_child(corpo)\n    return corpo\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var b := Button.new()\n    b.text = texto\n    b.pressed.connect(acao)\n    controles.add_child(b)\n\nfunc deslizador(texto: String, minimo: float, maximo: float, passo: float, valor: float, acao: Callable) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    controles.add_child(l)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    s.value_changed.connect(acao)\n    controles.add_child(s)\n    return s\n\nfunc _ready() -> void:\n    caixa(\"Piso\", Vector3(0,-0.15,0), Vector3(20,0.3,20), Color(\"43301d\"))\n    parede = caixa(\"Parede\", Vector3(0,2,3.1), Vector3(8,4,0.2), Color(\"976237\"))\n    caixa(\"ReferenciaFrontal\", Vector3(0,1,-4), Vector3(1,2,1), Color(\"39969b\"))\n    rig = Node3D.new()\n    rig.name = \"Rig\"\n    var alvo := StaticBody3D.new()\n    alvo.name = \"Alvo\"\n    alvo.collision_layer = 2\n    alvo.collision_mask = 0\n    var col := CollisionShape3D.new()\n    var capsula := CapsuleShape3D.new()\n    capsula.radius = 0.3\n    capsula.height = 1.8\n    col.shape = capsula\n    col.position.y = 0.9\n    alvo.add_child(col)\n    var visual := MeshInstance3D.new()\n    visual.name = \"Visual\"\n    var mesh := CapsuleMesh.new()\n    mesh.radius = 0.3\n    mesh.height = 1.8\n    visual.mesh = mesh\n    visual.position.y = 0.9\n    alvo.add_child(visual)\n    rig.add_child(alvo)\n    var yaw := Node3D.new()\n    yaw.name = \"Yaw\"\n    yaw.position.y = 1.3\n    rig.add_child(yaw)\n    var pitch := Node3D.new()\n    pitch.name = \"Pitch\"\n    yaw.add_child(pitch)\n    var braco := SpringArm3D.new()\n    braco.name = \"Braco\"\n    pitch.add_child(braco)\n    var orbital := Camera3D.new()\n    orbital.name = \"Orbital\"\n    orbital.keep_aspect = Camera3D.KEEP_HEIGHT\n    braco.add_child(orbital)\n    var fps := Camera3D.new()\n    fps.name = \"FPS\"\n    fps.keep_aspect = Camera3D.KEEP_HEIGHT\n    pitch.add_child(fps)\n    rig.set_script(preload(\"res://camera_rig.gd\"))\n    add_child(rig)\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-50,-25,0)\n    add_child(luz)\n    var ambiente := WorldEnvironment.new()\n    ambiente.environment = Environment.new()\n    ambiente.environment.background_mode = Environment.BG_COLOR\n    ambiente.environment.background_color = Color(\"211b16\")\n    ambiente.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    ambiente.environment.ambient_light_color = Color(\"d2bd9d\")\n    ambiente.environment.ambient_light_energy = 0.6\n    add_child(ambiente)\n    var camada := CanvasLayer.new()\n    add_child(camada)\n    var painel := PanelContainer.new()\n    painel.position = Vector2(12,12)\n    painel.custom_minimum_size = Vector2(360,0)\n    camada.add_child(painel)\n    controles = VBoxContainer.new()\n    painel.add_child(controles)\n    leitura = Label.new()\n    controles.add_child(leitura)\n    botao(\"Capturar mouse · M / Esc libera\", rig.capturar)\n    botao(\"Alternar orbital / FPS · F\", rig.alternar)\n    botao(\"Yaw +5°\", func(): rig.girar(deg_to_rad(5),0))\n    botao(\"Yaw −5°\", func(): rig.girar(deg_to_rad(-5),0))\n    botao(\"Pitch +5°\", func(): rig.girar(0,deg_to_rad(5)))\n    botao(\"Pitch −5°\", func(): rig.girar(0,deg_to_rad(-5)))\n    comprimento = deslizador(\"Comprimento desejado (u)\",1,6,0.25,4.5,func(v): rig.braco.spring_length=v)\n    distancia = deslizador(\"Face da parede em +Z (u)\",1,7,0.25,3,func(v): parede.position.z=v+0.1)\n    fov = deslizador(\"FOV vertical (graus), KEEP_HEIGHT\",45,100,1,75,rig.definir_fov)\n    mascara = CheckButton.new()\n    mascara.text = \"Consultar parede (camada física 1)\"\n    mascara.button_pressed = true\n    mascara.toggled.connect(func(ativo): rig.braco.collision_mask = 3 if ativo else 2)\n    controles.add_child(mascara)\n    esfera = CheckButton.new()\n    esfera.text = \"Forma explícita: esfera raio 0,25\"\n    esfera.toggled.connect(func(ativo):\n        if ativo:\n            var forma := SphereShape3D.new()\n            forma.radius = 0.25\n            rig.braco.shape = forma\n        else:\n            rig.braco.shape = null)\n    controles.add_child(esfera)\n    botao(\"Restaurar tudo · R\", restaurar_tudo)\n\nfunc restaurar_tudo() -> void:\n    rig.restaurar()\n    parede.position.z = 3.1\n    comprimento.set_value_no_signal(4.5)\n    distancia.set_value_no_signal(3)\n    fov.set_value_no_signal(75)\n    mascara.set_pressed_no_signal(true)\n    esfera.set_pressed_no_signal(false)\n\nfunc _process(_delta: float) -> void:\n    leitura.text = (\"BANCADA DE CÂMERA · alvo fixo\\n%s | desejado %.2f / hit %.2f u\\nFOV vertical %.0f° | yaw %.0f° / pitch %.0f°\\nWASD/setas: giro por toque; Esc: foco/mouse\" % [\n        \"FPS (sem braço)\" if rig.primeira_pessoa else \"Orbital\",\n        rig.braco.spring_length,rig.braco.get_hit_length(),rig.orbital.fov,\n        rig.yaw.rotation_degrees.y,rig.pitch.rotation_degrees.x])\n",
+      "pros": "Testes repetíveis de forma, máscara, FOV, distância e captura sem recarregar.",
+      "cons": "Interface de bancada para desktop, sem medição de desempenho ou controlador de jogo completo."
+    }
+  ],
+  "simulator": {
+    "type": "springarm_camera_3d",
+    "title": "Laboratório: recolhimento e campo de visão",
+    "description": "Modelo analítico Canvas/JS: esfera explícita contra plano infinito perpendicular a +Z, com folga própria. Desenho lateral e projeção vertical separados. Não executa Godot nem reproduz a pirâmide automática, colisão inicial resolvida, quinas ou suavização.",
+    "guide": [
+      {
+        "title": "Preveja o recolhimento",
+        "text": "Valores iniciais: L 4,5, D 3, r 0,25 e m 0,05 u → d 2,70 u. Com máscara desligada o centro vai para 4,50 u, podendo atravessar a parede. A/D ou setas mudam D por 0,25 u por toque, com foco no desenho."
+      },
+      {
+        "title": "Compare projeções",
+        "text": "Com máscara/forma explícita fixas, FOV muda a abertura, não d. Em KEEP_HEIGHT 75° e16:9, o horizontal é≈107,51°; em 1:1 é75°. A altura no plano do pivot é 2d × tan(FOVv/2). O plano desenhado é uma referência geométrica, não a imagem final renderizada."
+      },
+      {
+        "title": "Restaure e reconheça o limite",
+        "text": "R ou o botão repõe todos os controles. O modelo é estático; pausa não bloqueia ajustes. Com D≤r aparece condição inicial insegura. Não use o zero calculado como solução de colisão da Godot."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "A Camera3D é filha direta do SpringArm3D, shape está vazia e keep_aspect é KEEP_HEIGHT. Qual afirmação está correta?",
+    "options": [
+      "O braço pode usar a pirâmide do near plane; fov é vertical e a máscara física precisa incluir a parede.",
+      "O braço sempre usa raio; fov75° é sempre horizontal.",
+      "Diminuir near resolve qualquer interseção mesmo sem forma física na parede.",
+      "Cull mask da câmera substitui collision_mask e dispensa excluir o alvo."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Hierarquia, projeção e consulta física têm funções diferentes.",
+      "A câmera direta permite a pirâmide automática; KEEP_HEIGHT preserva o FOV vertical.",
+      "Near é recorte de projeção, não substituto da consulta física.",
+      "Cull mask controla renderização; collision_mask e exclusão controlam a consulta do braço."
+    ],
+    "explanation": "Com câmera direta e shape vazia, o braço usa a pirâmide associada ao near plane. KEEP_HEIGHT preserva o FOV vertical. A parede só participa se sua forma/camada passar pelo filtro físico."
+  }
+},
 
-  // ==========================================================================
-  // NÍVEL III — INTERMEDIÁRIO (Engenheiro a Vapor)
-  // ==========================================================================
+{
+  "id": "3d-init-areas-raycasts-picking",
+  "area": "3d",
+  "level": "iniciante",
+  "levelLabel": "Iniciante",
+  "title": "6. Area3D, RayCast3D e seleção com o mouse",
+  "subtitle": "Diferencie sobreposição, primeiro impacto e projeção do cursor; teste filtros e ausência de resultado antes de acionar um mecanismo.",
+  "nodesUsed": [
+    "Area3D",
+    "RayCast3D",
+    "Camera3D",
+    "PhysicsRayQueryParameters3D"
+  ],
+  "feynman": {
+    "title": "Detectar uma região, apontar e selecionar são consultas diferentes",
+    "explanation": "Area3D acompanha corpos ou áreas que se sobrepõem ao seu volume. Um RayCast3D procura o primeiro objeto aceito ao longo de um segmento: ele pode parar numa parede antes de alcançar o mecanismo. Para selecionar com o mouse, a câmera fornece uma origem e uma direção no mundo a partir do pixel do Viewport; uma consulta física decide o que está nesse caminho. Nenhuma dessas consultas aciona automaticamente uma porta, move um personagem ou cria faíscas: essas ações precisam de código.",
+    "analogies": [
+      {
+        "term": "Sensor de presença",
+        "analogy": "Uma região avisa quem entrou ou saiu. Paredes não bloqueiam por si só esse teste de sobreposição; estar perto não prova que você está olhando para o objeto."
+      },
+      {
+        "term": "Apontar com alcance",
+        "analogy": "Um segmento tem origem, direção e fim. Entre os candidatos que passam pelos filtros, o primeiro pode ser uma parede sem interação. Ignorar a parede na máscara muda deliberadamente a regra."
+      },
+      {
+        "term": "Selecionar pelo cursor",
+        "analogy": "O pixel é uma coordenada de tela, não uma posição pronta no chão. Projeção da câmera e consulta de colisão são duas etapas. Clicar pode selecionar sem acionar nem iniciar locomoção."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5, GDScript e desktop. Corpo/área precisam de CollisionShape3D com recurso válido; MeshInstance3D só desenha. Mantemos escala 1 e convencionamos 1 u = 1 m. A bancada tem dois ensaios independentes: um corpo entra/sai do sensor; a câmera consulta parede, mecanismo e piso. A interação central não depende de estar no sensor. Filtros são parte da regra do jogo, não uma medida de proximidade universal.",
+    "anatomy": [
+      {
+        "prop": "Area3D: monitoring, mask e sinais",
+        "desc": "monitoring habilita o acompanhamento. A collision_mask do sensor inclui a collision_layer do corpo observado; a máscara do corpo não precisa consultar o sensor para este teste. body_entered/body_exited tratam corpos; area_entered/area_exited tratam outras áreas. monitorable permite que outras áreas detectem esta e não substitui monitoring."
+      },
+      {
+        "prop": "Sobreposição atualizada na física",
+        "desc": "get_overlapping_bodies não muda imediatamente após reposicionar um corpo. Aguarde atualização física e use sinais para acompanhar transições. Não confunda manter-se dentro com entrar novamente a cada frame. Alterações do filtro reiniciam a contagem de ensaio do apoio; isso não é movimento do corpo."
+      },
+      {
+        "prop": "RayCast3D: destino local e resultado global",
+        "desc": "target_position é relativo ao nó do raio; (0,0,−alcance) aponta para −Z local, desde que hierarquia/rotação sejam coerentes. is_colliding deve ser verificado antes de ler ponto, normal ou collider. Ponto e normal são globais. O resultado é mantido até a próxima atualização física; force_raycast_update permite atualizar imediatamente uma configuração alterada."
+      },
+      {
+        "prop": "Máscara, tipo, exceção e primeiro resultado",
+        "desc": "RayCast3D consulta corpos por padrão; áreas precisam de collide_with_areas=true. A query direta também tem esses filtros. Máscara é um conjunto de bits: camadas 1/2/3/4 correspondem a valores 1/2/4/8; máscara 13 inclui 1,3,4. Exclua o próprio corpo explicitamente quando necessário. exclude_parent não procura arbitrariamente um ancestral do personagem."
+      },
+      {
+        "prop": "Camera3D → origem + direção × alcance",
+        "desc": "project_ray_origin e project_ray_normal recebem a posição no Viewport da câmera. Use ambos: em ortográfica, a origem depende do pixel; não substitua tudo pela posição global da câmera. Em _unhandled_input guarde o clique; consulte direct_space_state.intersect_ray em _physics_process. UI que consumiu o clique não deve disparar a seleção."
+      },
+      {
+        "prop": "Resultado vazio e normal utilizável",
+        "desc": "intersect_ray devolve Dictionary vazio sem acerto. Vector3.ZERO pode ser um ponto válido e não é sentinela de falha. hit_from_inside pode produzir normal zero, que não orienta um efeito. Para a haste modelada em −Z, look_at aponta esse eixo para a normal; se ela é quase paralela a UP, escolha outro up. Decals e partículas podem ter outros eixos locais."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "consultas.gd é o controlador principal, em Consultas. O apoio inclui sensor.gd, mecanismo.gd e oficina.gd, que monta a hierarquia em runtime. Copiar só o controlador exige criar os nós e injetar as referências descritas na configuração. Os exemplos mostram seleção e acionamento simples; não implementam tiro com dano, partículas ou click-to-move.",
+    "duration": "70–95 min com previsão e ensaios de filtro (estimativa)",
+    "prerequisite": "Aulas 3D 1–5: coordenadas locais/globais, formas físicas, corpos e Camera3D. Godot 4.5, GDScript, Compatibility, desktop. Execução do apoio no motor pendente; revisão documental não equivale a teste físico.",
+    "objectives": [
+      "Escolher Area3D para sobreposição e RayCast3D para o primeiro impacto, configurando tipos e máscaras.",
+      "Projetar um clique pelo Viewport e tratar explicitamente resultado vazio, ponto global e normal.",
+      "Acionar somente um primeiro resultado compatível, repetir testes e recuperar a entrada sem recarregar."
+    ],
+    "practice": {
+      "title": "Prática guiada: presença, mira e seleção",
+      "intro": "O corpo à esquerda é movido em passos de 0,25 u dentro de um sensor; não possui gravidade nem locomoção com colisão resolvida. O mecanismo central é uma Area3D atrás de uma parede. E consulta a mira central e tenta acionar; clicar no mundo apenas seleciona. A câmera é fixa e usa cursor visível.",
+      "tree": "Oficina (Node3D / oficina.gd; montagem em runtime)\n├── Piso (StaticBody3D; camada 4, bit 8)\n├── Parede (StaticBody3D; camada 1, bit 1)\n├── CorpoEnsaio (AnimatableBody3D; camada 2, bit 2)\n│   └── CollisionShape3D + MeshInstance3D / esfera 0,3\n├── Sensor (Area3D / sensor.gd; máscara 2)\n│   └── CollisionShape3D + visual / esfera 1,5\n├── Mecanismo (Area3D / mecanismo.gd; camada 3, bit 4)\n│   └── CollisionShape3D + visual / esfera 0,7\n├── Consultas (Node3D / consultas.gd)\n│   ├── Camera3D atual\n│   │   └── Mira (RayCast3D, −Z local)\n│   └── Marcador (Node3D; haste visual em −Z)\n└── Luz / Ambiente / Interface\n\nFormas e malhas separadas; escala 1. Máscara do raio 13.\nO sensor acompanha o CorpoEnsaio; não bloqueia a interação central.",
+      "download": {
+        "url": "assets/aula-3d-06-sensores-raios.zip",
+        "label": "Baixar projeto de apoio: sensores, raios e seleção"
+      },
+      "downloadNote": "Nove arquivos locais, incluindo quatro scripts, cena, configuração e roteiro. Compilação/execução na Godot pendentes.",
+      "steps": [
+        {
+          "title": "Inspecione as três consultas",
+          "text": "Importe o projeto e execute oficina.tscn. Na árvore Remota, confira as formas, a Camera3D e Mira como filha dela. Leia a configuração: parede na camada 1, corpo de ensaio na 2, mecanismo na 3 e piso na 4. Os valores dos bits são 1,2,4,8; máscara 13 não significa camada 13.",
+          "expect": "Mesh e forma física têm funções distintas. O sensor usa máscara 2; raio/query usam máscara 13 e consultam áreas e corpos explicitamente. Nenhum InputMap é exigido: o apoio usa eventos físicos discretos."
+        },
+        {
+          "title": "Entre, permaneça e saia do sensor",
+          "text": "Aguarde a linha de base após iniciar. D ou o botão move o corpo 0,25 u à direita por toque; A move à esquerda. Sensor está em X=−4 e o corpo começa em X=−7. Observe body_entered quando houver sobreposição; pare dentro e depois saia. A leitura física pode aparecer no tick seguinte, não imediatamente na instrução de mover.",
+          "expect": "Permanecer dentro não deve somar uma entrada por frame. A tangência exata depende do motor e de suas tolerâncias; não exija o limite analítico do Canvas. Sem comando, o corpo não anda sozinho."
+        },
+        {
+          "title": "Compare geometria e filtro",
+          "text": "Com o corpo dentro, desligue monitoring ou a consulta da camada 2. Cada mudança inicia nova contagem e três ticks de estabilização no apoio. Reative, aguarde e repita o trajeto. No navegador, compare sobreposição geométrica com detecção filtrada.",
+          "expect": "Estar geometricamente dentro não basta se a consulta está desligada ou o layer não passa na máscara. monitorable não é o interruptor de detecção de corpos. O Canvas não emite sinais da Godot."
+        },
+        {
+          "title": "Deixe a parede ser o primeiro resultado",
+          "text": "Restaure. E ou o botão consulta a mira central. Com máscara 13 e corpos/áreas ligados, a parede fica antes do mecanismo. Observe collider, ponto e normal. Não salte o primeiro resultado apenas porque ele não tem interagir. Depois escolha máscara 12 ou 4 e repita.",
+          "expect": "Com parede consultada, o mecanismo não é acionado atrás dela. Ignorar a camada da parede permite atravessá-la por regra explícita. O alvo implementa interagir e incrementa uma vez por pedido; só o último pedido antes do tick é consumido."
+        },
+        {
+          "title": "Produza ausência de resultado",
+          "text": "Na máscara 4, desligue a consulta de áreas e pressione E: não há candidato válido. Teste alcance curto e depois restaure. No navegador, máscara 13/ângulo 0/alcance 1 também não encontra impacto; alcance 8 encontra a face da parede a 2,6 u.",
+          "expect": "A ausência é explícita; um novo comando sem resultado remove o marcador antigo e não cria faíscas fictícias. Dictionary vazio não deve virar ponto (0,0,0), pois essa coordenada poderia ser um acerto real."
+        },
+        {
+          "title": "Selecione pelo cursor e examine a normal",
+          "text": "Clique no mundo fora da UI para guardar a posição do evento; a consulta ocorre na física. Compare piso, parede e esfera, alterando filtros quando necessário. O clique seleciona sem acionar; E tenta acionar no centro. A haste guarda o último ponto/normal e não segue ajustes de filtro. Para o piso, a normal pode ser UP: o código usa RIGHT como up alternativo.",
+          "expect": "Ponto e normal são globais. A haste foi modelada em −Z; outro efeito exigiria conferir seu eixo. Normal zero não recebe look_at. Coordenadas de um SubViewport exigiriam conversão apropriada; esta bancada usa um único Viewport."
+        },
+        {
+          "title": "Repita com foco e reinício previsíveis",
+          "text": "Na Godot, UI em foco suspende A/D/E/R; Esc libera foco. R ou botão restaura parâmetros, corpo, contadores e marcador; aguarde a física. No Canvas, setas mudam ângulo por 5°, A/D movem o corpo do sensor por 0,25 u, E consulta e R restaura. Clique no painel do raio ajusta direção arredondada a 1°; não é projeção real de câmera.",
+          "expect": "Atalhos não repetem por tecla sustentada nem com Ctrl/Alt/Meta. Há botões equivalentes para mover, consultar e restaurar. O modelo web é estático, pode ser ajustado em pausa e não valida sinais, captura de clique ou colisões do motor."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Estar dentro da esfera garante que Area3D detecte o corpo?",
+        "answer": "Não. São necessárias formas válidas, monitoring e máscara incluindo o layer do corpo. A lista é atualizada pelo motor na física. Para outra área, também há o contrato de monitorable da área observada."
+      },
+      {
+        "question": "Por que não procurar um interagível atrás do primeiro resultado?",
+        "answer": "O primeiro objeto aceito pode ser uma parede que bloqueia a interação. Filtrar a parede deliberadamente cria outra regra; has_method não deve apagar a oclusão depois da consulta."
+      },
+      {
+        "question": "Por que guardar o clique e consultar no passo físico?",
+        "answer": "Acesso direto ao espaço pode estar bloqueado durante entrada. O evento registra a intenção; a consulta física resolve o resultado. O exemplo mantém só o último pedido antes do tick, sem uma fila de cliques."
+      },
+      {
+        "question": "Como distinguir falha de um impacto na origem?",
+        "answer": "Pelo Dictionary vazio versus um resultado com position. Vector3.ZERO sozinho é ambíguo. Ponto global, normal e collider só são usados quando existe um resultado."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "O sensor não avisa entrada",
+        "text": "Confira forma física, monitoring, layer do corpo e mask do sensor. Aguarde a atualização física; o visual não participa da detecção. Não troque body_entered por area_entered para um PhysicsBody3D."
+      },
+      {
+        "title": "O raio ignora meu mecanismo",
+        "text": "O mecanismo desta bancada é Area3D na camada 3 (bit 4). Ligue collide_with_areas e inclua esse bit na máscara. Um corpo físico tem outro filtro de tipo."
+      },
+      {
+        "title": "O clique na interface também seleciona",
+        "text": "Use _unhandled_input e deixe a UI consumir seus eventos. A consulta manual não depende de input_ray_pickable; o picking automático por _input_event tem requisitos próprios. SubViewports exigem coordenadas do Viewport correto."
+      },
+      {
+        "title": "A leitura ainda é da configuração anterior",
+        "text": "RayCast3D guarda o resultado até atualizar. Use force_raycast_update ao precisar reler imediatamente uma alteração. Consultas diretas e mudança do corpo devem ser feitas no contexto físico apropriado."
+      },
+      {
+        "title": "A marca fica virada errado no chão",
+        "text": "Confira o eixo local da marca e o up usado em look_at. Uma normal quase paralela a UP exige outro up; uma normal zero não define orientação. Esta haste aponta em −Z, não é um Decal genérico."
+      }
+    ],
+    "summary": "Volume, segmento e projeção do cursor resolvem perguntas diferentes. Tipos, máscaras e exceções definem candidatos; o primeiro pode bloquear uma ação. Trate ausência explicitamente, use o passo físico e confira ponto, normal e eixo do efeito antes de integrar a interação ao jogo.",
+    "next": "Na aula 3D 7, estude materiais PBR. Aqui as cores apenas identificam objetos: aparência da malha não muda a forma física, a máscara ou a normal retornada pela consulta.",
+    "sources": [
+      {
+        "label": "Area3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_area3d.html"
+      },
+      {
+        "label": "RayCast3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_raycast3d.html"
+      },
+      {
+        "label": "Ray-casting e entrada no passo físico",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/physics/ray-casting.html"
+      },
+      {
+        "label": "PhysicsRayQueryParameters3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_physicsrayqueryparameters3d.html"
+      },
+      {
+        "label": "Camera3D: projeção",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_camera3d.html"
+      },
+      {
+        "label": "CollisionObject3D: picking automático",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_collisionobject3d.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Mira, clique e último resultado",
+      "whenToUse": "Com a hierarquia e as referências fornecidas pela oficina.",
+      "description": "consultas.gd fica em Consultas. Mantém uma intenção de clique/ação até o tick físico; usa RayCast3D para E e query projetada para o clique. O marcador é uma haste em −Z. O corpo é deslocado só para testar o sensor, sem resolver locomoção de jogo.",
+      "code": "extends Node3D\n## Camera e RayCast são montados por oficina.gd antes de entrar na árvore.\n@onready var camera: Camera3D = $Camera3D\n@onready var raio: RayCast3D = $Camera3D/Mira\n@onready var marcador: Node3D = $Marcador\nvar corpo: AnimatableBody3D\nvar sensor: Area3D\nvar alvo: Area3D\nvar alcance := 20.0\nvar mascara := 13 # bits das camadas 1, 3 e 4: parede, alvo e piso\nvar incluir_areas := true\nvar incluir_corpos := true\nvar pedido := false\nvar pixel := Vector2.ZERO\nvar acionar := false\nvar deslocamento_pendente := 0.0\nvar ultimo := \"Sem consulta por comando\"\nvar previa := \"Aguardando física\"\n\nfunc _ready() -> void:\n    raio.add_exception(corpo)\n    restaurar()\n\nfunc pedir_centro() -> void:\n    pixel = get_viewport().get_visible_rect().size * 0.5\n    pedido = true\n    acionar = true\n\nfunc mover_corpo(delta_x: float) -> void:\n    deslocamento_pendente += delta_x\n\nfunc restaurar() -> void:\n    alcance = 20.0\n    mascara = 13\n    incluir_areas = true\n    incluir_corpos = true\n    pedido = false\n    acionar = false\n    deslocamento_pendente = 0.0\n    marcador.visible = false\n    ultimo = \"Sem consulta por comando\"\n    previa = \"Aguardando física\"\n\nfunc _unhandled_input(event: InputEvent) -> void:\n    # UI consome seus próprios cliques; aqui só chegam cliques não tratados.\n    if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:\n        pixel = event.position\n        pedido = true # no máximo o último clique antes do próximo tick\n        acionar = false # selecionar não implica acionar um mecanismo\n        get_viewport().set_input_as_handled()\n    if event is InputEventKey and event.pressed and not event.echo:\n        if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n            return\n        if get_viewport().gui_get_focus_owner() != null:\n            return\n        match event.physical_keycode:\n            KEY_A, KEY_LEFT: mover_corpo(-0.25)\n            KEY_D, KEY_RIGHT: mover_corpo(0.25)\n            KEY_E: pedir_centro()\n            KEY_R: get_parent().restaurar_tudo()\n            _: return\n        get_viewport().set_input_as_handled()\n\nfunc _input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:\n        var foco := get_viewport().gui_get_focus_owner()\n        if foco != null:\n            foco.release_focus()\n        get_viewport().set_input_as_handled()\n\nfunc _physics_process(_delta: float) -> void:\n    if deslocamento_pendente != 0.0:\n        corpo.position.x = clampf(corpo.position.x + deslocamento_pendente, -7.0, -1.0)\n        deslocamento_pendente = 0.0\n    raio.target_position = Vector3(0, 0, -alcance) # coordenadas LOCAIS do RayCast\n    raio.collision_mask = mascara\n    raio.collide_with_areas = incluir_areas\n    raio.collide_with_bodies = incluir_corpos\n    raio.force_raycast_update() # parâmetros alteráveis; leitura imediata neste tick\n    previa = \"Sem colisão na mira\"\n    if raio.is_colliding():\n        previa = \"Mira: %s; distância %.2f u\" % [(raio.get_collider() as Node).name, camera.global_position.distance_to(raio.get_collision_point())]\n    if not pedido:\n        return\n    pedido = false\n    var resultado: Dictionary = {}\n    if acionar:\n        if raio.is_colliding():\n            resultado = {\"position\": raio.get_collision_point(), \"normal\": raio.get_collision_normal(), \"collider\": raio.get_collider()}\n    else:\n        # Não consulte direct_space_state dentro de _input: o espaço pode estar bloqueado.\n        var origem := camera.project_ray_origin(pixel)\n        var fim := origem + camera.project_ray_normal(pixel) * alcance\n        var query := PhysicsRayQueryParameters3D.create(origem, fim, mascara, [corpo.get_rid()])\n        query.collide_with_areas = incluir_areas\n        query.collide_with_bodies = incluir_corpos\n        resultado = get_world_3d().direct_space_state.intersect_ray(query)\n    registrar(resultado, acionar)\n    acionar = false\n\nfunc registrar(resultado: Dictionary, tentar_acao: bool) -> void:\n    if resultado.is_empty():\n        marcador.visible = false\n        ultimo = \"Sem resultado; nenhum ponto válido selecionado\"\n        return # Vector3.ZERO poderia ser um ponto válido; não é sentinela.\n    var ponto: Vector3 = resultado[\"position\"]\n    var normal: Vector3 = resultado[\"normal\"]\n    var objeto: Object = resultado[\"collider\"]\n    marcador.visible = true\n    marcador.global_position = ponto\n    marcador.get_child(0).visible = normal.length_squared() > 0.000001\n    if normal.length_squared() > 0.000001:\n        # A haste do marcador aponta em -Z local. Normal paralela a UP precisa de outro up.\n        var cima := Vector3.RIGHT if absf(normal.normalized().dot(Vector3.UP)) > 0.99 else Vector3.UP\n        marcador.look_at(ponto + normal, cima)\n    ultimo = \"%s; ponto=%s; normal=%s\" % [objeto.get(\"name\"), ponto, normal]\n    if tentar_acao:\n        if is_instance_valid(objeto) and objeto.has_method(\"interagir\"):\n            objeto.call(\"interagir\")\n            ultimo += \"; mecanismo acionado uma vez\"\n        else:\n            ultimo += \"; primeiro objeto não é interagível\"\n",
+      "pros": "Acerto/ausência explícitos, oclusão preservada, filtro de tipos e recuperação de foco.",
+      "cons": "Sem fila de cliques, dano, partículas ou click-to-move. Integração e execução na Godot ainda precisam ser homologadas."
+    },
+    {
+      "title": "2. Sensor de entrada e saída",
+      "whenToUse": "No Sensor da oficina, ligado ao CorpoEnsaio.",
+      "description": "sensor.gd acompanha apenas o corpo referenciado e separa sinais de transição da lista de sobreposição. Reconfigurar o ensaio zera a contagem e espera três ticks de linha de base; não tenta simular um trajeto durante essa janela.",
+      "code": "extends Area3D\n@export var corpo: PhysicsBody3D\nvar entradas := 0\nvar saidas := 0\nvar estabilizar := 3\nvar ultimo := \"Aguardando física\"\n\nfunc _ready() -> void:\n    body_entered.connect(ao_entrar)\n    body_exited.connect(ao_sair)\n\nfunc reiniciar_contagem() -> void:\n    entradas = 0\n    saidas = 0\n    estabilizar = 3\n    ultimo = \"Nova linha de base; aguarde física\"\n\nfunc _physics_process(_delta: float) -> void:\n    if estabilizar > 0:\n        estabilizar -= 1\n        if estabilizar == 0:\n            ultimo = \"Pronto; mova o corpo por comando\"\n\nfunc ao_entrar(body: Node3D) -> void:\n    if estabilizar == 0 and body == corpo:\n        entradas += 1\n        ultimo = \"body_entered\"\n\nfunc ao_sair(body: Node3D) -> void:\n    if estabilizar == 0 and body == corpo:\n        saidas += 1\n        ultimo = \"body_exited\"\n\nfunc detectado() -> bool:\n    # A lista é atualizada pelo passo físico, não imediatamente após mover.\n    return monitoring and corpo in get_overlapping_bodies()\n",
+      "pros": "Evita somar entrada a cada frame e explicita o atraso da atualização física.",
+      "cons": "Linha de base é uma política da bancada, não garantia universal de sincronização do motor. Testar cena e transições reais."
+    },
+    {
+      "title": "3. Contrato do mecanismo",
+      "whenToUse": "No Mecanismo (Area3D) desta prática.",
+      "description": "mecanismo.gd implementa a ação chamada somente após um primeiro resultado compatível. Contar acionamentos é o efeito didático; não há porta animada ou dano oculto.",
+      "code": "extends Area3D\nvar acionamentos := 0\n\nfunc interagir() -> void:\n    acionamentos += 1\n\nfunc restaurar() -> void:\n    acionamentos = 0\n",
+      "pros": "Contrato mínimo verificável, sem confundir detecção com ação automática.",
+      "cons": "Um jogo real precisa validar autorização, estado, alcance e consequências da interação."
+    },
+    {
+      "title": "4. Configuração e dependências",
+      "language": "text",
+      "whenToUse": "Antes de copiar código ou comparar o apoio com o Canvas.",
+      "description": "Referência textual com árvore runtime, bits, formas, dimensões, comandos e limites. Não é GDScript.",
+      "code": "Godot 4.5 / GDScript / Compatibility / desktop. Convenção: 1 u = 1 m.\nAbra project.godot e execute oficina.tscn. oficina.gd constrói em runtime:\nOficina (Node3D / oficina.gd)\n  Piso (StaticBody3D; camada 4 = bit8; topo Y0)\n  Parede (StaticBody3D; camada 1 = bit1; centro0,3,3; tamanho3,6,0.2)\n  CorpoEnsaio (AnimatableBody3D; camada2 = bit2; esfera0.3; início−7,0.5,0)\n  Sensor (Area3D / sensor.gd; esfera1.5; centro−4,0.5,0; layer0/mask2)\n  Mecanismo (Area3D / mecanismo.gd; esfera0.7; centro0,1,0; layer4/mask0)\n  Consultas (Node3D / consultas.gd)\n    Camera3D (0,10,14; atual; olha para Mecanismo)\n      Mira (RayCast3D; target_position0,0,−alcance; consulta áreas/corpos)\n    Marcador (Node3D; haste aponta−Z; somente visual)\n  Luz / Ambiente / CanvasLayer (interface)\nEscala1 em nós/ancestrais. Mesh visual e forma física são objetos distintos.\nMáscaras são bits: camada1=1, camada2=2, camada3=4, camada4=8.\nMáscara13=1+4+8;12=4+8;4=só mecanismo;8=só piso. Não são números de camada.\nPiso/parede/mecanismo têm mask0; a consulta usa a própria mask contra o layer deles.\nSensor body_entered/body_exited filtram CorpoEnsaio; monitoring=true e mask2.\nmonitorable é sobre outras áreas detectarem esta; não liga a detecção de corpos.\nCorpo não tem gravidade/locomoção de jogo; deslocado por0.25u no tick, X−7..−1.\nMudar filtro/monitoring zera contagem e aguarda3 ticks de linha de base.\nA/D ou setas movem corpo por toque; E consulta/aciona primeiro objeto no centro.\nClique esquerdo não tratado pela UI seleciona no mundo; não aciona mecanismo.\nConsulta direta ocorre em _physics_process; só o último clique pendente é mantido.\nNo máximo um pedido de ação antes do próximo tick. Nenhum InputMap exigido.\nUI com foco suspende atalhos; Esc libera foco; eco/modificadores ignorados.\nR/botão restaura controles, corpo, contadores e marcador; aguarde nova física.\nRayCast e query excluem explicitamente o RID/corpo de ensaio.\nResultados vazios não são Vector3.ZERO. Coordenadas de impacto/normal são globais.\nHaste usa−Z e look_at com up alternativo para normal paralela aY; normal zero não orienta.\nPicking manual por intersect_ray não exige input_ray_pickable; picking automático tem outro contrato.\n",
+      "pros": "Explicita como os quatro scripts se conectam e o que cada consulta observa.",
+      "cons": "Não substitui execução no motor; o Canvas usa outra geometria e projeção."
+    },
+    {
+      "title": "5. Montagem da oficina",
+      "whenToUse": "Para reproduzir a cena, UI e ensaios.",
+      "description": "oficina.gd fica na raiz, cria formas/visuais separados, injeta referências e conecta interface. Sliders/filtros têm valores restauráveis. Leitura exibe resultado de cada ensaio sem prometer equivalência com o modelo web.",
+      "code": "extends Node3D\nvar consultas\nvar sensor\nvar alvo\nvar corpo: AnimatableBody3D\nvar leitura: Label\nvar painel: VBoxContainer\nvar alcance: HSlider\nvar mascara: OptionButton\nvar areas: CheckButton\nvar corpos: CheckButton\nvar monitoring: CheckButton\nvar filtro_sensor: CheckButton\n\nfunc material(cor: Color) -> StandardMaterial3D:\n    var m := StandardMaterial3D.new()\n    m.albedo_color = cor\n    return m\n\nfunc esfera(no: Node3D, raio: float, cor: Color) -> void:\n    var forma := SphereShape3D.new()\n    forma.radius = raio\n    var colisao := CollisionShape3D.new()\n    colisao.shape = forma\n    no.add_child(colisao)\n    var visual := MeshInstance3D.new()\n    var mesh := SphereMesh.new()\n    mesh.radius = raio\n    mesh.height = 2.0 * raio\n    visual.mesh = mesh\n    visual.material_override = material(cor)\n    no.add_child(visual)\n\nfunc caixa(nome: String, pos: Vector3, tamanho: Vector3, camada: int, cor: Color) -> void:\n    var b := StaticBody3D.new()\n    b.name = nome\n    b.position = pos\n    b.collision_layer = camada\n    b.collision_mask = 0\n    var c := CollisionShape3D.new()\n    var forma := BoxShape3D.new()\n    forma.size = tamanho\n    c.shape = forma\n    b.add_child(c)\n    var v := MeshInstance3D.new()\n    var mesh := BoxMesh.new()\n    mesh.size = tamanho\n    v.mesh = mesh\n    v.material_override = material(cor)\n    b.add_child(v)\n    add_child(b)\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var b := Button.new()\n    b.text = texto\n    b.pressed.connect(acao)\n    painel.add_child(b)\n\nfunc chave(texto: String, acao: Callable) -> CheckButton:\n    var c := CheckButton.new()\n    c.text = texto\n    c.button_pressed = true\n    c.toggled.connect(acao)\n    painel.add_child(c)\n    return c\n\nfunc _ready() -> void:\n    caixa(\"Piso\",Vector3(0,-0.15,0),Vector3(20,0.3,20),8,Color(\"48341f\"))\n    caixa(\"Parede\",Vector3(0,3,3),Vector3(3,6,0.2),1,Color(\"8e5d34\"))\n    corpo = AnimatableBody3D.new()\n    corpo.name = \"CorpoEnsaio\"\n    corpo.sync_to_physics = false\n    corpo.collision_layer = 2\n    corpo.collision_mask = 0\n    corpo.position = Vector3(-7,0.5,0)\n    esfera(corpo,0.3,Color(\"56cfd5\"))\n    add_child(corpo)\n    sensor = Area3D.new()\n    sensor.name = \"Sensor\"\n    sensor.position = Vector3(-4,0.5,0)\n    sensor.collision_layer = 0\n    sensor.collision_mask = 2\n    esfera(sensor,1.5,Color(0.65,0.5,0.2,0.25))\n    sensor.get_child(1).material_override.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA\n    sensor.set_script(preload(\"res://sensor.gd\"))\n    sensor.corpo = corpo\n    add_child(sensor)\n    alvo = Area3D.new()\n    alvo.name = \"Mecanismo\"\n    alvo.position = Vector3(0,1,0)\n    alvo.collision_layer = 4\n    alvo.collision_mask = 0\n    esfera(alvo,0.7,Color(\"d4a359\"))\n    alvo.set_script(preload(\"res://mecanismo.gd\"))\n    add_child(alvo)\n    consultas = Node3D.new()\n    consultas.name = \"Consultas\"\n    var camera := Camera3D.new()\n    camera.name = \"Camera3D\"\n    camera.position = Vector3(0,10,14)\n    consultas.add_child(camera)\n    var raio := RayCast3D.new()\n    raio.name = \"Mira\"\n    camera.add_child(raio)\n    var marcador := Node3D.new()\n    marcador.name = \"Marcador\"\n    var haste := MeshInstance3D.new()\n    var mesh_haste := BoxMesh.new()\n    mesh_haste.size = Vector3(0.06,0.06,0.5)\n    haste.mesh = mesh_haste\n    haste.position.z = -0.25\n    haste.material_override = material(Color(\"59e0a6\"))\n    marcador.add_child(haste)\n    consultas.add_child(marcador)\n    consultas.set_script(preload(\"res://consultas.gd\"))\n    consultas.corpo = corpo\n    consultas.sensor = sensor\n    consultas.alvo = alvo\n    add_child(consultas)\n    camera.look_at(alvo.global_position,Vector3.UP)\n    camera.make_current()\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-55,-30,0)\n    add_child(luz)\n    var ambiente := WorldEnvironment.new()\n    ambiente.environment = Environment.new()\n    ambiente.environment.background_mode = Environment.BG_COLOR\n    ambiente.environment.background_color = Color(\"1b1711\")\n    ambiente.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    ambiente.environment.ambient_light_color = Color(\"cdbd9b\")\n    ambiente.environment.ambient_light_energy = 0.7\n    add_child(ambiente)\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(12,12)\n    fundo.custom_minimum_size.x = 370\n    layer.add_child(fundo)\n    painel = VBoxContainer.new()\n    fundo.add_child(painel)\n    leitura = Label.new()\n    leitura.custom_minimum_size.x = 370\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n    botao(\"Consultar e acionar no centro · E\",consultas.pedir_centro)\n    botao(\"Corpo −0,25 u · A\",func(): consultas.mover_corpo(-0.25))\n    botao(\"Corpo +0,25 u · D\",func(): consultas.mover_corpo(0.25))\n    var l := Label.new()\n    l.text = \"Alcance (u); clique no mundo seleciona\"\n    painel.add_child(l)\n    alcance = HSlider.new()\n    alcance.min_value = 5\n    alcance.max_value = 30\n    alcance.step = 1\n    alcance.value = 20\n    alcance.value_changed.connect(func(v): consultas.alcance=v)\n    painel.add_child(alcance)\n    mascara = OptionButton.new()\n    for texto in [\"13: parede + alvo + piso\",\"12: alvo + piso (atravessa parede)\",\"4: só alvo\",\"8: só piso\"]:\n        mascara.add_item(texto)\n    mascara.item_selected.connect(func(i): consultas.mascara=[13,12,4,8][i])\n    painel.add_child(mascara)\n    areas = chave(\"Raio consulta áreas\",func(v): consultas.incluir_areas=v)\n    corpos = chave(\"Raio consulta corpos\",func(v): consultas.incluir_corpos=v)\n    monitoring = chave(\"Sensor monitoring\",func(v):\n        sensor.set_deferred(\"monitoring\",v)\n        sensor.reiniciar_contagem())\n    filtro_sensor = chave(\"Sensor consulta camada 2\",func(v):\n        sensor.set_deferred(\"collision_mask\",2 if v else 0)\n        sensor.reiniciar_contagem())\n    botao(\"Restaurar tudo · R\",restaurar_tudo)\n\nfunc restaurar_tudo() -> void:\n    consultas.restaurar()\n    corpo.position = Vector3(-7,0.5,0)\n    sensor.set_deferred(\"monitoring\",true)\n    sensor.set_deferred(\"collision_mask\",2)\n    sensor.reiniciar_contagem()\n    alvo.restaurar()\n    alcance.set_value_no_signal(20)\n    mascara.select(0)\n    for c in [areas,corpos,monitoring,filtro_sensor]:\n        c.set_pressed_no_signal(true)\n\nfunc _process(_delta: float) -> void:\n    leitura.text = (\"SENSOR / RAIO / CLIQUE\\nCorpo X=%.2f; detectado=%s\\nEntradas%d / saídas%d; %s\\n%s\\nÚltimo: %s\\nAcionamentos%d | alcance%.0f | máscara%d\\nA/D movem só o corpo do sensor; E consulta centro.\\nClique seleciona; Esc libera foco; R restaura.\" % [\n        corpo.position.x,sensor.detectado(),sensor.entradas,sensor.saidas,sensor.ultimo,\n        consultas.previa,consultas.ultimo,alvo.acionamentos,consultas.alcance,consultas.mascara])\n",
+      "pros": "Prática autocontida com nove arquivos e sem dependências externas.",
+      "cons": "Interface desktop, sem medição de desempenho nem validação real de física neste ambiente."
+    }
+  ],
+  "simulator": {
+    "type": "raycast_picking_3d",
+    "title": "Laboratório: sensor, primeiro impacto e ausência",
+    "description": "Canvas/JS estático em seção z=0: segmento contra esfera e caixas; sensor com duas esferas coplanares. Calcula o primeiro candidato aceito pelos filtros. Não executa Godot, sinais Area3D, projeção de Camera3D, origem interna, back faces, partículas ou click-to-move. Os dois painéis são ensaios independentes.",
+    "guide": [
+      {
+        "title": "Preveja antes de consultar",
+        "text": "Ângulo 0°, alcance 8 u e máscara 13: parede a 2,6 u. Máscara 12: área alvo a 4,3 u. Com máscara 12 e áreas desligadas: piso a 7 u. Alcance 1: nenhum resultado. E guarda o ponto e tenta acionar só o mecanismo; mirar não aciona sozinho."
+      },
+      {
+        "title": "Separe o sensor do raio",
+        "text": "A/D movem o corpo de raio 0,3 u em relação ao sensor de raio 1,5 u. O modelo aceita sobreposição quando |X|≤1,8; monitoring e máscara também precisam estar ligados. Não produz contadores/sinais reais do motor nem mede oclusão do sensor."
+      },
+      {
+        "title": "Use mouse, foco e reinício",
+        "text": "Clique no painel do raio para ajustar direção a 1°; setas giram por 5°. E consulta, A/D movem corpo e R restaura, apenas com foco no desenho e sem repetição/modificadores. Há botões equivalentes. O último impacto não segue a mira; novo comando sem acerto o limpa. Controles funcionam em pausa."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Um raio encontra uma parede antes do mecanismo, e uma consulta por clique pode não encontrar nada. Qual tratamento está correto?",
+    "options": [
+      "Respeitar o primeiro resultado aceito; acionar apenas se ele implementar a ação e tratar Dictionary vazio como ausência de acerto.",
+      "Ignorar a parede depois da consulta se ela não tiver interagir e acionar o objeto atrás dela.",
+      "Usar Vector3.ZERO como falha, porque nunca existe um impacto válido na origem.",
+      "Ligar monitorable no sensor para fazer qualquer RayCast detectar áreas sem mudar seus filtros."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Filtros, primeiro resultado e ação têm contratos separados; ausência não é uma coordenada especial.",
+      "Isso eliminaria a oclusão por uma parede consultada. Ignorá-la precisa ser uma regra explícita no filtro.",
+      "A origem pode ser um ponto válido. Use o Dictionary vazio para representar ausência.",
+      "monitorable não substitui collide_with_areas nem a máscara do raio."
+    ],
+    "explanation": "A consulta retorna o primeiro candidato aceito pelos filtros. A aplicação decide se esse resultado pode receber uma ação. Sem acerto, intersect_ray retorna Dictionary vazio; não reserve uma posição do mundo como sentinela."
+  }
+},
+
   {
     id: "3d-inter-pbr-materials",
     area: "3d",

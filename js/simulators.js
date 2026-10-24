@@ -166,8 +166,8 @@ window.SimulatorEngine = (function () {
     let refresh = () => {};
     const resize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
-      canvas.height = type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
+      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
+      canvas.height = type === "raycast_picking_3d" ? (canvas.width < 500 ? 720 : 440) : type === "springarm_camera_3d" ? (canvas.width < 500 ? 720 : 440) : type === "character_3d_slopes" ? (canvas.width < 500 ? 720 : 560) : type === "csg_boolean_3d" ? (canvas.width < 500 ? 720 : 560) : type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
       canvas.parentElement.style.alignSelf = ["gi_reflection_3d", "vectors_2d", "layers_masks", "camera_parallax_2d", "tween_raycast_2d"].includes(type) ? "start" : "stretch";
       canvas.style.height = "auto";
       canvas.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
@@ -862,43 +862,78 @@ window.SimulatorEngine = (function () {
       }
 
       case "csg_boolean_3d": {
-        addSelect("Operação Booleana do CSG", [
-          { value: "sub", label: "OPERATION_SUBTRACTION (Escavar Buraco)" },
-          { value: "union", label: "OPERATION_UNION (Fundir Formas)" },
-          { value: "inter", label: "OPERATION_INTERSECTION (Apenas Cruzamento)" }
-        ], "op");
-        addSlider("Deslocamento do Cilindro CSG", -60, 60, 2, 0, "offset", "cm");
+        addSelect('Operação de B sobre A',[{value:'sub',label:'Subtração · A menos B'},{value:'union',label:'União · A ou B'},{value:'inter',label:'Interseção · A e B'}],'op');
+        addSlider('Centro X da caixa B',-4,4,.25,0,'offset',' u');
+        addSlider('Ponto de consulta · X',-5,5,.25,0,'px',' u');
+        addSlider('Ponto de consulta · Y',-2,2,.25,0,'py',' u');
+        csg20Reset(state);
+        const move=d=>{state.offset=Math.max(-4,Math.min(4,state.offset+d));};
+        for(const [label,action] of [['B para esquerda · A',()=>move(-.25)],['B para direita · D',()=>move(.25)],['Centralizar B · C',()=>{state.offset=0;}],['Separar B · P',()=>{state.offset=4;}],['Restaurar · R',()=>csg20Reset(state)]])addButton(label,action);
+        state.csgUI=()=>{for(const key of ['op','offset','px','py']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=state[key]+' u';input.setAttribute('aria-valuetext',value.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Seção CSG: A/D ou setas movem caixa B em X por 0,25 unidade; 1 subtração, 2 união, 3 interseção; C centraliza, P separa e R restaura. Apenas com foco no desenho.');
+        const onKey=event=>{const key=event.key.toLowerCase();if(!['a','d','arrowleft','arrowright','1','2','3','c','p','r'].includes(key)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(['a','arrowleft'].includes(key))move(-.25);if(['d','arrowright'].includes(key))move(.25);if(key==='1')state.op='sub';if(key==='2')state.op='union';if(key==='3')state.op='inter';if(key==='c')state.offset=0;if(key==='p')state.offset=4;if(key==='r')csg20Reset(state);refresh();};const onClick=()=>canvas.focus();canvas.addEventListener('keydown',onKey);canvas.addEventListener('click',onClick);const prior=currentCleanup;currentCleanup=()=>{prior?.();canvas.removeEventListener('keydown',onKey);canvas.removeEventListener('click',onClick);};
         break;
       }
 
       case "character_3d_slopes": {
-        addSlider("Inclinação da Rampa 3D", 10, 65, 1, 30, "slope", "°");
-        addSlider("floor_max_angle Permitido", 15, 60, 1, 45, "maxAngle", "°");
-        state.charPos = 0.2;
-        state.jumpY = 0;
-        state.jumpVy = 0;
-        addButton("Pular em 3D (velocity.y = +5.5 m/s)", () => {
-          if (state.jumpY <= 0.01) state.jumpVy = 5.5;
-        });
+        addSlider('Inclinação das rampas',10,60,5,30,'slope','°');
+        addSlider('Limite de chão do modelo',15,60,5,45,'maxAngle','°');
+        addSlider('Alcance de snap do modelo',0,.3,.05,.1,'snap',' u');
+        addSlider('Velocidade inicial do salto',4,7,.5,5,'jump',' u/s');
+        char21Reset(state);
+        addButton('Andar à esquerda por 0,25 s · A',()=>char21Walk(state,-1));
+        addButton('Andar à direita por 0,25 s · D',()=>char21Walk(state,1));
+        addButton('Parar · S',()=>{state.pulse=0;state.direction=0;state.vx=0;});
+        addButton('Saltar · Espaço',()=>char21Jump(state));
+        addButton('Iniciar no alto · P',()=>char21Reset(state,'top'));
+        addButton('Restaurar · R',()=>{Object.assign(state,{slope:30,maxAngle:45,snap:.1,jump:5});char21Reset(state);});
+        addButton('Avançar 0,10 s em pausa',()=>{if(paused)char21Advance(state,.1);});
+        const step=controlsContainer.children[controlsContainer.children.length-1];step.setAttribute('data-char-step','true');
+        const parameters=['slope','maxAngle','snap','jump'].map(key=>[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)).querySelector('#sim-input-'+key));
+        const onChange=()=>{char21Reset(state);state.notice='Parâmetro alterado: ensaio reiniciado para evitar deslocamento da superfície sob o corpo.';refresh();};parameters.forEach(input=>input.addEventListener('input',onChange));
+        const note=document.createElement('p');note.className='study-note';note.style.gridColumn='1 / -1';note.setAttribute('role','status');controlsContainer.appendChild(note);
+        state.charUI=()=>{note.textContent=state.notice;step.disabled=!paused;step.setAttribute('aria-disabled',String(!paused));step.title=paused?'Avança 0,10 s mantendo a pausa.':'Pause para avançar por passos.';for(const key of ['slope','maxAngle','snap','jump']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key),value=group.querySelector('#val-'+key);input.value=String(state[key]);const unit=key==='slope'||key==='maxAngle'?'°':key==='snap'?' u':' u/s';value.textContent=state[key]+unit;input.setAttribute('aria-valuetext',value.textContent);}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Movimento em seção XY: A/D ou setas caminham por 0,25 s por toque; S para, Espaço salta, P começa no alto, R restaura. Apenas com foco no desenho.');
+        const onKey=event=>{const k=event.key.toLowerCase();if(!['a','d','arrowleft','arrowright','s',' ','p','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(k==='a'||k==='arrowleft')char21Walk(state,-1);if(k==='d'||k==='arrowright')char21Walk(state,1);if(k==='s'){state.pulse=0;state.vx=0;}if(k===' ')char21Jump(state);if(k==='p')char21Reset(state,'top');if(k==='r'){Object.assign(state,{slope:30,maxAngle:45,snap:.1,jump:5});char21Reset(state);}refresh();};const onClick=()=>canvas.focus();canvas.addEventListener('keydown',onKey);canvas.addEventListener('click',onClick);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',onKey);canvas.removeEventListener('click',onClick);parameters.forEach(input=>input.removeEventListener('input',onChange));};
         break;
       }
 
       case "springarm_camera_3d": {
-        addSlider("Comprimento Desejado (spring_length)", 2.0, 6.0, 0.2, 4.5, "springLen", "m");
-        addSlider("Distância da Parede Traseira", 1.2, 6.5, 0.2, 3.0, "wallDist", "m");
-        addSlider("Abertura da Lente (Camera3D FOV)", 45, 100, 1, 75, "fov", "°");
+        addSlider('Comprimento desejado L',1,6,.25,4.5,'springLen',' u');
+        addSlider('Distância à face da parede D',.25,7,.25,3,'wallDist',' u');
+        addSlider('Raio da esfera explícita r',.05,.5,.05,.25,'radius',' u');
+        addSlider('Folga do modelo m',0,.2,.01,.05,'margin',' u');
+        addSelect('Máscara física da parede',[{value:'on',label:'Consultar camada 1'},{value:'off',label:'Ignorar camada 1'}],'wallMask');
+        addSlider('FOV vertical · KEEP_HEIGHT',45,100,1,75,'fov','°');
+        addSelect('Proporção da projeção',[{value:'wide',label:'16:9'},{value:'square',label:'1:1'}],'aspect');
+        addButton('Parede −0,25 u · A',()=>{state.wallDist=Math.max(.25,state.wallDist-.25);});
+        addButton('Parede +0,25 u · D',()=>{state.wallDist=Math.min(7,state.wallDist+.25);});
+        addButton('Restaurar · R',()=>camera22Defaults(state));
+        state.cameraUI=()=>{for(const key of ['springLen','wallDist','radius','margin','wallMask','fov','aspect']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=Number(state[key]).toFixed(key==='margin'?2:key==='fov'?0:2)+(key==='fov'?'°':' u');input.setAttribute('aria-valuetext',value.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Esfera e parede em seção: A ou seta esquerda aproxima parede; D ou seta direita afasta; R restaura. Atalhos somente com foco no desenho.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['a','d','arrowleft','arrowright','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(k==='r')camera22Defaults(state);else state.wallDist=Math.max(.25,Math.min(7,state.wallDist+(k==='a'||k==='arrowleft'?-.25:.25)));refresh();};const click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};
         break;
       }
 
       case "raycast_picking_3d": {
-        addSlider("Mira Horizontal 3D", -100, 100, 2, 0, "aimX", "");
-        addSlider("Inclinação da Superfície Alvo", -45, 45, 2, 22, "surfAngle", "°");
-        state.sparks = [];
-        addButton("Disparar Feixe & Alinhar Faíscas pela Normal", () => {
-          for (let i = 0; i < 14; i++) {
-            state.sparks.push({ life: 1.0, spread: (Math.random() - 0.5) * 1.1, speed: 60 + Math.random() * 80 });
-          }
-        });
+        addSlider('Direção em relação a −Y',-65,65,1,0,'aim','°');
+        addSlider('Alcance do segmento',1,10,.25,8,'range',' u');
+        addSelect('Máscara do raio (bits)',[{value:'13',label:'13 · parede + alvo + piso'},{value:'12',label:'12 · alvo + piso'},{value:'4',label:'4 · só alvo'},{value:'8',label:'8 · só piso'}],'rayMask');
+        addSelect('Consultar Area3D no modelo',[{value:'on',label:'Ligado'},{value:'off',label:'Desligado'}],'areas');
+        addSelect('Consultar corpos no modelo',[{value:'on',label:'Ligado'},{value:'off',label:'Desligado'}],'bodies');
+        addSlider('Corpo em X relativo ao sensor',-3,3,.25,-3,'bodyX',' u');
+        addSelect('Monitoring do sensor',[{value:'on',label:'Ligado'},{value:'off',label:'Desligado'}],'monitoring');
+        addSelect('Sensor consulta camada 2',[{value:'on',label:'Ligado'},{value:'off',label:'Desligado'}],'sensorMask');
+        state.attempts=0;state.actions=0;state.lastHit=null;state.lastStatus='Sem consulta por comando';
+        addButton('Consultar e tentar acionar · E',()=>pick23Act(state));
+        addButton('Corpo −0,25 u · A',()=>{state.bodyX=Math.max(-3,state.bodyX-.25);});
+        addButton('Corpo +0,25 u · D',()=>{state.bodyX=Math.min(3,state.bodyX+.25);});
+        addButton('Restaurar · R',()=>pick23Defaults(state));
+        state.pickUI=()=>{for(const key of ['aim','range','rayMask','areas','bodies','bodyX','monitoring','sensorMask']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=Number(state[key]).toFixed(key==='aim'?1:2)+(key==='aim'?'°':' u');input.setAttribute('aria-valuetext',value.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Dois ensaios independentes. Clique no painel do raio para apontar; setas mudam direção; E consulta. A/D movem corpo do sensor; R restaura. Somente com foco no desenho.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['a','d','arrowleft','arrowright','e','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(k==='r')pick23Defaults(state);if(k==='e')pick23Act(state);if(k==='a'||k==='d')state.bodyX=Math.max(-3,Math.min(3,state.bodyX+(k==='a'?-.25:.25)));if(k==='arrowleft'||k==='arrowright')state.aim=Math.max(-65,Math.min(65,state.aim+(k==='arrowleft'?-5:5)));refresh();};
+        const click=event=>{canvas.focus();if(!Number.isFinite(event.clientX)||!Number.isFinite(event.clientY))return;const rect=canvas.getBoundingClientRect(),angle=pick23PointAngle(canvas.width,canvas.height,(event.clientX-rect.left)*canvas.width/rect.width,(event.clientY-rect.top)*canvas.height/rect.height);if(angle!==null){state.aim=angle;refresh();}};
+        canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};
         break;
       }
 
@@ -1021,6 +1056,10 @@ window.SimulatorEngine = (function () {
       if(type === "multiplayer_rpc_sim") state.netUI();
       if(type === "space_3d_axes") state.spaceUI();
       if(type === "transform_basis_3d") state.basisUI();
+      if(type === "csg_boolean_3d") state.csgUI();
+      if(type === "character_3d_slopes") state.charUI();
+      if(type === "springarm_camera_3d") state.cameraUI();
+      if(type === "raycast_picking_3d") state.pickUI();
       if (type === "fsm_state_machine") {
         const group=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-actorX"));
         const input=group.querySelector("#sim-input-actorX");input.value=String(state.actorX);
@@ -1051,7 +1090,7 @@ window.SimulatorEngine = (function () {
       }
 
     }
-    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d"].includes(type)) draw(0); };
+    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d", "csg_boolean_3d", "character_3d_slopes", "springarm_camera_3d", "raycast_picking_3d"].includes(type)) draw(0); };
     function loop(now) {
       activeLoopId = null;
       if (paused || document.hidden) return;
@@ -1077,7 +1116,7 @@ window.SimulatorEngine = (function () {
           cancelAnimationFrame(activeLoopId);
           activeLoopId = null;
         }
-        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d"].includes(type)) draw(0);
+        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d"].includes(type)) draw(0);
         schedule();
       }
     };
@@ -1451,6 +1490,60 @@ window.SimulatorEngine = (function () {
     return {source,q,rotation,basis,origin,parent,point,world:basis19Vec(parent,point),worldOrigin:basis19Vec(parent,origin),worldBasis:basis19Mul(parent,basis)};
   }
 
+  function csg20Reset(s){Object.assign(s,{op:'sub',offset:0,px:0,py:0});}
+  function csg20Contains(s,x,y){const a=Math.abs(x)<2&&Math.abs(y)<1.5,b=Math.abs(x-s.offset)<1&&Math.abs(y)<1;return{a,b,result:s.op==='union'?(a||b):s.op==='inter'?(a&&b):(a&&!b)};}
+  function csg20Area(s){const overlap=Math.max(0,Math.min(2,s.offset+1)-Math.max(-2,s.offset-1))*2;return{overlap,result:s.op==='union'?16-overlap:s.op==='inter'?overlap:12-overlap};}
+  function csg20Cells(s){const xs=[...new Set([-2,2,s.offset-1,s.offset+1])].sort((a,b)=>a-b),ys=[-1.5,-1,1,1.5],cells=[];for(let i=0;i<xs.length-1;i++)for(let j=0;j<ys.length-1;j++){const x=xs[i],y=ys[j],width=xs[i+1]-x,height=ys[j+1]-y;if(csg20Contains(s,x+width/2,y+height/2).result)cells.push({x,y,width,height});}return cells;}
+  function csg20Probe(s){const near=(v,edge)=>Math.abs(v-edge)<1e-8,onA=((near(s.px,-2)||near(s.px,2))&&Math.abs(s.py)<=1.5)||((near(s.py,-1.5)||near(s.py,1.5))&&Math.abs(s.px)<=2),onB=((near(s.px,s.offset-1)||near(s.px,s.offset+1))&&Math.abs(s.py)<=1)||((near(s.py,-1)||near(s.py,1))&&Math.abs(s.px-s.offset)<=1);return {...csg20Contains(s,s.px,s.py),boundary:onA||onB};}
+
+  function char21Ground(s,x){const k=Math.tan(s.slope*Math.PI/180),height=3*k;if(x<=0)return{height:0,angle:0};if(x<3)return{height:x*k,angle:s.slope};if(x<=5)return{height,angle:0};if(x<8)return{height:(8-x)*k,angle:s.slope};return{height:0,angle:0};}
+  function char21Reset(s,place='start'){Object.assign(s,{x:place==='top'?4.8:-1.5,y:0,vy:0,vx:0,realVy:0,onFloor:true,wall:false,halted:false,pulse:0,direction:0,clock:0,acc:0,jumps:0,landings:0,snaps:0,losses:0,notice:'Parado: dê um comando para andar ou saltar.'});s.y=char21Ground(s,s.x).height;}
+  function char21Walk(s,d){if(s.halted){s.notice='Ensaio encerrado em contato íngreme. Restaure ou use um preset.';return;}s.direction=d;s.pulse=.25;s.notice='Caminhada por comando: 0,25 s; sem repetição automática.';}
+  function char21Jump(s){if(s.halted||!s.onFloor){s.notice='Salto recusado: sem apoio no modelo.';return false;}s.vy=s.jump;s.onFloor=false;s.jumps++;s.notice='Salto aplicado em +Y; snap não atua na subida.';return true;}
+  function char21Step(s,h){
+    if(s.halted)return;s.clock+=h;s.wall=false;const wasFloor=s.onFloor,oldX=s.x,oldY=s.y;
+    const active=s.pulse>1e-9,dir=active?s.direction:0;s.pulse=Math.max(0,s.pulse-h);let nx=Math.max(-3,Math.min(11,s.x+dir*2*h)),g=char21Ground(s,nx),gap=oldY-g.height;
+    if(wasFloor&&g.angle>s.maxAngle+1e-8&&g.height>oldY+1e-8){nx=oldX;g=char21Ground(s,nx);s.wall=true;s.notice='Subida rejeitada como barreira didática; o motor real resolve seus contatos.';}
+    s.vx=(nx-oldX)/h;s.x=nx;gap=oldY-g.height;
+    if(wasFloor&&g.angle<=s.maxAngle+1e-8){if(gap<=1e-8){s.y=g.height;s.realVy=(s.y-oldY)/h;s.vy=0;s.onFloor=true;return;}if(gap<=s.snap+1e-8){s.y=g.height;s.realVy=(s.y-oldY)/h;s.vy=0;s.onFloor=true;s.snaps++;return;}s.losses++;}
+    s.onFloor=false;s.y=oldY+s.vy*h-.5*9.8*h*h;s.vy-=9.8*h;
+    if(s.y<=g.height+1e-9&&s.vy<=0){s.y=g.height;s.vy=0;if(g.angle<=s.maxAngle+1e-8){s.onFloor=true;s.landings++;s.notice='Pouso no modelo; salto disponível novamente.';}else{s.wall=true;s.halted=true;s.pulse=0;s.vx=0;s.notice='Contato íngreme: ensaio encerrado. Este modelo não resolve escorregamento em parede; use Godot para testar.';}}
+    s.realVy=(s.y-oldY)/h;
+  }
+  function char21Advance(s,dt){if(!Number.isFinite(dt)||dt<=0)return;s.acc+=dt;const h=1/120;while(s.acc>=h-1e-10){char21Step(s,h);s.acc-=h;}if(Math.abs(s.acc)<1e-10)s.acc=0;}
+
+
+  function camera22Defaults(s) { Object.assign(s,{springLen:4.5,wallDist:3,radius:.25,margin:.05,wallMask:'on',fov:75,aspect:'wide'}); }
+  function camera22Measure(s) {
+    const L=s.springLen,D=s.wallDist,r=s.radius,m=s.margin,enabled=s.wallMask==='on',unsafe=enabled&&D<=r,hit=enabled&&D-r<=L;
+    const length=hit?Math.max(0,Math.min(L,D-r-m)):L;
+    const ratio=s.aspect==='square'?1:16/9,v=s.fov*Math.PI/180;
+    return {length,hit,unsafe,horizontal:2*Math.atan(Math.tan(v/2)*ratio)*180/Math.PI,height:2*length*Math.tan(v/2),width:2*length*Math.tan(v/2)*ratio,ratio};
+  }
+  function pick23Defaults(s) { Object.assign(s,{aim:0,range:8,rayMask:'13',areas:'on',bodies:'on',bodyX:-3,monitoring:'on',sensorMask:'on',attempts:0,actions:0,lastHit:null,lastStatus:'Sem consulta por comando'}); }
+  function pick23Circle(o,d,c,r,L) {
+    const q=[o[0]-c[0],o[1]-c[1]],b=q[0]*d[0]+q[1]*d[1],disc=b*b-(q[0]*q[0]+q[1]*q[1]-r*r);
+    if(disc < -1e-10)return null;const t=-b-Math.sqrt(Math.max(0,disc));if(t<0||t>L+1e-10)return null;
+    const point=[o[0]+d[0]*t,o[1]+d[1]*t],normal=[(point[0]-c[0])/r,(point[1]-c[1])/r];return {t,point,normal};
+  }
+  function pick23Box(o,d,min,max,L) {
+    let near=-Infinity,far=Infinity,normal=[0,0];for(let axis=0;axis<2;axis++){
+      if(Math.abs(d[axis])<1e-12){if(o[axis]<min[axis]||o[axis]>max[axis])return null;continue;}
+      let a=(min[axis]-o[axis])/d[axis],b=(max[axis]-o[axis])/d[axis],n=[0,0];n[axis]=-Math.sign(d[axis]);if(a>b)[a,b]=[b,a];if(a>near){near=a;normal=n;}far=Math.min(far,b);if(near>far+1e-10)return null;
+    }if(near<0||near>L+1e-10)return null;return {t:near,point:[o[0]+d[0]*near,o[1]+d[1]*near],normal};
+  }
+  function pick23Measure(s) {
+    const rad=s.aim*Math.PI/180,o=[0,5],d=[Math.sin(rad),-Math.cos(rad)],mask=Number(s.rayMask),hits=[];
+    const add=(hit,name,kind)=>{if(hit)hits.push({...hit,name,kind});};
+    if(s.bodies==='on'&&(mask&1))add(pick23Box(o,d,[-1.2,2.2],[1.2,2.4],s.range),'Parede','corpo');
+    if(s.areas==='on'&&(mask&4))add(pick23Circle(o,d,[0,0],.7,s.range),'Mecanismo','área');
+    if(s.bodies==='on'&&(mask&8))add(pick23Box(o,d,[-5.5,-2.2],[5.5,-2],s.range),'Piso','corpo');
+    hits.sort((a,b)=>a.t-b.t);const geometric=Math.abs(s.bodyX)<=1.8+1e-10;
+    return {o,d,end:[o[0]+d[0]*s.range,o[1]+d[1]*s.range],hit:hits[0]||null,geometric,detected:geometric&&s.monitoring==='on'&&s.sensorMask==='on'};
+  }
+  function pick23Act(s) { const hit=pick23Measure(s).hit;s.attempts++;s.lastHit=hit?JSON.parse(JSON.stringify(hit)):null;if(hit?.name==='Mecanismo'){s.actions++;s.lastStatus='Mecanismo acionado uma vez';}else s.lastStatus=hit?'Primeiro objeto não interagível':'Sem resultado; nenhum impacto'; }
+  function pick23Geometry(w,h) { const lw=w<500?320:640,lh=w<500?720:360,scale=Math.min(w/lw,h/lh);return {lw,lh,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2}; }
+  function pick23PointAngle(w,h,x,y) { const g=pick23Geometry(w,h),px=(x-g.ox)/g.scale,py=(y-g.oy)/g.scale;if(px<15||px>305||py<60||py>265)return null;const wx=(px-160)/22,wy=(195-py)/22;if(wy>=5)return null;return Math.round(Math.max(-65,Math.min(65,Math.atan2(wx,5-wy)*180/Math.PI))); }
   function renderSimulation(type, ctx, w, h, dt, state, telemetry) {
     switch (type) {
       case "scene_tree": {
@@ -2172,186 +2265,72 @@ window.SimulatorEngine = (function () {
 
 
       case "csg_boolean_3d": {
-        const cx = w * 0.5, cy = h * 0.5;
-        const ox = state.offset;
-
-        ctx.save();
-        if (state.op === "union") {
-          ctx.fillStyle = "#b85d35";
-          ctx.strokeStyle = "#f4d088";
-          ctx.lineWidth = 2.5;
-          ctx.fillRect(cx - 85, cy - 60, 170, 120);
-          ctx.strokeRect(cx - 85, cy - 60, 170, 120);
-          ctx.beginPath();
-          ctx.arc(cx + ox, cy - 50, 48, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-        } else if (state.op === "sub") {
-          ctx.fillStyle = "#b85d35";
-          ctx.strokeStyle = "#f4d088";
-          ctx.lineWidth = 2.5;
-          ctx.fillRect(cx - 85, cy - 60, 170, 120);
-          ctx.strokeRect(cx - 85, cy - 60, 170, 120);
-          // Escava o buraco com a cor do fundo
-          ctx.fillStyle = "#090604";
-          ctx.beginPath();
-          ctx.arc(cx + ox, cy - 20, 46, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = "#5ce1e6";
-          ctx.stroke();
-        } else {
-          // Intersection
-          ctx.beginPath();
-          ctx.rect(cx - 85, cy - 60, 170, 120);
-          ctx.clip();
-          ctx.fillStyle = "#4cd97b";
-          ctx.beginPath();
-          ctx.arc(cx + ox, cy - 20, 56, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.restore();
-
-        telemetry.innerHTML = `
-          <div>CSG Operation: <strong>${state.op.toUpperCase()}</strong></div>
-          <div>use_collision: true (Colisão recalculada!)</div>
-        `;
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?720:360,scale=Math.min(w/lw,h/lh),area=csg20Area(state),probe=csg20Probe(state),names={sub:'A MENOS B',union:'A OU B',inter:'A E B'};
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(left,title)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(left,10,300,340);ctx.strokeRect(left,10,300,340);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,left+12,36);};
+        const unit=24,xy=(x,y,left)=>[left+150+x*unit,168-y*unit],grid=left=>{ctx.strokeStyle='#4c3821';ctx.lineWidth=1;for(let x=-5;x<=5;x++){const a=xy(x,-2,left),b=xy(x,2,left);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}for(let y=-2;y<=2;y++){const a=xy(-5,y,left),b=xy(5,y,left);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText('+X →',left+235,244);ctx.fillText('+Y ↑',left+14,75);};
+        const rect=(x,y,width,height,left,fill,stroke)=>{const p=xy(x,y+height,left);if(fill){ctx.fillStyle=fill;ctx.fillRect(p[0],p[1],width*unit,height*unit);}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.strokeRect(p[0],p[1],width*unit,height*unit);}};
+        const point=left=>{const p=xy(state.px,state.py,left);ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p[0]-5,p[1]);ctx.lineTo(p[0]+5,p[1]);ctx.moveTo(p[0],p[1]-5);ctx.lineTo(p[0],p[1]+5);ctx.stroke();};
+        panel(10,'ENTRADAS · SEÇÃO Z=0');grid(10);rect(-2,-1.5,4,3,10,'rgba(212,163,89,0.45)','#f4d088');rect(state.offset-1,-1,2,2,10,'rgba(92,225,230,0.35)','#5ce1e6');point(10);
+        ctx.font='12px JetBrains Mono';ctx.fillStyle='#f4d088';ctx.fillText('A: caixa 4 × 3 × 1 u',24,272);ctx.fillStyle='#5ce1e6';ctx.fillText('B: caixa 2 × 2 × 1,4 u',24,296);ctx.fillStyle='#d2bc95';ctx.fillText(`B.x=${state.offset.toFixed(2)} · cruz: consulta`,24,326);
+        if(stacked)ctx.translate(-320,360);panel(330,'RESULTADO · '+names[state.op]);grid(330);
+        for(const cell of csg20Cells(state))rect(cell.x,cell.y,cell.width,cell.height,330,'#b8793c',null);
+        // Só contornos externos: não apagar a grade nas regiões removidas.
+        for(const c of csg20Cells(state)){const edges=[[c.x,c.y,c.x+c.width,c.y,c.x+c.width/2,c.y-1e-6],[c.x,c.y+c.height,c.x+c.width,c.y+c.height,c.x+c.width/2,c.y+c.height+1e-6],[c.x,c.y,c.x,c.y+c.height,c.x-1e-6,c.y+c.height/2],[c.x+c.width,c.y,c.x+c.width,c.y+c.height,c.x+c.width+1e-6,c.y+c.height/2]];for(const [ax,ay,bx,by,sx,sy]of edges)if(!csg20Contains(state,sx,sy).result){const a=xy(ax,ay,330),b=xy(bx,by,330);ctx.strokeStyle='#f4d088';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}}
+        point(330);ctx.fillStyle='#f4d088';ctx.font='12px JetBrains Mono';ctx.fillText(`Área da seção: ${area.result.toFixed(2)} u²`,344,272);ctx.fillText(`Sobreposição A∩B: ${area.overlap.toFixed(2)} u²`,344,296);ctx.fillStyle='#d2bc95';ctx.fillText(area.result===0?'Seção vazia · sem área interna':'Preenchido: material da seção',344,326);ctx.restore();
+        telemetry.innerHTML=`<div>Operação <strong>${names[state.op]}</strong>; B.x=<strong>${state.offset.toFixed(2)} u</strong>. Mesmas dimensões e posição de B em todas as operações. Área A=<strong>12</strong>, B=<strong>4</strong>, sobreposição=<strong>${area.overlap.toFixed(2)}</strong>, resultado=<strong>${area.result.toFixed(2)} u²</strong>.</div><div>Consulta (X,Y,Z)=<strong>(${state.px.toFixed(2)}, ${state.py.toFixed(2)}, 0)</strong>: ${probe.boundary?'<strong>sobre limite de A ou B</strong>; classificação de interior não exibida.':`interior A=<strong>${probe.a?'sim':'não'}</strong>, B=<strong>${probe.b?'sim':'não'}</strong>, resultado=<strong>${probe.result?'sim':'não'}</strong>.`} Cruz branca indica o ponto.</div><div>Modelo analítico estático da <strong>seção XY em Z=0</strong>, sem perspectiva/triangulação CSG. Grade de 1 u, mesma escala nas duas vistas. Áreas são da seção, não volume, polígonos ou custo de processamento.</div><div><strong>Sem motor Godot ou física.</strong> Não cria nem recalcula colisões, não importa modelos e não executa bake. Tangência tem área de interseção zero; tolerâncias/topologia reais precisam ser verificadas no motor.</div>`;
         break;
       }
 
       case "character_3d_slopes": {
-        const canClimb = state.slope <= state.maxAngle;
-        if (canClimb) {
-          state.charPos = (state.charPos + dt * 0.35) % 1;
-        } else {
-          state.charPos = Math.max(0.1, state.charPos - dt * 0.4);
-        }
-
-        if (state.jumpY > 0 || state.jumpVy > 0) {
-          state.jumpVy -= 9.8 * dt;
-          state.jumpY = Math.max(0, state.jumpY + state.jumpVy * dt * 12);
-        }
-
-        const startX = 90, startY = 235;
-        const rad = (state.slope * Math.PI) / 180;
-        const len = 240;
-        const endX = startX + Math.cos(rad) * len;
-        const endY = startY - Math.sin(rad) * len;
-
-        // Rampa 3D
-        ctx.fillStyle = canClimb ? "#4d351b" : "#6e2519";
-        ctx.strokeStyle = canClimb ? "#f4d088" : "#ff5544";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        ctx.lineTo(endX, endY);
-        ctx.lineTo(endX, startY);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Cápsula CharacterBody3D
-        const px = startX + Math.cos(rad) * (len * state.charPos);
-        const py = startY - Math.sin(rad) * (len * state.charPos) - state.jumpY;
-
-        ctx.fillStyle = "#5ce1e6";
-        ctx.beginPath();
-        ctx.roundRect(px - 14, py - 42, 28, 42, 14);
-        ctx.fill();
-
-        telemetry.innerHTML = `
-          <div>Rampa: ${state.slope}° | floor_max_angle: ${state.maxAngle}°</div>
-          <div>Status: <strong>${canClimb ? "Subindo Rampa (is_on_floor = true)" : "Íngreme Demais! Escorregando!"}</strong></div>
-        `;
+        char21Advance(state,dt);
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?720:360,scale=Math.min(w/lw,h/lh),top=char21Ground(state,4).height,ground=char21Ground(state,state.x),status=state.halted?'ENSAIO ENCERRADO':state.onFloor?'APOIADO NO MODELO':state.vy>0?'NO AR · SUBINDO':'NO AR · DESCENDO';
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,340);ctx.strokeRect(x,10,300,340);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};panel(10,'PISTA · SEÇÃO XY');
+        const unit=Math.min(18,185/(top+3)),xy=(x,y)=>[35+(x+3)*unit,260-y*unit],pts=[[-3,0],[0,0],[3,top],[5,top],[8,0],[11,0]];
+        ctx.strokeStyle='#4c3821';ctx.lineWidth=1;for(let x=-3;x<=11;x++){const a=xy(x,0),b=xy(x,top+2);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}for(let y=0;y<=top+2;y++){const a=xy(-3,y),b=xy(11,y);ctx.beginPath();ctx.moveTo(...a);ctx.lineTo(...b);ctx.stroke();}
+        ctx.fillStyle='#79502c';ctx.beginPath();pts.forEach(([x,y],i)=>{const p=xy(x,y);if(i===0)ctx.moveTo(...p);else ctx.lineTo(...p);});ctx.lineTo(...xy(11,-.3));ctx.lineTo(...xy(-3,-.3));ctx.closePath();ctx.fill();ctx.strokeStyle=state.slope<=state.maxAngle?'#f4d088':'#ff8b7b';ctx.lineWidth=3;ctx.beginPath();pts.forEach(([x,y],i)=>{const p=xy(x,y);if(i===0)ctx.moveTo(...p);else ctx.lineTo(...p);});ctx.stroke();
+        const p=xy(state.x,state.y),cw=Math.max(7,.6*unit),ch=1.8*unit;ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.roundRect(p[0]-cw/2,p[1]-ch,cw,ch,cw/2);ctx.fill();ctx.fillStyle='#ffffff';ctx.beginPath();ctx.arc(p[0],p[1],2.5,0,Math.PI*2);ctx.fill();
+        ctx.font='12px JetBrains Mono';ctx.fillStyle='#d2bc95';ctx.fillText('Ponto branco: pés do modelo',24,292);ctx.fillText('2 u/s em X · g=−9,8 u/s²',24,316);ctx.fillText('Grade: 1 u · sem varredura 3D',24,338);
+        if(stacked)ctx.translate(-320,360);panel(330,'LEITURA DO ENSAIO');ctx.font='12px JetBrains Mono';const lines=[status,`x=${state.x.toFixed(3)}  y=${state.y.toFixed(3)} u`,`vx=${state.vx.toFixed(3)} vy voo=${state.vy.toFixed(3)}`,`Δy/h=${state.realVy.toFixed(3)} u/s`,`Ângulo local: ${ground.angle}°`,`Limite: ${state.maxAngle}° · snap ${state.snap.toFixed(2)} u`,`Saltos: ${state.jumps} · pousos: ${state.landings}`,`Snaps: ${state.snaps} · perdas: ${state.losses}`,`Tempo: ${state.clock.toFixed(2)} s`];lines.forEach((text,i)=>{ctx.fillStyle=i===0?'#5ce1e6':'#d2bc95';ctx.fillText(text,344,74+i*25);});ctx.fillStyle='#f4d088';ctx.fillText('Modelo pontual, não CharacterBody',344,318);ctx.fillText('R restaura · P inicia no alto',344,338);ctx.restore();
+        telemetry.innerHTML=`<div>Estado: <strong>${status}</strong>; apoio=<strong>${state.onFloor?'sim':'não'}</strong>; barreira/contato íngreme=<strong>${state.wall?'sim':'não'}</strong>. Pés <strong>(${state.x.toFixed(3)}, ${state.y.toFixed(3)})</strong> u; vx=<strong>${state.vx.toFixed(3)}</strong>, vy de voo=<strong>${state.vy.toFixed(3)}</strong> u/s. Taxa medida Δy/h=<strong>${state.realVy.toFixed(3)}</strong> u/s; apoio/snap também mudam Y.</div><div>Rampa configurada: <strong>${state.slope}°</strong>. Superfície na posição: <strong>${ground.angle}°</strong>; limite <strong>${state.maxAngle}°</strong>. Classificar chão requer contato, não apenas comparar ângulos. Snap do modelo <strong>${state.snap.toFixed(2)} u</strong>, só na continuação de apoio descendente; não atua durante salto ascendente.</div><div>Saltos <strong>${state.jumps}</strong>, pousos <strong>${state.landings}</strong>, snaps <strong>${state.snaps}</strong>, perdas de apoio <strong>${state.losses}</strong>; tempo <strong>${state.clock.toFixed(2)} s</strong>. Integração fixa 1/120 s, comando horizontal dura 0,25 s. Pausa permite preparar comandos e avançar 0,10 s.</div><div>Canvas/JS com pés pontuais em seção XY, sem Godot, cápsula física, paredes/tetos ou algoritmo move_and_slide. Subida íngreme é bloqueada didaticamente; contato íngreme em queda encerra o ensaio. Não calcula escorregamento, step-up de escadas ou desempenho do motor. Velocidade fixa em X, sem reproduzir floor_constant_speed.</div>`;
         break;
       }
 
+
+
       case "springarm_camera_3d": {
-        const playerX = 130, playerY = 165;
-        const actualLen = Math.min(state.springLen, state.wallDist - 0.3);
-        const wallPx = playerX + state.wallDist * 48;
-        const camPx = playerX + actualLen * 48;
-
-        // Parede 3D
-        ctx.fillStyle = "#593d20";
-        ctx.fillRect(wallPx, 55, 24, 175);
-        ctx.strokeStyle = "#f4d088";
-        ctx.strokeRect(wallPx, 55, 24, 175);
-
-        // Cone de Visão (FOV) da Camera3D até o Jogador
-        const fovSpread = Math.tan(((state.fov * 0.5) * Math.PI) / 180) * 95;
-        ctx.fillStyle = "rgba(92, 225, 230, 0.14)";
-        ctx.beginPath();
-        ctx.moveTo(camPx, playerY - 20);
-        ctx.lineTo(playerX - 40, playerY - 20 - fovSpread);
-        ctx.lineTo(playerX - 40, playerY - 20 + fovSpread);
-        ctx.closePath();
-        ctx.fill();
-
-        // Braço SpringArm3D
-        ctx.strokeStyle = actualLen < state.springLen ? "#ffaa33" : "#4cd97b";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(playerX, playerY - 20);
-        ctx.lineTo(camPx, playerY - 20);
-        ctx.stroke();
-
-        drawGear(ctx, playerX, playerY, 24, 8, state.t, "#c87d32", "#f4d088");
-        ctx.fillStyle = "#5ce1e6";
-        ctx.fillRect(camPx - 10, playerY - 32, 20, 24);
-
-        telemetry.innerHTML = `
-          <div>spring_length deseado: ${state.springLen.toFixed(1)}m</div>
-          <div>Comprimento Real: <strong>${actualLen.toFixed(1)}m</strong> ${actualLen < state.springLen ? "(Retraído pela Parede!)" : ""}</div>
-          <div>Camera3D.fov: ${state.fov}°</div>
-        `;
+        const a=camera22Measure(state),stacked=w<500,lw=stacked?320:640,lh=stacked?720:360,scale=Math.min(w/lw,h/lh),status=a.unsafe?'ORIGEM EM REGIÃO INSEGURA':!a.hit?'COMPRIMENTO LIVRE':'BRAÇO RECOLHIDO';
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,340);ctx.strokeRect(x,10,300,340);ctx.fillStyle='#f4d088';ctx.font='bold 13px Cinzel';ctx.fillText(title,x+12,36);};
+        panel(10,'ESFERA × PAREDE · EIXO +Z');
+        ctx.strokeStyle='#5a452b';ctx.lineWidth=1;for(let i=0;i<=7;i++){const x=42+i*33;ctx.beginPath();ctx.moveTo(x,85);ctx.lineTo(x,236);ctx.stroke();ctx.fillStyle='#d2bc95';ctx.font='11px JetBrains Mono';ctx.fillText(String(i),x-3,252);}
+        const px=42,cy=170,wall=px+state.wallDist*33,end=px+state.springLen*33,cam=px+a.length*33;
+        ctx.strokeStyle='#b48b4c';ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(px,cy);ctx.lineTo(end,cy);ctx.stroke();ctx.setLineDash([]);
+        ctx.fillStyle=state.wallMask==='on'?'#b26a3a':'#4f4840';ctx.fillRect(wall,85,8,151);ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.arc(px,cy,5,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle='#5ce1e6';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(px,cy);ctx.lineTo(cam,cy);ctx.stroke();ctx.fillStyle='#d4a359';ctx.beginPath();ctx.arc(cam,cy,Math.max(2,state.radius*33),0,Math.PI*2);ctx.fill();ctx.strokeStyle='#f6e6bd';ctx.strokeRect(cam-5,cy-5,10,10);
+        ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText('Pivot',25,72);ctx.fillText('Câmera olha −Z ←',86,72);ctx.fillText('Grade: 1 u · alvo fixo',24,278);ctx.fillStyle=a.unsafe?'#ff9d8e':'#5ce1e6';ctx.fillText(status,24,306);ctx.fillStyle='#f4d088';ctx.fillText('Centro: '+a.length.toFixed(2)+' u',24,332);
+        if(stacked)ctx.translate(-320,360);panel(330,'PROJEÇÃO · SEÇÃO VERTICAL');
+        const v=state.fov*Math.PI/180,unit=Math.min(34,105/(6*Math.tan(v/2))),cx=354,y=170,tx=cx+a.length*unit,half=a.height*.5*unit;
+        ctx.fillStyle='rgba(92,225,230,.12)';ctx.beginPath();ctx.moveTo(cx,y);ctx.lineTo(tx,y-half);ctx.lineTo(tx,y+half);ctx.closePath();ctx.fill();ctx.strokeStyle='#5ce1e6';ctx.lineWidth=2;ctx.stroke();ctx.strokeStyle='#d4a359';ctx.beginPath();ctx.moveTo(tx,y-half);ctx.lineTo(tx,y+half);ctx.stroke();ctx.fillStyle='#f6e6bd';ctx.fillRect(cx-4,y-4,8,8);ctx.font='12px JetBrains Mono';ctx.fillStyle='#d2bc95';ctx.fillText('Câmera → plano do pivot',344,65);ctx.fillText('d='+a.length.toFixed(2)+' u; FOVv='+state.fov+'°',344,282);ctx.fillText('Altura: '+a.height.toFixed(2)+' u',344,306);ctx.fillText('FOVh: '+a.horizontal.toFixed(2)+'°',344,332);ctx.restore();
+        telemetry.innerHTML=`<div>Modelo: <strong>${status}</strong>. Centro da câmera <strong>${a.length.toFixed(2)} u</strong>; desejado L=<strong>${state.springLen.toFixed(2)} u</strong>. Parede D=${state.wallDist.toFixed(2)}, raio r=${state.radius.toFixed(2)}, folga m=${state.margin.toFixed(2)} u. ${state.wallMask==='off'?'Parede ignorada: o desenho pode intersectá-la.':'Consulta da camada física 1 ligada.'}</div><div>Quando D−r ≤ L e a parede é consultada: d=max(0, min(L, D−r−m)); caso contrário d=L. ${a.unsafe?'Origem já sobreposta à esfera/parede: reposicione o pivot; o zero calculado não é uma solução física.':''} Fórmula analítica própria, sem varredura 3D ou get_hit_length da Godot.</div><div>Perspectiva KEEP_HEIGHT: FOV vertical <strong>${state.fov}°</strong>, horizontal <strong>${a.horizontal.toFixed(2)}°</strong>, proporção <strong>${a.ratio===1?'1:1':'16:9'}</strong>. No plano perpendicular a d=${a.length.toFixed(2)} u: altura <strong>${a.height.toFixed(2)} u</strong>, largura <strong>${a.width.toFixed(2)} u</strong>. Altura=2d × tan(FOVv/2). Mudar FOV não move o centro neste modelo de esfera explícita.</div><div>Canvas/JS estático por comando. Esfera contra plano infinito perpendicular a +Z; não representa a pirâmide automática da Camera3D, near/far, giro, colisão inicial resolvida, quinas, renderização ou suavização da Godot. O projeto de apoio contém os ensaios no motor. Pausa mantém o desenho e permite ajustar controles; R restaura sem recarga.</div>`;
         break;
       }
 
       case "raycast_picking_3d": {
-        const cx = w * 0.5 + state.aimX;
-        const cy = 185;
-        const rad = (state.surfAngle * Math.PI) / 180;
-
-        // Superfície 3D inclinada
-        ctx.strokeStyle = "#f4d088";
-        ctx.lineWidth = 5;
-        ctx.beginPath();
-        ctx.moveTo(cx - Math.cos(rad) * 110, cy - Math.sin(rad) * 110);
-        ctx.lineTo(cx + Math.cos(rad) * 110, cy + Math.sin(rad) * 110);
-        ctx.stroke();
-
-        // Feixe vindo da câmera
-        ctx.strokeStyle = "#5ce1e6";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(w * 0.5, 25);
-        ctx.lineTo(cx, cy);
-        ctx.stroke();
-
-        // Vetor Normal perpendicular à superfície
-        const nx = Math.sin(rad);
-        const ny = -Math.cos(rad);
-        ctx.strokeStyle = "#4cd97b";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(cx, cy);
-        ctx.lineTo(cx + nx * 65, cy + ny * 65);
-        ctx.stroke();
-
-        // Faíscas alinhadas à Normal
-        state.sparks = state.sparks.filter((s) => s.life > 0);
-        state.sparks.forEach((s) => {
-          s.life -= dt * 1.6;
-          const a = Math.atan2(ny, nx) + s.spread;
-          const dist = (1 - s.life) * s.speed;
-          ctx.fillStyle = "#ffaa33";
-          ctx.fillRect(cx + Math.cos(a) * dist, cy + Math.sin(a) * dist, 4, 4);
-        });
-
-        telemetry.innerHTML = `
-          <div>Impacto 3D: get_collision_point()</div>
-          <div>get_collision_normal(): (${nx.toFixed(2)}, ${(-ny).toFixed(2)}, 0.0)</div>
-        `;
+        const a=pick23Measure(state),g=pick23Geometry(w,h),stacked=w<500;ctx.save();ctx.translate(g.ox,g.oy);ctx.scale(g.scale,g.scale);
+        const panel=(x,title)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,340);ctx.strokeRect(x,10,300,340);ctx.fillStyle='#f4d088';ctx.font='bold 13px Cinzel';ctx.fillText(title,x+12,36);};
+        panel(10,'RAIO FINITO · SEÇÃO z=0');const xy=p=>[160+22*p[0],195-22*p[1]];ctx.save();ctx.beginPath();ctx.rect(15,60,290,205);ctx.clip();
+        ctx.strokeStyle='#463521';ctx.lineWidth=1;for(let x=-6;x<=6;x++){ctx.beginPath();ctx.moveTo(...xy([x,-3]));ctx.lineTo(...xy([x,6]));ctx.stroke();}for(let y=-3;y<=6;y++){ctx.beginPath();ctx.moveTo(...xy([-6,y]));ctx.lineTo(...xy([6,y]));ctx.stroke();}
+        ctx.fillStyle='#a16b3a';ctx.fillRect(...xy([-1.2,2.4]),2.4*22,.2*22);ctx.fillRect(...xy([-5.5,-2]),11*22,.2*22);
+        ctx.fillStyle='#d4a359';ctx.beginPath();ctx.arc(...xy([0,0]),.7*22,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#5ce1e6';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(...xy(a.o));ctx.lineTo(...xy(a.hit?.point||a.end));ctx.stroke();ctx.fillStyle='#5ce1e6';ctx.fillRect(xy(a.o)[0]-4,xy(a.o)[1]-4,8,8);
+        if(a.hit){const p=xy(a.hit.point);ctx.fillStyle='#fff6dc';ctx.beginPath();ctx.arc(...p,3,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#77e4ab';ctx.beginPath();ctx.moveTo(...p);ctx.lineTo(p[0]+a.hit.normal[0]*30,p[1]-a.hit.normal[1]*30);ctx.stroke();}
+        if(state.lastHit){const p=xy(state.lastHit.point);ctx.strokeStyle='#ffcc86';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p[0]-5,p[1]-5);ctx.lineTo(p[0]+5,p[1]+5);ctx.moveTo(p[0]-5,p[1]+5);ctx.lineTo(p[0]+5,p[1]-5);ctx.stroke();}
+        ctx.fillStyle='#d2bc95';ctx.font='10px JetBrains Mono';ctx.fillText('Origem (0,5)',170,80);ctx.fillText('Parede · camada 1',20,127);ctx.fillText('Alvo · camada 3',184,198);ctx.fillText('Piso · camada 4',20,256);ctx.restore();
+        ctx.font='12px JetBrains Mono';ctx.fillStyle='#5ce1e6';ctx.fillText(a.hit?'Primeiro: '+a.hit.name:'SEM RESULTADO',24,286);ctx.fillStyle='#d2bc95';ctx.fillText('Grade 1 u · verde: normal',24,310);ctx.fillText('× último comando · traço recortado',24,334);
+        if(stacked)ctx.translate(-320,360);panel(330,'SENSOR · ENSAIO INDEPENDENTE');const bx=480+state.bodyX*35;ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.arc(480,172,1.5*35,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=a.detected?'#5ce1e6':'#b0aaa0';ctx.beginPath();ctx.arc(bx,172,.3*35,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#4f402c';ctx.beginPath();ctx.moveTo(367,172);ctx.lineTo(593,172);ctx.stroke();ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText('Sensor r=1,50 · corpo r=0,30',344,65);ctx.fillText('Centro do corpo: X='+state.bodyX.toFixed(2),344,246);ctx.fillText('Sobreposição: '+(a.geometric?'sim':'não'),344,270);ctx.fillStyle='#5ce1e6';ctx.fillText('Detecção filtrada: '+(a.detected?'SIM':'NÃO'),344,294);ctx.fillStyle='#d2bc95';ctx.fillText('A/D movem corpo · sem sinais Godot',344,326);ctx.restore();
+        const format=p=>`(${p[0].toFixed(3)}, ${p[1].toFixed(3)}, 0.000)`;
+        telemetry.innerHTML=`<div>Prévia do raio: <strong>${a.hit?a.hit.name+' ('+a.hit.kind+')':'SEM RESULTADO'}</strong>. ${a.hit?'Distância '+a.hit.t.toFixed(3)+' u; ponto '+format(a.hit.point)+'; normal '+format(a.hit.normal)+'.':'Segmento não encontra candidato aceito nos filtros/alcance.'} Origem (0,5,0); direção ${format(a.d)}; alcance ${state.range.toFixed(2)} u; máscara ${state.rayMask}. Retorna só o candidato aceito mais próximo.</div><div>Último comando: <strong>${state.lastStatus}</strong>. Consultas <strong>${state.attempts}</strong>; acionamentos <strong>${state.actions}</strong>. ${state.lastHit?'Resultado guardado: '+state.lastHit.name+', ponto '+format(state.lastHit.point)+', normal '+format(state.lastHit.normal)+'.':'Sem ponto/normal guardados.'} Alterar a mira/filtros não move o último marcador. Novo comando sem resultado limpa o marcador.</div><div>Sensor independente: centros separados por <strong>${Math.abs(state.bodyX).toFixed(2)} u</strong>; soma dos raios 1,80 u. Sobreposição geométrica <strong>${a.geometric?'sim':'não'}</strong>; monitoring ${state.monitoring}; consulta camada 2 ${state.sensorMask}; detecção do modelo <strong>${a.detected?'SIM':'NÃO'}</strong>. Aceita tangência analítica; não produz body_entered/body_exited nem reproduz o passo físico da Godot.</div><div>Canvas/JS em seção z=0. Interseção analítica de segmento com esfera e caixas, sem Godot, projeção de Camera3D, back faces, origem interna, partículas ou click-to-move. Clique no painel do raio só ajusta sua direção; E consulta/tenta acionar. Setas giram 5°; A/D movem o corpo do sensor 0,25 u. Atalhos somente com foco, sem eco/modificadores. R restaura; pausa permite ajustes num modelo estático.</div>`;
         break;
       }
 
