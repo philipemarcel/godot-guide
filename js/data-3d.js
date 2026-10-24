@@ -1512,253 +1512,537 @@ window.GODOT_LESSONS_3D = [
   }
 },
 
-  {
-    id: "3d-inter-pbr-materials",
-    area: "3d",
-    level: "intermediario",
-    levelLabel: "Intermediário",
-    title: "7. Materiais Fisicamente Baseados — PBR (StandardMaterial3D)",
-    subtitle: "Como criar latão polido, ferro enferrujado, vidro fosco, relevo de rebites e tubos incandescentes usando o StandardMaterial3D.",
-    nodesUsed: ["StandardMaterial3D", "ORMTexture3D", "NormalMap", "Emission"],
-    feynman: {
-      title: "Explicação Feynman: A Receita Mágica que Imita Qualquer Material do Mundo Real",
-      explanation: "Antigamente, fazer metal parecer metal num jogo exigia truques falsos. Hoje, a Godot 4 usa **PBR (*Physically Based Rendering*)** através do **`StandardMaterial3D`**: ele imita como a luz real bate nos objetos usando 4 botões principais! 1) **Albedo** é a tinta pura do objeto sem sombra. 2) **Metallic (0 a 1)** pergunta: 'Isso conduz eletricidade igual metal (`1.0`) ou é isolante igual madeira/plástico/pedra (`0.0`)?'. 3) **Roughness (Aspereza, 0 a 1)** pergunta: 'A superfície foi lixada até virar um espelho liso (`0.0`) ou é áspera e fosca igual tijolo (`1.0`)?'. E 4) **Normal Map** é uma textura roxa/azulada que engana a luz para fingir que há milhares de parafusos, rebites e arranhões em alto-relevo sem gastar triângulos extras!",
-      analogies: [
+{
+  "id": "3d-inter-pbr-materials",
+  "area": "3d",
+  "level": "intermediario",
+  "levelLabel": "Intermediário",
+  "title": "7. Materiais PBR: cor, reflexo e recursos",
+  "subtitle": "Compare materiais sob a mesma luz e separe propriedades da superfície, emissão e compartilhamento de recursos.",
+  "nodesUsed": [
+    "StandardMaterial3D",
+    "ORMMaterial3D",
+    "MeshInstance3D",
+    "ImageTexture"
+  ],
+  "feynman": {
+    "title": "O material responde à luz; a cor sozinha não define a aparência",
+    "explanation": "Um material PBR descreve como a superfície responde à iluminação. Metallic muda a distribuição entre reflexão especular e difusa; Roughness muda a nitidez dos reflexos. Albedo tem papel diferente em metal e não metal. Por isso, um dourado não vira latão convincente apenas ao escolher a cor, e uma superfície áspera continua refletindo luz. Para comparar propriedades, mantenha malha, câmera e iluminação iguais. Os valores desta aula são ilustrativos, sem calibração de materiais reais.",
+    "analogies": [
+      {
+        "term": "Superfície e iluminação",
+        "analogy": "A mesma peça muda de aparência entre uma sala escura e um estúdio. Compare os materiais sem trocar simultaneamente a luz, para saber o que causou a diferença."
+      },
+      {
+        "term": "Nitidez do reflexo",
+        "analogy": "Uma superfície mais rugosa espalha o reflexo em mais direções. Ela não vira automaticamente fosca sem reflexão, nem transparente. Roughness e transparência são controles diferentes."
+      },
+      {
+        "term": "Recurso compartilhado",
+        "analogy": "Duas peças podem apontar para a mesma receita. Alterar essa receita muda ambas. Criar uma cópia do material separa seus parâmetros; uma cópia rasa ainda pode apontar para as mesmas texturas."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. A bancada compara duas SphereMesh de uma superfície: A editável e B referência. Ambas recebem a mesma luz. Mesh desenha geometria; material modifica sua aparência, sem alterar colisão. StandardMaterial3D e ORMMaterial3D herdam BaseMaterial3D. ORMTexture3D não é uma classe da Godot: a textura empacotada é uma Texture2D, aplicada a um material adequado.",
+    "anatomy": [
+      {
+        "prop": "Albedo, Metallic e Roughness",
+        "desc": "No não metal, albedo fornece a cor difusa e há reflexão especular. No metal, ele colore principalmente o reflexo e a difusa é suprimida. Regiões homogêneas normalmente usam Metallic 0 ou 1; transições/misturas podem ter valores intermediários. Roughness não é opacidade e não mede ferrugem por si só. Iluminação e ambiente continuam necessários."
+      },
+      {
+        "prop": "Material ativo, override e cópia",
+        "desc": "material_override prevalece sobre os materiais das superfícies. O apoio usa esse caminho de forma consistente. get_active_material(0) pode retornar null ou outro tipo; a biblioteca valida antes de duplicar. Uma cópia rasa de StandardMaterial3D separa escalares, mas mantém texturas compartilhadas. Em modelos com várias superfícies, planeje o alcance da alteração."
+      },
+      {
+        "prop": "Normal e mapas de dados",
+        "desc": "Normal map modifica a normal de iluminação, não a silhueta ou a forma física. A Godot espera orientação OpenGL; UVs e tangentes coerentes são necessárias. No empacotamento ORM: R=oclusão ambiente, G=roughness, B=metallic. São dados lineares, não uma foto de albedo. O AO não é uma sombra física completa. O apoio gera mapas didáticos, sem bake real."
+      },
+      {
+        "prop": "Emissão, iluminação e Glow",
+        "desc": "Emission acrescenta contribuição emissiva à superfície. Ela não garante iluminar o piso ou outras peças: isso depende de uma técnica de iluminação/GI ou luz explícita. Glow é pós-processamento separado, desligado no apoio. Na Godot 4.5, Compatibility usa implementação simplificada e alguns parâmetros diferem dos outros renderizadores."
+      },
+      {
+        "prop": "Overlay e parâmetros por instância",
+        "desc": "material_overlay desenha uma camada adicional; não torna único o material base e pode acrescentar custo e limitações de transparência. O flash usa um único Timer reiniciável. set_instance_shader_parameter exige um ShaderMaterial com instance uniform declarado; não altera arbitrariamente o albedo de um StandardMaterial3D comum. Esse shader não é implementado nesta aula."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "materiais.gd contém as fábricas e operações principais. oficina.gd monta a bancada e seus controles em runtime. O projeto usa duas esferas de uma superfície; copiar a rotina de duplicação para outra malha exige respeitar validações e precedência. Não há vidro, refração ou shader por instância prometidos como prontos.",
+    "duration": "65–90 min com comparações e repetição (estimativa)",
+    "prerequisite": "Aulas 3D 1–6: malhas, recursos, câmera e diferença entre visual e física. Godot 4.5, GDScript, Compatibility, desktop. Scripts/cena revisados documentalmente, sem compilação ou execução no motor neste ambiente.",
+    "objectives": [
+      "Relacionar albedo, Metallic e Roughness à resposta de metal/não metal sob iluminação controlada.",
+      "Modificar somente uma peça ou compartilhar deliberadamente o mesmo recurso, respeitando override e texturas.",
+      "Distinguir normal/ORM, emissão e overlay, repetindo testes sem confundir aparência com geometria ou GI."
+    ],
+    "practice": {
+      "title": "Prática guiada: a bancada de duas peças",
+      "intro": "A é a esfera à esquerda; B é a referência à direita. A câmera e as peças ficam paradas. As texturas são geradas por código, sem arquivos externos. A cena não contém colisão, GI ou Glow. Emissão é ciano independente do albedo; os presets são pontos de partida ilustrativos, não materiais medidos.",
+      "tree": "Oficina (Node3D / oficina.gd; montagem em runtime)\n├── A_Editavel (MeshInstance3D / SphereMesh)\n├── B_Referencia (MeshInstance3D / SphereMesh)\n├── Piso (MeshInstance3D / PlaneMesh; sem forma física)\n├── Camera3D fixa e atual\n├── DirectionalLight3D\n├── WorldEnvironment / Environment / Sky\n├── Timer único (one_shot; flash 0,35 s)\n└── CanvasLayer / Interface\n\nmateriais.gd: RefCounted com fábricas, cópia e mapas.\nUma superfície por esfera; escala 1; material_override.\nA e B iniciam com recursos diferentes e mesmos valores.",
+      "download": {
+        "url": "assets/aula-3d-07-materiais-pbr.zip",
+        "label": "Baixar projeto de apoio: materiais PBR"
+      },
+      "downloadNote": "Sete arquivos locais: dois scripts, cena, projeto, configuração, leitura e roteiro. Execução na Godot pendente.",
+      "steps": [
         {
-          term: "Albedo (Cor Base)",
-          analogy: "A cor do material sob luz branca difusa (ex: amarelo-ouro `#d4a359` para o latão Steampunk)."
+          "title": "Inspecione a comparação",
+          "text": "Extraia o projeto completo, importe project.godot e execute oficina.tscn. Confira a árvore Remota: A e B têm material_override próprio, Metallic 1, Roughness 0,2, cor dourada ilustrativa e emissão 0. A câmera e a luz são comuns. Observe o indicador Mesmo recurso=false.",
+          "expect": "As duas peças começam com os mesmos parâmetros e recursos distintos. O resultado visual pode depender da posição no ambiente; compare a mesma propriedade e registre as condições, sem exigir igualdade de todos os pixels."
         },
         {
-          term: "Metallic (0.0 ou 1.0)",
-          analogy: "Na natureza quase tudo é `0.0` (madeira, couro, pedra, pele) ou `1.0` (ouro, cobre, ferro, bronze). Só usamos valores no meio se houver poeira ou ferrugem por cima do metal!"
+          "title": "Mude uma propriedade por vez",
+          "text": "Altere Metallic de A entre 0 e 1 mantendo Roughness 0,2 e a mesma iluminação. Depois mantenha Metallic 1 e compare Roughness 0,2 e 0,8. Mude o azimute da luz para observar o reflexo; não altere cor/luz/rugosidade ao mesmo tempo na primeira comparação.",
+          "expect": "Metallic muda a divisão difusa/especular e a cor do reflexo. Roughness altera sua distribuição, sem tornar o material transparente. Não há limiar físico em 0,5 nem aparência garantida para qualquer iluminação."
         },
         {
-          term: "Roughness (0.0 Espelho <-> 1.0 Fosco)",
-          analogy: "O segredo do realismo! Um cano de cobre novo tem `Roughness = 0.2` (brilho nítido); um cano velho e gasto tem `Roughness = 0.75` (brilho espalhado)."
+          "title": "Compartilhe e descompartilhe conscientemente",
+          "text": "Ative A e B compartilham recurso e altere um escalar ou a cor de A. Depois desative: A recebe uma cópia rasa e B volta à base. A rotina valida o material ativo e atribui a cópia em material_override, sem esconder uma alteração de slot sob um override anterior.",
+          "expect": "Compartilhar muda ambas porque é a mesma referência. Descompartilhar preserva os parâmetros de A e reinstala B como referência. Texturas da cópia podem continuar compartilhadas; nesta prática elas não são editadas."
         },
         {
-          term: "Emission (Emissão de Luz)",
-          analogy: "Faz o material brilhar no escuro como filamento de lâmpada, lava ou tubo de éter ciano (especialmente lindo com o efeito Glow do ambiente!)."
+          "title": "Leia normal e canais ORM como dados",
+          "text": "Ative a normal procedural e compare iluminação versus contorno da esfera. Ative o mapa empacotado: R contém AO didático, G varia roughness e B separa regiões metálicas/não metálicas. No Standard, a mesma Texture2D é ligada aos três campos com os canais corretos. A função exemplo_orm mostra a alternativa ORMMaterial3D fora da UI.",
+          "expect": "Normal não altera silhueta/colisão. Roughness e Metallic finais dos mapas são multiplicados pelos escalares: roughness 0,2 com G=0,5 resulta em 0,1. Colocar escalar 0 anula o respectivo mapa. O AO gerado não é oclusão calculada da cena."
+        },
+        {
+          "title": "Isole emissão da iluminação recebida",
+          "text": "Desative mapas para simplificar. Desligue luz direta e ambiente/reflexos do céu. Com emissão 0, não há fonte de iluminação nas peças; depois eleve a emissão ciano de A. Reative as fontes separadamente. No Canvas não existe céu: o controle de luz direta basta para isolar a emissão.",
+          "expect": "A contribuição emissiva existe sem luz recebida. O piso não deve passar a receber iluminação só por mudar o material nesta cena sem GI; não há halo de Glow habilitado. Mudar o albedo não muda a cor emissiva ciano escolhida nesta prática."
+        },
+        {
+          "title": "Repita o flash sem corrida entre timers",
+          "text": "Restaure, pressione F ou o botão de flash e repita antes de 0,35 s. Um único Timer é reiniciado. Faça isso também com o recurso base compartilhado: o overlay fica na instância A. Pressione R durante o flash e espere mais de 0,35 s.",
+          "expect": "Uma chamada anterior não deve apagar o flash novo antes do prazo reiniciado. R cancela o timer, remove o overlay e restaura materiais/controles/luzes. O overlay não altera os valores base nem deve aparecer em B só porque o material base é compartilhado."
+        },
+        {
+          "title": "Preveja, confira e registre limites",
+          "text": "No navegador, compare A/B, escolha os presets 1/2/3 e use Q/E para variar Roughness por 0,05, L para luz e R para restaurar, com foco no desenho. A emissão usa cor ciano fixa. Em M=0, o F0 do modelo é (0,04,0,04,0,04); em M=1, é a base linear. Compare com a telemetria antes de julgar a imagem.",
+          "expect": "O Canvas calcula um shader próprio de luz direta; não executa StandardMaterial3D. Roughness efetiva é limitada a 0,08 nesse cálculo para evitar singularidade. Normal/ORM, céu, GI, transparência, overlay e Glow só são discutidos/testados no apoio ou como limite; não são efeitos escondidos do laboratório."
         }
       ]
     },
-    howItWorks: {
-      overview: "Você pode aplicar um `StandardMaterial3D` na propriedade `material_override` do `MeshInstance3D` ou nos slots individuais de superfície da malha. Para alterar a cor ou emissão de apenas UM inimigo via código sem criar cópias do material inteiro, a Godot 4 oferece `GeometryInstance3D.set_instance_shader_parameter` ou `material_overlay`!",
-      anatomy: [
-        {
-          prop: "albedo_color / albedo_texture",
-          desc: "Define a cor base ou imagem de textura principal da superfície."
-        },
-        {
-          prop: "metallic (0.0 a 1.0) & roughness (0.0 a 1.0)",
-          desc: "Controlam o comportamento físico dos reflexos de luz sobre a peça."
-        },
-        {
-          prop: "normal_enabled = true / normal_texture",
-          desc: "Adiciona micro-relevo de iluminação (parafusos, ranhuras de metal, poros do couro) sem pesar nos vértices."
-        },
-        {
-          prop: "emission_enabled = true / emission_energy_multiplier",
-          desc: "Transforma partes da malha (ou uma máscara de textura) em fontes emissoras de brilho."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Configurando Latão Polido vs Cobre Oxidado vs Vidro no Inspector/Código",
-        whenToUse: "Ao criar a biblioteca de materiais visuais do seu jogo 3D.",
-        description: "Combinamos `albedo_color`, `metallic` e `roughness` para obter metais convincentes.",
-        code: `extends MeshInstance3D
-
-func aplicar_latao_steampunk() -> void:
-    var mat := StandardMaterial3D.new()
-    mat.albedo_color = Color("#d4a359") # Tom dourado/latão
-    mat.metallic = 1.0                  # É 100% metal!
-    mat.roughness = 0.22                # Polido com reflexos vivos
-    material_override = mat`,
-        pros: "Reage instantaneamente a todas as luzes e reflexos do cenário com realismo físico.",
-        cons: "Um metal (`metallic = 1.0`) num cenário totalmente preto sem `WorldEnvironment`/céu parecerá escuro porque não tem nada ao redor para refletir!"
+        "question": "Metallic 1 e cor dourada garantem latão realista em qualquer cena?",
+        "answer": "Não. São parâmetros de superfície; iluminação, reflexos, geometria, exposição e calibração também importam. Os valores desta aula são ilustrativos, sem medição de um material real."
       },
       {
-        title: "Forma 2: Aquecimento Incandescente Dinâmico com Emission",
-        whenToUse: "Caldeiras superaquecendo, canos de armas ficando vermelhos de calor ou cristais de energia carregando.",
-        description: "Ativamos `emission_enabled` e controlamos `emission_energy_multiplier` conforme a temperatura da máquina.",
-        code: `extends MeshInstance3D
-
-var mat_caldeira: StandardMaterial3D
-
-func _ready() -> void:
-    # Duplica o material para que apenas esta caldeira esquente sozinha
-    mat_caldeira = get_active_material(0).duplicate() as StandardMaterial3D
-    set_surface_override_material(0, mat_caldeira)
-    mat_caldeira.emission_enabled = true
-    mat_caldeira.emission = Color("#ff5511") # Laranja brasa
-
-func definir_temperatura(nivel_0_a_1: float) -> void:
-    mat_caldeira.emission_energy_multiplier = nivel_0_a_1 * 4.0`,
-        pros: "Quando combinado com o `Glow` do `WorldEnvironment`, cria um halo incandescente espetacular.",
-        cons: "Lembre-se de duplicar o material se quiser que apenas uma instância aqueça."
+        "question": "Por que duas peças mudam juntas ao editar um material?",
+        "answer": "Elas podem apontar para o mesmo Resource. Duplicar o material e atribuir a cópia ao caminho ativo separa parâmetros; uma cópia rasa ainda compartilha sub-recursos como texturas."
       },
       {
-        title: "Forma 3: Efeito de Dano ou Escudo sem Duplicar o Material Original (material_overlay)",
-        whenToUse: "Piscar um inimigo 3D complexo (que tem 5 materiais diferentes no corpo) quando leva dano ou ganha um escudo.",
-        description: "Em vez de mexer nos materiais originais do modelo, todo `MeshInstance3D` tem a propriedade `material_overlay` que desenha uma película extra por cima da malha inteira!",
-        code: `extends MeshInstance3D
-
-@export var material_flash_branco: StandardMaterial3D
-
-func piscar_impacto_3d() -> void:
-    # Aplica a película brilhante por cima do modelo inteiro
-    material_overlay = material_flash_branco
-    await get_tree().create_timer(0.1).timeout
-    # Remove a película voltando ao visual original intacto!
-    material_overlay = null`,
-        pros: "Não precisa duplicar materiais nem desfazer cores originais de personagens com múltiplas texturas.",
-        cons: "O `material_overlay` renderiza a malha uma segunda vez durante aquele 0.1 segundo."
+        "question": "Normal map e emissão substituem geometria e iluminação da cena?",
+        "answer": "Não. Normal altera orientação usada na iluminação sem mudar silhueta/colisão. Emissão acrescenta radiância da superfície, mas iluminar outras superfícies depende de GI/luz explícita; Glow é outro efeito."
+      },
+      {
+        "question": "Como ler um ORM sem confundir cor com dados?",
+        "answer": "R é AO, G é Roughness e B é Metallic. O mapa é dado linear; não deve receber a interpretação sRGB de albedo. Confira canais e multiplicadores. Na Godot, ORMMaterial3D usa orm_texture; Standard pode selecionar canais em campos separados."
       }
     ],
-    simulator: {
-      type: "pbr_material_3d",
-      title: "Laboratório de Materiais PBR 3D (Albedo, Metallic, Roughness & Emission)",
-      description: "Gire as válvulas de `Metallic`, `Roughness`, `Emission` e a cor do `Albedo` sobre uma esfera mecânica 3D iluminada e veja como os reflexos especulares e o brilho reagem!"
-    },
-    quiz: {
-      question: "No `StandardMaterial3D` (PBR), como você configura um material para parecer um metal de latão muito bem polido e brilhante?",
-      options: [
-        "Metallic = 0.0 e Roughness = 1.0",
-        "Metallic = 1.0 e Roughness baixo (ex: 0.15 a 0.25), com Albedo em tom dourado.",
-        "Desligando todas as luzes da cena.",
-        "Colocando Transparency = 1.0."
-      ],
-      correctIndex: 1,
-      explanation: "Perfeito! `Metallic = 1.0` define o comportamento condutor metálico e um `Roughness` baixo (próximo de zero) deixa a superfície lisa e altamente reflexiva!"
-    }
-  },
-
-  {
-    id: "3d-inter-lighting-environment",
-    area: "3d",
-    level: "intermediario",
-    levelLabel: "Intermediário",
-    title: "8. Iluminação 3D, WorldEnvironment, Céu e Neblina Volumétrica (Volumetric Fog)",
-    subtitle: "Como dominar os 3 tipos de lâmpadas 3D e usar o WorldEnvironment para transformar uma cena chapada em uma pintura atmosférica.",
-    nodesUsed: ["DirectionalLight3D", "OmniLight3D", "SpotLight3D", "WorldEnvironment", "Environment"],
-    feynman: {
-      title: "Explicação Feynman: O Sol, a Lâmpada Nua, a Lanterna e a Máquina de Neblina do Cinema",
-      explanation: "Por que cenas 3D de iniciantes parecem de plástico e cenas de filmes parecem reais? O segredo está nas **3 Luzes** e no **Ar da Sala (`WorldEnvironment`)**! 1) A **`DirectionalLight3D`** é o **SOL**: não importa onde você coloque ela no mapa, só importa para onde ela aponta, pois seus raios vêm paralelos do infinito. 2) A **`OmniLight3D`** é uma **vela ou lâmpada sem abajur**: espalha luz em esfera para todos os lados até acabar a força (`omni_range`). 3) A **`SpotLight3D`** é um **farol de locomotiva ou lanterna**: joga um cone focado de luz. E o **`WorldEnvironment`**? Ele é o ar, o céu e a lente de cinema da fase: ativa o **Glow (Bloom)** nos metais incandescentes, o **SSAO** (aquela sombrinha escura nos cantinhos das paredes) e a **Volumetric Fog** (feixes de luz cortando a fumaça a vapor!).",
-      analogies: [
-        {
-          term: "DirectionalLight3D",
-          analogy: "O Sol ou a Lua: ilumina o mundo inteiro na direção em que está rotacionada."
-        },
-        {
-          term: "OmniLight3D",
-          analogy: "Lamparina de parede ou explosão: ilumina uma esfera ao redor da sua posição (`omni_range` em metros)."
-        },
-        {
-          term: "SpotLight3D",
-          analogy: "Holofote, lanterna de mão ou farol: ilumina um cone com abertura definida por `spot_angle`."
-        },
-        {
-          term: "WorldEnvironment (Glow, SSAO, Volumetric Fog, Tonemap)",
-          analogy: "O tratamento de cinema: troque o `Tonemap Mode` de `Linear` para **`ACES` ou `AgX`** e veja suas cores e luzes ganharem cara de jogo AAA na hora!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Na Godot 4 (renderizador Forward+), ativar `Tonemap = AgX` (ou `ACES`), `Glow`, `SSAO` e `Volumetric Fog` dentro do recurso `Environment` do nó `WorldEnvironment` muda completamente a qualidade visual do projeto em menos de 1 minuto.",
-      anatomy: [
-        {
-          prop: "Light3D.shadow_enabled = true",
-          desc: "Faz a luz projetar sombras dinâmicas reais (ative apenas nas luzes principais para economizar GPU)."
-        },
-        {
-          prop: "Environment.tonemap_mode = TONEMAPPER_AGX",
-          desc: "Mapeia cores muito claras para não estourarem feio, imitando câmeras de cinema reais."
-        },
-        {
-          prop: "Environment.volumetric_fog_enabled = true",
-          desc: "Cria neblina tridimensional real que reage aos cones de `SpotLight3D` (God Rays / Feixes de Luz!)."
-        },
-        {
-          prop: "Environment.ssao_enabled = true",
-          desc: "Screen-Space Ambient Occlusion: escurece quinas, frestas e o contato dos objetos com o chão."
-        }
-      ]
-    },
-    approaches: [
+    "pitfalls": [
       {
-        title: "Forma 1: Ciclo Dia e Noite Girando a DirectionalLight3D",
-        whenToUse: "Mundos abertos, cidades Steampunk ou jogos de sobrevivência com passagem de tempo.",
-        description: "Como o `ProceduralSkyMaterial` da Godot 4 já acompanha automaticamente a rotação da `DirectionalLight3D`, girar o Sol no eixo X muda a cor do céu do meio-dia para o pôr do sol e noite sozinho!",
-        code: `extends DirectionalLight3D
-
-@export var velocidade_dia: float = 0.08 # Radianos por segundo
-
-func _process(delta: float) -> void:
-    # Girar o Sol no eixo X move o astro pelo céu e atualiza o ProceduralSkyMaterial!
-    rotate_x(velocidade_dia * delta)
-    
-    # Desliga a sombra quando o sol está abaixo do horizonte (noite)
-    var olhando_para_baixo := -global_transform.basis.z.y < 0.0
-    shadow_enabled = olhando_para_baixo
-    light_energy = 1.2 if olhando_para_baixo else 0.0`,
-        pros: "O céu procedural da Godot 4 calcula o pôr do sol alaranjado automaticamente conforme o ângulo da `DirectionalLight3D`!",
-        cons: "Durante a noite, desligue `shadow_enabled` do Sol ou troque para uma luz fraca da Lua."
+        "title": "Mudei a superfície, mas nada aconteceu",
+        "text": "Confira material_override, que prevalece sobre os slots. get_active_material pode não ser StandardMaterial3D. A biblioteca valida e reatribui a cópia em override para a esfera de uma superfície."
       },
       {
-        title: "Forma 2: Lanterna Tática (SpotLight3D) com Feixe Volumétrico na Neblina",
-        whenToUse: "Exploração de masmorras escuras, fábricas abandonadas cheias de vapor ou fases noturnas.",
-        description: "Anexamos uma `SpotLight3D` à câmera com `light_volumetric_fog_energy` alto para criar um facho de luz denso cortando o vapor.",
-        code: `extends SpotLight3D
-
-func _ready() -> void:
-    spot_range = 18.0       # Alcance de 18 metros
-    spot_angle = 32.0       # Abertura do cone em graus
-    shadow_enabled = true
-    # Multiplica a intensidade do feixe visível dentro da neblina volumétrica!
-    light_volumetric_fog_energy = 3.5
-
-func _unhandled_input(event: InputEvent) -> void:
-    if event.is_action_pressed("lanterna"):
-        visible = not visible`,
-        pros: "Cria um feixe cônico visível no ar ('God Ray') digno de filmes quando `Volumetric Fog` está ativo no `WorldEnvironment`.",
-        cons: "`Volumetric Fog` é um recurso do renderizador Forward+ (PC/Consoles)."
+        "title": "Só queria mudar A e B também mudou",
+        "text": "Confira identidade dos Resources e o modo de compartilhamento. Não basta trocar cor por código; separar a referência é a decisão relevante. Duplicar o material não garante duplicar suas texturas."
       },
       {
-        title: "Forma 3: Ajuste de Qualidade Gráfica via Código (Menu de Opções 3D)",
-        whenToUse: "Permitir que jogadores com PCs mais modestos desliguem SSAO, SSR e Neblina Volumétrica.",
-        description: "Acessamos o recurso `.environment` do `WorldEnvironment` para ligar/desligar os efeitos de pós-processamento em tempo real.",
-        code: `extends WorldEnvironment
-
-func aplicar_preset_grafico(qualidade_alta: bool) -> void:
-    if not environment:
-        return
-    environment.ssao_enabled = qualidade_alta
-    environment.volumetric_fog_enabled = qualidade_alta
-    environment.ssr_enabled = qualidade_alta
-    environment.glow_enabled = true # Glow é super leve, pode ficar ativo!`,
-        pros: "Dá controle imediato de performance ao usuário sem precisar reiniciar o jogo.",
-        cons: "Guarde a escolha do usuário no seu `ConfigFile` (`user://settings.cfg`)."
+        "title": "O metal ficou escuro",
+        "text": "Confira luz direta e ambiente/reflexos. Sem iluminação para refletir, um metal sem emissão pode ficar escuro. No Canvas só existe luz direta; não há cenário refletido ou céu para preencher a aparência."
+      },
+      {
+        "title": "O normal map está invertido ou muda pouco",
+        "text": "Confira formato OpenGL, orientação Y, UV/tangentes, normal_enabled e normal_scale. O mapa procedural do apoio é uma demonstração, sem relevo geométrico ou custo zero garantido."
+      },
+      {
+        "title": "A peça emite, mas o piso não fica iluminado",
+        "text": "Esse é o limite esperado do apoio sem GI. Material emissivo, luz explícita e Glow são recursos diferentes. A disponibilidade e os controles dos efeitos dependem do renderizador/versão."
       }
     ],
-    simulator: {
-      type: "lighting_3d_env",
-      title: "Laboratório de Iluminação 3D (Directional, Omni, Spot) & Volumetric Fog",
-      description: "Alterne entre Sol (`DirectionalLight3D`), Lâmpada (`OmniLight3D`) e Holofote (`SpotLight3D`), ajuste o ângulo solar e a densidade da Neblina Volumétrica!"
-    },
-    quiz: {
-      question: "Qual combinação na Godot 4 faz com que um holofote (`SpotLight3D`) exiba um feixe cônico de luz visível atravessando o ar enfumaçado da sala?",
-      options: [
-        "Usar um Sprite2D na frente da câmera.",
-        "Ativar `Volumetric Fog` dentro do recurso `Environment` do nó `WorldEnvironment`.",
-        "Mudar a gravidade para zero.",
-        "Aumentar o tamanho do CollisionShape3D."
-      ],
-      correctIndex: 1,
-      explanation: "Exato! Quando `Volumetric Fog` está ativado no `WorldEnvironment`, todas as luzes 3D interagem fisicamente com a neblina do ar, criando feixes volumétricos reais!"
-    }
+    "summary": "Compare a resposta da superfície sob condições controladas. Albedo, Metallic e Roughness se combinam com a iluminação; recursos compartilhados se alteram juntos. Normal e ORM são dados de superfície, emissão não garante GI e overlay não torna o material base único.",
+    "next": "Na aula 3D 8, aprofunde luzes e WorldEnvironment. A bancada desta aula usa uma luz e céu controláveis; não valida automaticamente Glow, neblina volumétrica ou iluminação global.",
+    "sources": [
+      {
+        "label": "StandardMaterial3D e ORMMaterial3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/standard_material_3d.html"
+      },
+      {
+        "label": "BaseMaterial3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_basematerial3d.html"
+      },
+      {
+        "label": "ORMMaterial3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_ormmaterial3d.html"
+      },
+      {
+        "label": "GeometryInstance3D: override, overlay e instance uniform",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_geometryinstance3d.html"
+      },
+      {
+        "label": "Environment: luz e pós-processamento",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_environment.html"
+      },
+      {
+        "label": "Filament: referência do modelo de reflexão",
+        "url": "https://google.github.io/filament/main/filament.html"
+      }
+    ]
   },
+  "approaches": [
+    {
+      "title": "1. Materiais, cópia e mapas",
+      "whenToUse": "Como biblioteca RefCounted chamada pela oficina, ou respeitando as mesmas pré-condições.",
+      "description": "materiais.gd cria StandardMaterial3D, valida e duplica o material ativo e gera normal/ORM em runtime. tornar_unico assume uma malha de uma superfície e usa material_override. Texturas da cópia rasa permanecem compartilhadas, sem edição nesta prática. exemplo_orm é uma alternativa de estudo, não usada automaticamente pela UI.",
+      "code": "extends RefCounted\n## Cores e números ilustrativos, não medições de materiais reais.\nstatic func base() -> StandardMaterial3D:\n    var m := StandardMaterial3D.new()\n    m.albedo_color = Color(\"d4a359\")\n    m.metallic = 1.0\n    m.roughness = 0.2\n    m.metallic_specular = 0.5\n    m.emission_enabled = true\n    m.emission = Color(\"5ce1e6\")\n    m.emission_energy_multiplier = 0.0\n    return m\n\nstatic func tornar_unico(peca: MeshInstance3D) -> StandardMaterial3D:\n    # Prática com UMA superfície. material_override tem precedência sobre slots.\n    if peca.mesh == null or peca.mesh.get_surface_count() == 0:\n        push_error(\"Malha sem superfície\")\n        return null\n    var original := peca.get_active_material(0) as StandardMaterial3D\n    if original == null:\n        push_error(\"Esta prática exige StandardMaterial3D\")\n        return null\n    var copia := original.duplicate() as StandardMaterial3D\n    peca.material_override = copia\n    # Cópia rasa: texturas permanecem compartilhadas; aqui elas não são editadas.\n    return copia\n\nstatic func mapa_normal() -> ImageTexture:\n    var image := Image.create(64,64,false,Image.FORMAT_RGBA8)\n    for y in range(64):\n        for x in range(64):\n            var n := Vector3(-0.5 * cos(TAU * 8.0 * x / 64.0),0,1).normalized()\n            image.set_pixel(x,y,Color(n.x * 0.5 + 0.5,n.y * 0.5 + 0.5,n.z * 0.5 + 0.5,1))\n    return ImageTexture.create_from_image(image)\n\nstatic func mapa_orm() -> ImageTexture:\n    # Dados lineares didáticos: R=AO, G=roughness, B=metallic. Não é bake real.\n    var image := Image.create(64,64,false,Image.FORMAT_RGBA8)\n    for y in range(64):\n        for x in range(64):\n            image.set_pixel(x,y,Color(0.6 + 0.4 * x / 63.0,0.25 + 0.5 * y / 63.0,1.0 if x < 32 else 0.0,1))\n    return ImageTexture.create_from_image(image)\n\nstatic func aplicar_mapas(m: StandardMaterial3D, normal: Texture2D, orm: Texture2D, usar_normal: bool, usar_orm: bool) -> void:\n    m.normal_enabled = usar_normal\n    m.normal_texture = normal if usar_normal else null\n    m.ao_enabled = usar_orm\n    m.ao_texture = orm if usar_orm else null\n    m.ao_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED\n    m.roughness_texture = orm if usar_orm else null\n    m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN\n    m.metallic_texture = orm if usar_orm else null\n    m.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_BLUE\n\nstatic func exemplo_orm() -> ORMMaterial3D:\n    # Alternativa ao Standard, para estudar fora da UI; não aplicada automaticamente.\n    var m := ORMMaterial3D.new()\n    m.orm_texture = mapa_orm()\n    m.ao_enabled = true\n    m.metallic = 1.0\n    m.roughness = 1.0\n    return m\n",
+      "pros": "Tipos, precedência, canais e escopo da cópia explícitos, sem assets externos.",
+      "cons": "Mapas e cores ilustrativos, sem bake/calibração real; execução no motor pendente."
+    },
+    {
+      "title": "2. Configuração da comparação",
+      "language": "text",
+      "whenToUse": "Antes de copiar o código ou interpretar os números/imagens.",
+      "description": "Referência textual com hierarquia runtime, valores, fontes de luz, canais, compartilhamento e controles.",
+      "code": "Godot 4.5 / GDScript / Compatibility / desktop1440×960.\nOficina (Node3D / oficina.gd): cria a bancada em runtime.\n  A_Editavel / B_Referencia (MeshInstance3D / SphereMesh, uma superfície cada)\n  Piso (MeshInstance3D / PlaneMesh; sem forma física)\n  Camera3D fixa/atual; DirectionalLight3D; WorldEnvironment com Sky\n  Timer único one_shot0,35s; CanvasLayer com UI\nmateriais.gd é RefCounted com fábricas, cópia e texturas geradas em runtime.\nTodos os nós mantêm escala1. Alterar material não altera malha/colisão.\nA inicia com albedo#d4a359, metallic1, roughness0,2, specular0,5 e emissão0.\nB começa com outro recurso, mesmos valores. A é esquerda; B é direita.\nCompartilhar: B recebe a mesma referência de A. Editar A altera ambas.\nDescompartilhar: A recebe cópia rasa; B volta ao material base. Texturas permanecem compartilhadas, não editadas.\nmaterial_override é usado de forma consistente. Ele tem precedência sobre slots de superfície.\nNormal gerada64×64: vetor tangent-space codificado0..1, estilo OpenGL; sem alterar silhueta.\nMapa empacotado64×64: R AO0,6..1; G roughness0,25..0,75; B metallic1 à esquerda/0 à direita.\nDados ilustrativos, não bake de oclusão nem caracterização real de material.\nNo Standard: AO lêR, roughness lêG, metallic lêB da mesma Texture2D; escalares multiplicam G/B.\nexemplo_orm() retorna ORMMaterial3D com orm_texture; alternativa de estudo fora da UI.\nTexturas são dados lineares; não trate normal/ORM como foto de albedo sRGB.\nEmissão ciano#5ce1e6 independente do albedo; sem GI para iluminar outras superfícies.\nLuz direta e ambiente/reflexos do céu têm controles independentes. Fundo permanece cor escura.\nGlow desligado. Godot4.5 Compatibility tem implementação simplificada de Glow, fora do ensaio.\nFlash usa overlay alfa/unshaded, timer único reiniciável; não altera o recurso base.\nF repete flash; R restaura materiais/controles/luzes/flash. Nenhum InputMap exigido.\nEsc libera foco; UI em foco suspende F/R; eco/modificadores são ignorados.\nNão há vidro/refracção, efeitos por instance uniform ou performance medida nesta bancada.\n",
+      "pros": "Define as condições de comparação e o que o projeto implementa.",
+      "cons": "Não transforma o modelo Canvas no renderer da Godot nem comprova execução."
+    },
+    {
+      "title": "3. Oficina, recursos e flash reiniciável",
+      "whenToUse": "Para reproduzir a bancada com duas peças e controles.",
+      "description": "oficina.gd fica na raiz, cria geometria/iluminação/UI e controla referências. Flash é overlay só em A com um Timer único reiniciável. R interrompe o efeito e restaura tudo. F/R são suspensos com UI em foco; Esc libera.",
+      "code": "extends Node3D\nconst MATERIAIS = preload(\"res://materiais.gd\")\nvar a: MeshInstance3D\nvar b: MeshInstance3D\nvar mat_a: StandardMaterial3D\nvar mat_b: StandardMaterial3D\nvar normal: Texture2D\nvar orm: Texture2D\nvar luz: DirectionalLight3D\nvar ambiente: Environment\nvar painel: VBoxContainer\nvar leitura: Label\nvar metallic: HSlider\nvar roughness: HSlider\nvar emission: HSlider\nvar angulo: HSlider\nvar cor: OptionButton\nvar compartilhar: CheckButton\nvar usar_normal: CheckButton\nvar usar_orm: CheckButton\nvar luz_direta: CheckButton\nvar usar_ceu: CheckButton\nvar timer: Timer\nvar flash: StandardMaterial3D\nvar overlay_anterior: Material\nvar piscando := false\n\nfunc esfera(nome: String, x: float) -> MeshInstance3D:\n    var p := MeshInstance3D.new()\n    p.name = nome\n    var mesh := SphereMesh.new()\n    mesh.radius = 1.0\n    mesh.height = 2.0\n    p.mesh = mesh\n    p.position = Vector3(x,1,0)\n    add_child(p)\n    return p\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var btn := Button.new()\n    btn.text = texto\n    btn.pressed.connect(acao)\n    painel.add_child(btn)\n\nfunc deslizador(texto: String, minimo: float, maximo: float, passo: float, valor: float, acao: Callable) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    painel.add_child(l)\n    var s := HSlider.new()\n    s.min_value=minimo\n    s.max_value=maximo\n    s.step=passo\n    s.value=valor\n    s.value_changed.connect(acao)\n    painel.add_child(s)\n    return s\n\nfunc chave(texto: String, valor: bool, acao: Callable) -> CheckButton:\n    var c := CheckButton.new()\n    c.text=texto\n    c.button_pressed=valor\n    c.toggled.connect(acao)\n    painel.add_child(c)\n    return c\n\nfunc _ready() -> void:\n    a=esfera(\"A_Editavel\",-1.5)\n    b=esfera(\"B_Referencia\",1.5)\n    mat_a=MATERIAIS.base()\n    mat_b=MATERIAIS.base()\n    a.material_override=mat_a\n    b.material_override=mat_b\n    normal=MATERIAIS.mapa_normal()\n    orm=MATERIAIS.mapa_orm()\n    var piso := MeshInstance3D.new()\n    var plane := PlaneMesh.new()\n    plane.size=Vector2(12,12)\n    piso.mesh=plane\n    var material_piso := StandardMaterial3D.new()\n    material_piso.albedo_color=Color(\"413526\")\n    material_piso.roughness=0.9\n    piso.material_override=material_piso\n    add_child(piso)\n    var camera := Camera3D.new()\n    camera.position=Vector3(0,3.2,8.5)\n    add_child(camera)\n    camera.look_at(Vector3(0,1,0),Vector3.UP)\n    camera.make_current()\n    luz=DirectionalLight3D.new()\n    luz.light_energy=3\n    luz.rotation_degrees=Vector3(-40,-35,0)\n    add_child(luz)\n    ambiente=Environment.new()\n    ambiente.background_mode=Environment.BG_COLOR\n    ambiente.background_color=Color(\"1d1812\")\n    var ceu := Sky.new()\n    var ceu_mat := ProceduralSkyMaterial.new()\n    ceu_mat.sky_top_color=Color(\"8b9aa9\")\n    ceu_mat.sky_horizon_color=Color(\"ddd1b8\")\n    ceu_mat.ground_bottom_color=Color(\"3b2c1b\")\n    ceu.sky_material=ceu_mat\n    ambiente.sky=ceu\n    ambiente.glow_enabled=false\n    definir_ceu(true)\n    var world := WorldEnvironment.new()\n    world.environment=ambiente\n    add_child(world)\n    flash=StandardMaterial3D.new()\n    flash.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED\n    flash.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA\n    flash.albedo_color=Color(1,0.85,0.35,0.35)\n    timer=Timer.new()\n    timer.one_shot=true\n    timer.wait_time=0.35\n    timer.timeout.connect(encerrar_flash)\n    add_child(timer)\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position=Vector2(12,12)\n    fundo.custom_minimum_size.x=360\n    layer.add_child(fundo)\n    painel=VBoxContainer.new()\n    fundo.add_child(painel)\n    leitura=Label.new()\n    leitura.custom_minimum_size.x=360\n    leitura.autowrap_mode=TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n    metallic=deslizador(\"Metallic de A\",0,1,0.05,1,func(v): mat_a.metallic=v)\n    roughness=deslizador(\"Roughness de A\",0,1,0.05,0.2,func(v): mat_a.roughness=v)\n    emission=deslizador(\"Emissão ciano de A\",0,3,0.25,0,func(v): mat_a.emission_energy_multiplier=v)\n    angulo=deslizador(\"Yaw da luz direta\",-75,75,5,-35,func(v): luz.rotation_degrees.y=v)\n    cor=OptionButton.new()\n    for nome in [\"Dourado ilustrativo\",\"Cobre ilustrativo\",\"Revestimento ciano\"]:\n        cor.add_item(nome)\n    cor.item_selected.connect(func(i): mat_a.albedo_color=Color([\"d4a359\",\"c86438\",\"5ce1e6\"][i]))\n    painel.add_child(cor)\n    compartilhar=chave(\"A e B compartilham recurso\",false,definir_compartilhamento)\n    usar_normal=chave(\"Normal procedural (não muda silhueta)\",false,func(_v): atualizar_mapas())\n    usar_orm=chave(\"Mapa empacotado R/G/B didático\",false,func(_v): atualizar_mapas())\n    luz_direta=chave(\"Luz direta\",true,func(v): luz.visible=v)\n    usar_ceu=chave(\"Luz ambiente e reflexos do céu\",true,definir_ceu)\n    botao(\"Flash em A · F (repete/reinicia0,35s)\",piscar)\n    botao(\"Restaurar tudo · R\",restaurar)\n\nfunc atualizar_mapas() -> void:\n    MATERIAIS.aplicar_mapas(mat_a,normal,orm,usar_normal.button_pressed,usar_orm.button_pressed)\n\nfunc definir_ceu(ativo: bool) -> void:\n    ambiente.ambient_light_source=Environment.AMBIENT_SOURCE_SKY if ativo else Environment.AMBIENT_SOURCE_DISABLED\n    ambiente.reflected_light_source=Environment.REFLECTION_SOURCE_SKY if ativo else Environment.REFLECTION_SOURCE_DISABLED\n\nfunc definir_compartilhamento(ativo: bool) -> void:\n    if ativo:\n        mat_b=mat_a\n    else:\n        mat_a=MATERIAIS.tornar_unico(a)\n        mat_b=MATERIAIS.base()\n    a.material_override=mat_a\n    b.material_override=mat_b\n\nfunc piscar() -> void:\n    if not piscando:\n        overlay_anterior=a.material_overlay\n    piscando=true\n    a.material_overlay=flash\n    timer.start() # um único timer; repetição prorroga em vez de criar corridas de awaits\n\nfunc encerrar_flash() -> void:\n    a.material_overlay=overlay_anterior\n    overlay_anterior=null\n    piscando=false\n\nfunc restaurar() -> void:\n    timer.stop()\n    encerrar_flash()\n    mat_a=MATERIAIS.base()\n    mat_b=MATERIAIS.base()\n    a.material_override=mat_a\n    b.material_override=mat_b\n    metallic.set_value_no_signal(1)\n    roughness.set_value_no_signal(0.2)\n    emission.set_value_no_signal(0)\n    angulo.set_value_no_signal(-35)\n    cor.select(0)\n    compartilhar.set_pressed_no_signal(false)\n    usar_normal.set_pressed_no_signal(false)\n    usar_orm.set_pressed_no_signal(false)\n    luz_direta.set_pressed_no_signal(true)\n    usar_ceu.set_pressed_no_signal(true)\n    luz.visible=true\n    luz.rotation_degrees.y=-35\n    definir_ceu(true)\n\nfunc _input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and event.keycode==KEY_ESCAPE:\n        var foco:=get_viewport().gui_get_focus_owner()\n        if foco!=null:\n            foco.release_focus()\n        get_viewport().set_input_as_handled()\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed or get_viewport().gui_get_focus_owner()!=null:\n        return\n    if event.physical_keycode==KEY_F:\n        piscar()\n    elif event.physical_keycode==KEY_R:\n        restaurar()\n    else:\n        return\n    get_viewport().set_input_as_handled()\n\nfunc _process(_delta: float) -> void:\n    leitura.text=(\"A editável (esquerda) / B referência (direita)\\nMesmo recurso: %s | A M%.2f R%.2f E%.2f\\nB M%.2f R%.2f E%.2f | flash %s\\nEmissão não ilumina piso nesta cena sem GI.\\nMapas multiplicam escalares; UVs da esfera.\\nSem transparência de vidro ou Glow.\" % [\n        mat_a==mat_b,mat_a.metallic,mat_a.roughness,mat_a.emission_energy_multiplier,\n        mat_b.metallic,mat_b.roughness,mat_b.emission_energy_multiplier,piscando])\n",
+      "pros": "Comparações repetíveis, referência independente/compartilhada e timer sem awaits concorrentes.",
+      "cons": "Sem vidro/refração, GI/Glow, controlador de jogo ou medição de performance. Cena/UI ainda precisam ser conferidas na Godot."
+    }
+  ],
+  "simulator": {
+    "type": "pbr_material_3d",
+    "title": "Laboratório: duas superfícies sob a mesma luz",
+    "description": "Rasterizador Canvas/JS próprio, com esfera ortográfica, luz direcional branca, reflexão Cook–Torrance/GGX, Smith separável, Fresnel Schlick e difusa Lambert ponderada. Cálculo em RGB linear, exibição com mapeamento L/(1+L) e sRGB. Não usa Godot/WebGL, céu/IBL, GI, normal/ORM maps, transparência, overlay ou Glow. Roughness é regularizada em pelo menos 0,08.",
+    "guide": [
+      {
+        "title": "Compare A com B",
+        "text": "B começa como referência M1/R0,20/E0/dourado. Ajuste um parâmetro de A e compare com a mesma luz. O modo Mesmos parâmetros de A representa compartilhamento lógico; não cria Resources reais. Presets alteram só o material, mantendo luz e modo."
+      },
+      {
+        "title": "Isole emissão",
+        "text": "Desligue a luz com L ou pelo controle e mantenha emissão 0: a esfera não tem iluminação recebida. Eleve emissão ciano de A; ela reaparece sem halo e sem iluminar B. Mudar albedo não altera a cor emissiva escolhida. Restaure antes de comparar rugosidade."
+      },
+      {
+        "title": "Preveja os limites",
+        "text": "F0 do modelo: M0 → (0,04,0,04,0,04); M1 → cor base linear. Q/E mudam Roughness por 0,05, 1/2/3 aplicam presets e R restaura tudo, só com foco no desenho. Há controles equivalentes; sem repetição/modificadores. O modelo é estático e aceita ajustes em pausa."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Ao alterar o albedo de um StandardMaterial3D compartilhado, A e B mudam juntas. Para modificar só A nesta bancada de uma superfície, qual procedimento é coerente?",
+    "options": [
+      "Validar e duplicar o material ativo, atribuir a cópia ao material_override de A e então editar seus parâmetros; texturas da cópia rasa ainda podem ser compartilhadas.",
+      "Usar set_instance_shader_parameter para mudar qualquer propriedade de StandardMaterial3D, sem ShaderMaterial ou declaração instance uniform.",
+      "Aplicar material_overlay para tornar automaticamente único o Resource do material base.",
+      "Aumentar emission para que a cópia do material e a iluminação do piso ocorram automaticamente."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Separar a referência e atribuí-la ao caminho ativo isola os parâmetros; sub-recursos têm seu próprio compartilhamento.",
+      "Parâmetros por instância exigem o contrato de instance uniform de um shader apropriado.",
+      "Overlay acrescenta uma camada visual; não duplica nem torna único o material base.",
+      "Emissão não duplica Resource e não garante iluminação de outras superfícies."
+    ],
+    "explanation": "A e B apontavam para o mesmo recurso. A cópia atribuída ao override de A separa seus parâmetros neste exemplo de uma superfície. É preciso considerar precedência, tipo e compartilhamento de sub-recursos."
+  }
+},
+
+{
+  "id": "3d-inter-lighting-environment",
+  "area": "3d",
+  "level": "intermediario",
+  "levelLabel": "Intermediário",
+  "title": "8. Iluminação 3D: luzes, ambiente e neblina",
+  "subtitle": "Escolha a fonte, observe a sombra e separe preenchimento, céu e efeitos de imagem antes de combinar tudo.",
+  "nodesUsed": [
+    "DirectionalLight3D",
+    "OmniLight3D",
+    "SpotLight3D",
+    "WorldEnvironment",
+    "Environment",
+    "Sky"
+  ],
+  "feynman": {
+    "title": "Luz na superfície, ambiente na cena e neblina na vista",
+    "explanation": "Pense em uma oficina com um holofote sobre uma peça. A fonte define de onde a luz vem; o material define sua resposta. Um obstáculo pode bloquear a luz direta e projetar sombra no piso. O preenchimento ambiente pode manter essa sombra visível sem calcular luz rebatida. Já a neblina modifica o que a câmera enxerga através do meio. Primeiro observe cada contribuição isolada. Depois combine as que ajudam a leitura da cena, sem usar efeitos para esconder uma iluminação mal compreendida.",
+    "analogies": [
+      {
+        "term": "Três fontes",
+        "analogy": "Directional representa raios paralelos; Omni espalha luz a partir de um ponto; Spot restringe a emissão a um cone. Uma lâmpada decorativa pode precisar de malha visível e de um nó de luz separados."
+      },
+      {
+        "term": "Céu e preenchimento",
+        "analogy": "Ver um cenário pela janela e receber luz dele são decisões distintas. O apoio mantém o céu visível, mas usa uma cor ambiente controlada e desliga reflexos do céu para facilitar a comparação."
+      },
+      {
+        "term": "Ar e lente",
+        "analogy": "A neblina pertence ao meio observado; Glow e tonemapping tratam a imagem. Um halo visível não prova que a peça iluminou o piso, e uma sombra mais clara não prova que houve GI."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência: Godot 4.5. Comece no Compatibility com as três luzes, sombras e neblina comum. O apoio oferece controles específicos do Forward+ quando esse método está realmente ativo. A bancada é fixa, sem GI ou colisão. Energia, abertura, alcance e câmera devem permanecer controlados para identificar a causa de cada mudança.",
+    "anatomy": [
+      {
+        "prop": "Directional, Omni e Spot",
+        "desc": "Directional usa a direção do eixo global −Z; sua posição não muda a iluminação. Omni tem origem e alcance; girá-la não muda a emissão pontual. Spot também emite por −Z. `spot_angle` é a meia abertura: 32° corresponde a um cone total de 64°. Não aumentar escala para simular alcance."
+      },
+      {
+        "prop": "Energia, alcance e sombras",
+        "desc": "Energia aumenta a contribuição; alcance limita Omni/Spot e não se aplica à Directional. A queda depende de distância/atenuação. O mesmo valor numérico não iguala a iluminância entre tipos. `shadow_enabled` habilita sombras da luz, sujeitas à geometria e configuração; não precisa de `CollisionShape3D`. Bias inadequado pode causar acne ou sombras descoladas."
+      },
+      {
+        "prop": "WorldEnvironment → Environment",
+        "desc": "O nó fornece o recurso à cena; atribuir apenas um recurso solto não o ativa. `Camera3D.environment` tem prioridade quando definido. O sol/céu de prévia do editor não garante luz na execução. O apoio cria explicitamente ambiente e fontes, e separa fundo, preenchimento por cor e reflexos."
+      },
+      {
+        "prop": "Neblina comum e volumétrica",
+        "desc": "Neblina comum pode reduzir o contraste com a distância, mas não integra feixes locais de luz no ar. Volumetric Fog é exclusiva do Forward+; depende de densidade, luz e observação. `light_volumetric_fog_energy` controla a contribuição da luz no volume. Densidade zero não deve produzir um cone luminoso fixo."
+      },
+      {
+        "prop": "Pós-processamento e renderizador",
+        "desc": "Na Godot 4.5, Glow existe nos três métodos, simplificado no Compatibility. SSAO, SSR e neblina volumétrica requerem Forward+. SSAO é aproximação em espaço de tela; Glow não ilumina vizinhos. `Environment.TONE_MAPPER_AGX` é o nome correto; Linear, ACES e AgX não garantem realismo. AgX não é adequado ao Mobile. Meça custo antes de definir qualidade."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "A primeira aba configura as fontes; a segunda monta/configura o Environment. oficina.gd cria a cena e a interface. Os scripts RefCounted são bibliotecas chamadas pelo controlador. O ciclo solar é uma extensão independente, sem promessa de noite ou cores automáticas.",
+    "duration": "65–90 min com comparações e registro (estimativa)",
+    "prerequisite": "Aulas 3D 1–7: eixos/transformações, malhas, câmera e materiais. Godot 4.5, GDScript, desktop; Compatibility para a base, Forward+ para a extensão volumétrica/SSAO. Projeto revisado documentalmente; execução no motor ainda pendente.",
+    "objectives": [
+      "Escolher Directional, Omni ou Spot e prever os efeitos de direção, alcance, energia e meia abertura.",
+      "Separar luz direta, sombra, preenchimento e céu por meio de comparações com uma variável alterada.",
+      "Distinguir neblina comum, volume e pós-processamento e verificar a disponibilidade real do renderizador."
+    ],
+    "practice": {
+      "title": "Prática guiada: a oficina com três fontes",
+      "intro": "Extraia o apoio completo e importe project.godot. A cena cria piso, esfera elevada, três marcadores e um emissor ciano. Camera3D é fixa; a interface tem scroll. Comece sem neblina, Glow e SSAO. Não há GI, formas físicas ou navegação. Os números de energia são ilustrativos, sem unidades fotométricas habilitadas.",
+      "tree": "Oficina (Node3D / oficina.gd; montagem em runtime)\n├── Piso, Obstaculo e Marcadores (MeshInstance3D)\n├── EmissorSemGI (MeshInstance3D / material emissivo)\n├── Sol (DirectionalLight3D)\n├── Lampada (OmniLight3D; y=3)\n├── Holofote (SpotLight3D; y=3)\n├── Mundo (WorldEnvironment / Environment / Sky)\n├── Camera3D atual; sem Environment próprio\n└── CanvasLayer / ScrollContainer / Interface\n\nluzes.gd e ambiente.gd: bibliotecas RefCounted.\nciclo_sol.gd: extensão para OUTRA cena; não anexada.",
+      "download": {
+        "url": "assets/aula-3d-08-iluminacao-ambiente.zip",
+        "label": "Baixar projeto de apoio: luzes e ambiente"
+      },
+      "downloadNote": "Nove arquivos locais, incluindo quatro scripts e roteiro de testes. Compatibility como base; execução e efeitos Forward+ ainda precisam de validação na Godot.",
+      "steps": [
+        {
+          "title": "Confira a cena e as condições",
+          "text": "Execute oficina.tscn e confira a árvore Remota. Restaure os parâmetros: Spot, energia 3, alcance 12, azimute 0, meia abertura 32, ambiente 0,12 e densidade zero. Leia o método atual no painel. A câmera não tem Environment próprio.",
+          "expect": "Uma única fonte fica ativa. O céu visível não significa que seus reflexos estejam ligados. Glow/SSAO/volume começam desligados e a cena tem fontes próprias, independentemente da prévia do editor."
+        },
+        {
+          "title": "Compare os três tipos",
+          "text": "Alterne Spot, Omni e Directional. Para Omni, mude alcance e energia separadamente; o azimute fica indisponível. Para Directional, o alcance fica indisponível; compare orientação. Para testar posição da direcional no Inspector Remoto, evite chamar atualizar durante a comparação.",
+          "expect": "Omni depende de origem e alcance, sem orientação da emissão. Directional depende da direção e não da posição. Os resultados não precisam ter o mesmo brilho ao usar light_energy igual; a distribuição é diferente."
+        },
+        {
+          "title": "Preveja a abertura do holofote",
+          "text": "Volte a Spot e compare meia abertura 10, 32 e 60 graus mantendo azimute/energia/alcance. Leia o cone total calculado pelo painel. Depois restaure e varie só o azimute. A rotina look_at orienta −Z para o alvo.",
+          "expect": "As aberturas totais são 20°, 64° e 120°. Alargar não é aumentar alcance. O rótulo e o valor de `spot_angle` devem concordar; dentro do cone a intensidade também depende de queda angular e distância."
+        },
+        {
+          "title": "Isole sombra e preenchimento",
+          "text": "Mantenha a esfera entre a fonte e uma região do piso. Alterne Sombras. Reduza preenchimento a zero e depois volte a 0,12, sem alterar material/luz. No laboratório web use S e D com foco no desenho e observe a sonda em (0,0,7).",
+          "expect": "A sombra bloqueia a contribuição direta, mas o ambiente permanece. Preenchimento uniforme não equivale a GI calculada nem mostra color bleeding. No Canvas, a sonda usa exatamente o mesmo cálculo do piso."
+        },
+        {
+          "title": "Compare duas formas de neblina",
+          "text": "Com densidade 0,04 observe a neblina comum na Godot. Para testar a volumétrica, selecione Forward+, reinicie conforme o editor, confirme o método atual e ative Volumetric Fog. A prática desliga a comum durante essa comparação. Repita densidade zero/0,04 e luz com energia zero/3. Para isolar a interação no volume, altere `light_volumetric_fog_energy` de 1 para 0 no Inspector Remoto sem acionar atualizar.",
+          "expect": "Somente Forward+ libera o volume. Densidade zero remove o meio; energia/contribuição zero remove a parcela local dessa luz. A câmera deve observar o volume iluminado; não existe feixe garantido para qualquer pose. O Canvas demonstra apenas neblina comum em painéis independentes, sem simular esse volume."
+        },
+        {
+          "title": "Observe efeitos com uma referência",
+          "text": "Restaure, identifique o emissor ciano e alterne Glow sem mudar sua emissão. Compare Linear e ACES com exposição 1, e AgX somente onde apropriado. Em Forward+, teste SSAO separadamente. Não ative todos os efeitos de uma vez nem chame o preset de gratuito.",
+          "expect": "Glow modifica a imagem ao redor de áreas claras; não acrescenta iluminação ao piso nesta cena sem GI. Tonemapping muda a apresentação dos valores. SSAO não substitui sombra nem ilumina indiretamente. O custo depende da cena, resolução, método e hardware."
+        },
+        {
+          "title": "Repita e explique os limites",
+          "text": "No Canvas use 1/2/3 para Spot/Omni/Directional, S para sombras, D para luz direta isolada e R para restaurar, apenas com foco no desenho. Densidade altera os três painéis de referência; 0 deve produzir T=1 para todos. Em 0,1 e distância 10, preveja T≈0,368. O ciclo solar opcional exige outra cena e céu configurado.",
+          "expect": "Todos os controles têm alternativa visível e ajustes funcionam em pausa. O modelo não executa shaders Godot, reflexos, GI, Glow ou volume. Girar o sol procedural pode mover o disco, mas este script não anima automaticamente cores do céu, ambiente, lua ou exposição."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Spot com spot_angle=32° tem cone total de 32°?",
+        "answer": "Não. O ângulo é medido do eixo central até a borda: meia abertura de 32° corresponde a abertura total de 64°."
+      },
+      {
+        "question": "Uma sombra mais clara prova que houve luz rebatida?",
+        "answer": "Não. Pode ser apenas preenchimento ambiente. Para concluir sobre GI, isole as fontes e a técnica responsável; este apoio não calcula GI."
+      },
+      {
+        "question": "Marcar Volumetric Fog em qualquer projeto garante um feixe?",
+        "answer": "Não. Requer Forward+ ativo e condições de densidade, luz/contribuição, meio e observação. Neblina comum, um cone desenhado e Glow não são a mesma operação."
+      },
+      {
+        "question": "Por que o editor parecia iluminado e o jogo ficou escuro?",
+        "answer": "A prévia pode usar sol/céu apenas do editor. Confira fontes reais e Environment atribuído ao WorldEnvironment, além de eventual override da câmera e do método atual."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "A opção existe, mas o efeito não aparece",
+        "text": "Confira o método atual, que pode diferir do pretendido após fallback. Volumetric Fog/SSAO são Forward+; densidade zero e energia/contribuição zero também mudam o resultado. Não confundir recurso indisponível com bug de material."
+      },
+      {
+        "title": "Aumentei o brilho e a luz pareceu maior",
+        "text": "Energia e alcance são parâmetros separados. A região perceptível pode mudar por exposição/limiar visual; confira os valores e mantenha a escala da cena. Directional não recebe alcance Omni/Spot."
+      },
+      {
+        "title": "Há céu, mas a peça continua escura",
+        "text": "Fundo, ambiente e reflexos são fontes separáveis. O apoio usa preenchimento por cor e desliga reflexos do céu de propósito. Confira também a fonte ativa, sua direção, material e máscara de iluminação."
+      },
+      {
+        "title": "O ciclo virou noite, mas o céu não mudou de cor",
+        "text": "ProceduralSkyMaterial tem cores configuradas. A extensão só gira a fonte e corta energia/sombra abaixo do horizonte. Uma transição completa exige animar parâmetros adicionais; não anexar o ciclo à bancada cujo controlador também orienta a luz."
+      },
+      {
+        "title": "A sombra está manchada ou descolada",
+        "text": "Confira geometria, bias/normal bias e configurações de sombra. Não adicione `CollisionShape3D` como tentativa de corrigir sombra visual. Registre renderizador, escala e condições antes de ajustar valores."
+      }
+    ],
+    "summary": "Escolha a distribuição da fonte, depois compare energia, alcance e abertura. Isole a sombra do preenchimento ambiente; separe céu visível, reflexos, neblina e efeitos de imagem. Confirme o renderizador e altere uma variável por vez.",
+    "next": "A aula 3D 9 passa à montagem modular com GridMap e Decal. Iluminação global e reflexão serão aprofundadas na 3D13; o preenchimento desta aula não deve ser apresentado como GI.",
+    "sources": [
+      {
+        "label": "Luzes e sombras 3D — Godot 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/lights_and_shadows.html"
+      },
+      {
+        "label": "DirectionalLight3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_directionallight3d.html"
+      },
+      {
+        "label": "OmniLight3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_omnilight3d.html"
+      },
+      {
+        "label": "SpotLight3D: meia abertura e eixo",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_spotlight3d.html"
+      },
+      {
+        "label": "Environment e pós-processamento",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/environment_and_post_processing.html"
+      },
+      {
+        "label": "Matriz de recursos dos renderizadores",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/rendering/renderers.html"
+      },
+      {
+        "label": "Neblina volumétrica",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/volumetric_fog.html"
+      },
+      {
+        "label": "Environment: propriedades e enumerações",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_environment.html"
+      },
+      {
+        "label": "Light3D: contribuição no volume",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_light3d.html"
+      },
+      {
+        "label": "RenderingServer: método atual",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_renderingserver.html"
+      },
+      {
+        "label": "ProceduralSkyMaterial",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_proceduralskymaterial.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Configurar fontes · luzes.gd",
+      "whenToUse": "Comparar fontes controladas pelo mesmo painel.",
+      "description": "Biblioteca RefCounted chamada por oficina.gd, com parâmetros explícitos. Somente uma fonte visível. Energia normalizada, sem igualar iluminância entre fontes. Abertura é meia abertura.",
+      "code": "extends RefCounted\n# Escala ilustrativa de energia; unidades físicas de luz desativadas no projeto.\nstatic func configurar(direcional: DirectionalLight3D, omni: OmniLight3D,\n        spot: SpotLight3D, tipo: int, energia: float, alcance: float,\n        azimute: float, meia_abertura: float, sombras: bool) -> void:\n    direcional.visible = tipo == 2\n    omni.visible = tipo == 1\n    spot.visible = tipo == 0\n    var direcao := Vector3(sin(deg_to_rad(azimute)), -0.6,\n            cos(deg_to_rad(azimute))).normalized()\n    # look_at orienta o eixo -Z para o alvo. Posição não altera luz direcional.\n    direcional.look_at(direcional.global_position + direcao, Vector3.UP)\n    spot.look_at(spot.global_position + direcao, Vector3.UP)\n    omni.omni_range = alcance\n    spot.spot_range = alcance\n    spot.spot_angle = meia_abertura # 32 graus = cone total de 64 graus.\n    omni.omni_attenuation = 1.0\n    spot.spot_attenuation = 1.0\n    spot.spot_angle_attenuation = 1.0\n    for luz: Light3D in [direcional, omni, spot]:\n        luz.light_energy = energia\n        luz.shadow_enabled = sombras\n        luz.light_volumetric_fog_energy = 1.0\n    # O mesmo light_energy não garante igual iluminância entre tipos de luz.\n",
+      "pros": "Direção, alcance, abertura e sombras separados.",
+      "cons": "A queda real é da Godot; números e pixels não precisam coincidir com o Canvas."
+    },
+    {
+      "title": "2. Separar ambiente · ambiente.gd",
+      "whenToUse": "Controlar fundo, preenchimento e efeitos com condições do renderizador.",
+      "description": "Biblioteca: criar devolve Environment e configurar aplica parâmetros. WorldEnvironment recebe esse recurso. O céu não fornece reflexos neste apoio. Volume substitui neblina comum durante a comparação.",
+      "code": "extends RefCounted\n\nstatic func criar() -> Environment:\n    var e := Environment.new()\n    e.background_mode = Environment.BG_SKY\n    var ceu := Sky.new()\n    var material := ProceduralSkyMaterial.new()\n    material.sky_top_color = Color(0.08, 0.16, 0.24)\n    material.sky_horizon_color = Color(0.45, 0.34, 0.23)\n    ceu.sky_material = material\n    e.sky = ceu\n    # Céu visível separado do preenchimento e de reflexos.\n    e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    e.ambient_light_color = Color(0.65, 0.72, 0.8)\n    e.ambient_light_sky_contribution = 0.0\n    e.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED\n    return e\n\nstatic func configurar(e: Environment, preenchimento: float,\n        densidade: float, volume: bool, glow: bool, ssao: bool,\n        tonemap: int) -> void:\n    var metodo := RenderingServer.get_current_rendering_method()\n    var forward := metodo == &\"forward_plus\"\n    e.ambient_light_energy = preenchimento\n    e.tonemap_mode = tonemap\n    e.tonemap_exposure = 1.0\n    e.glow_enabled = glow\n    e.glow_intensity = 0.8\n    e.glow_hdr_threshold = 1.0\n    e.fog_enabled = densidade > 0.0 and not (volume and forward)\n    e.fog_mode = Environment.FOG_MODE_EXPONENTIAL\n    e.fog_density = densidade\n    e.fog_light_color = Color(0.35, 0.45, 0.5)\n    e.fog_light_energy = 1.0\n    e.volumetric_fog_enabled = volume and forward\n    e.volumetric_fog_density = densidade\n    e.volumetric_fog_albedo = Color(0.9, 0.9, 0.9)\n    e.volumetric_fog_emission = Color.BLACK\n    e.ssao_enabled = ssao and forward\n    # Glow existe em Compatibility 4.5, com implementação simplificada.\n    # Volumetric Fog/SSAO não são habilitados fora do Forward+.\n",
+      "pros": "Disponibilidade verificada pelo método atual.",
+      "cons": "Não mede custo nem implementa presets universais de desempenho."
+    },
+    {
+      "title": "3. Montar a bancada · oficina.gd",
+      "whenToUse": "Executar o projeto completo com câmera, geometria e interface.",
+      "description": "Anexado ao Node3D raiz de oficina.tscn; cria todos os nós em runtime. Controles e reset não exigem InputMap. Consulte configuração e roteiro antes de adaptar.",
+      "code": "extends Node3D\nconst LUZES = preload(\"res://luzes.gd\")\nconst AMBIENTE = preload(\"res://ambiente.gd\")\nvar sol: DirectionalLight3D\nvar omni: OmniLight3D\nvar spot: SpotLight3D\nvar ambiente: Environment\nvar painel: VBoxContainer\nvar leitura: Label\nvar tipo: OptionButton\nvar tonemap: OptionButton\nvar energia: HSlider\nvar alcance: HSlider\nvar angulo: HSlider\nvar abertura: HSlider\nvar preenchimento: HSlider\nvar densidade: HSlider\nvar sombras: CheckButton\nvar volume: CheckButton\nvar glow: CheckButton\nvar ssao: CheckButton\n\nfunc material(cor: Color) -> StandardMaterial3D:\n    var m := StandardMaterial3D.new()\n    m.albedo_color = cor\n    m.roughness = 0.65\n    return m\n\nfunc peca(nome: String, mesh: Mesh, posicao: Vector3,\n        mat: Material) -> MeshInstance3D:\n    var instancia := MeshInstance3D.new()\n    instancia.name = nome\n    instancia.mesh = mesh\n    instancia.position = posicao\n    instancia.material_override = mat\n    add_child(instancia)\n    return instancia\n\nfunc slider(texto: String, minimo: float, maximo: float,\n        passo: float, valor: float) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    painel.add_child(l)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    s.custom_minimum_size.x = 320\n    painel.add_child(s)\n    s.value_changed.connect(func(_v: float): atualizar())\n    return s\n\nfunc chave(texto: String, valor: bool) -> CheckButton:\n    var c := CheckButton.new()\n    c.text = texto\n    c.button_pressed = valor\n    painel.add_child(c)\n    c.toggled.connect(func(_v: bool): atualizar())\n    return c\n\nfunc _ready() -> void:\n    var piso := PlaneMesh.new()\n    piso.size = Vector2(12, 14)\n    peca(\"Piso\", piso, Vector3(0, 0, 5), material(Color(0.45, 0.27, 0.12)))\n    var esfera := SphereMesh.new()\n    esfera.radius = 1.0\n    esfera.height = 2.0\n    peca(\"Obstaculo\", esfera, Vector3(0, 1.1, 4.5), material(Color(0.2, 0.3, 0.32)))\n    var caixa := BoxMesh.new()\n    caixa.size = Vector3(0.6, 1.4, 0.6)\n    for i in range(3):\n        peca(\"Marcador%d\" % i, caixa, Vector3(2.7, 0.7, 2 + i * 3),\n                material(Color(0.55, 0.55, 0.55)))\n    var emissivo := material(Color(0.05, 0.1, 0.12))\n    emissivo.emission_enabled = true\n    emissivo.emission = Color(0.15, 0.8, 1.0)\n    emissivo.emission_energy_multiplier = 4.0\n    peca(\"EmissorSemGI\", caixa, Vector3(-2.7, 0.7, 5), emissivo)\n    sol = DirectionalLight3D.new()\n    sol.name = \"Sol\"\n    sol.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_AND_SKY\n    add_child(sol)\n    omni = OmniLight3D.new()\n    omni.name = \"Lampada\"\n    omni.position = Vector3(0, 3, 0)\n    add_child(omni)\n    spot = SpotLight3D.new()\n    spot.name = \"Holofote\"\n    spot.position = Vector3(0, 3, 0)\n    add_child(spot)\n    var world := WorldEnvironment.new()\n    world.name = \"Mundo\"\n    ambiente = AMBIENTE.criar()\n    world.environment = ambiente\n    add_child(world)\n    var camera := Camera3D.new()\n    camera.position = Vector3(11, 10, 15)\n    camera.fov = 60\n    add_child(camera)\n    camera.look_at(Vector3(0, 0, 4.5), Vector3.UP)\n    camera.make_current()\n    criar_interface()\n    restaurar()\n\nfunc criar_interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var scroll := ScrollContainer.new()\n    scroll.position = Vector2(16, 16)\n    scroll.size = Vector2(410, 900)\n    layer.add_child(scroll)\n    var fundo := PanelContainer.new()\n    scroll.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.add_theme_constant_override(\"separation\", 10)\n    fundo.add_child(painel)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    leitura.custom_minimum_size.x = 350\n    painel.add_child(leitura)\n    tipo = OptionButton.new()\n    for nome in [\"Spot\", \"Omni\", \"Directional\"]:\n        tipo.add_item(nome)\n    painel.add_child(tipo)\n    tipo.item_selected.connect(func(_v: int): atualizar())\n    energia = slider(\"Energia normalizada\", 0, 5, 0.25, 3)\n    alcance = slider(\"Alcance Omni/Spot (u)\", 2, 18, 1, 12)\n    angulo = slider(\"Azimute Spot/Directional (graus)\", -60, 60, 5, 0)\n    abertura = slider(\"Meia abertura Spot (graus)\", 10, 60, 2, 32)\n    preenchimento = slider(\"Preenchimento ambiente\", 0, 0.6, 0.02, 0.12)\n    densidade = slider(\"Densidade da neblina\", 0, 0.3, 0.02, 0)\n    sombras = chave(\"Sombras\", true)\n    volume = chave(\"Volumetric Fog — requer Forward+\", false)\n    glow = chave(\"Glow — observar o emissor ciano\", false)\n    ssao = chave(\"SSAO — requer Forward+\", false)\n    tonemap = OptionButton.new()\n    tonemap.add_item(\"Linear\", Environment.TONE_MAPPER_LINEAR)\n    tonemap.add_item(\"ACES\", Environment.TONE_MAPPER_ACES)\n    if RenderingServer.get_current_rendering_method() != &\"mobile\":\n        tonemap.add_item(\"AgX\", Environment.TONE_MAPPER_AGX)\n    painel.add_child(tonemap)\n    tonemap.item_selected.connect(func(_v: int): atualizar())\n    var botao := Button.new()\n    botao.text = \"Restaurar parâmetros\"\n    botao.pressed.connect(restaurar)\n    painel.add_child(botao)\n\nfunc restaurar() -> void:\n    tipo.select(0)\n    tonemap.select(0)\n    energia.set_value_no_signal(3)\n    alcance.set_value_no_signal(12)\n    angulo.set_value_no_signal(0)\n    abertura.set_value_no_signal(32)\n    preenchimento.set_value_no_signal(0.12)\n    densidade.set_value_no_signal(0)\n    sombras.set_pressed_no_signal(true)\n    volume.set_pressed_no_signal(false)\n    glow.set_pressed_no_signal(false)\n    ssao.set_pressed_no_signal(false)\n    atualizar()\n\nfunc atualizar() -> void:\n    if not is_instance_valid(ssao):\n        return # Interface ainda em montagem.\n    var metodo := RenderingServer.get_current_rendering_method()\n    var forward := metodo == &\"forward_plus\"\n    volume.disabled = not forward\n    ssao.disabled = not forward\n    alcance.editable = tipo.selected != 2\n    abertura.editable = tipo.selected == 0\n    angulo.editable = tipo.selected != 1\n    LUZES.configurar(sol, omni, spot, tipo.selected, energia.value,\n            alcance.value, angulo.value, abertura.value, sombras.button_pressed)\n    AMBIENTE.configurar(ambiente, preenchimento.value, densidade.value,\n            volume.button_pressed, glow.button_pressed, ssao.button_pressed,\n            tonemap.get_selected_id())\n    leitura.text = (\"Renderizador: %s\\nEnergia %.2f | alcance %.1f u\\n\"\n            + \"Azimute %.0f graus | cone total %.0f graus\\n\"\n            + \"Ambiente %.2f | densidade %.2f\\n\"\n            + \"Céu visível; sem GI/reflexos do céu. Sem colisão/locomoção.\\n\"\n            + \"R restaura quando o foco não está num controle.\") % [\n            metodo, energia.value, alcance.value, angulo.value,\n            abertura.value * 2, preenchimento.value, densidade.value]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo:\n        if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n            return\n        if event.keycode == KEY_R:\n            restaurar()\n            get_viewport().set_input_as_handled()\n",
+      "pros": "Montagem e dependências explícitas; reset repetível.",
+      "cons": "Cena sem física, movimento ou GI; execução real permanece pendente."
+    },
+    {
+      "title": "4. Extensão: giro solar · ciclo_sol.gd",
+      "whenToUse": "Investigar orientação e horizonte em outra cena, após a prática principal.",
+      "description": "Anexar a uma DirectionalLight3D com céu procedural configurado. Não usar junto ao controlador da bancada. O giro não configura sozinho céu noturno, lua ou cores do pôr do sol.",
+      "code": "extends DirectionalLight3D\n# Extensão independente: NÃO anexada à cena da bancada controlada.\n# Anexar a uma DirectionalLight3D em outra cena, com WorldEnvironment,\n# Environment/BG_SKY, Sky e ProceduralSkyMaterial configurados.\n@export_range(10.0, 1200.0) var segundos_por_volta := 120.0\n@export var energia_dia := 1.2\n\nfunc _process(delta: float) -> void:\n    rotate_x(TAU * delta / segundos_por_volta)\n    var direcao := -global_transform.basis.z.normalized()\n    var acima_do_horizonte := direcao.y < 0.0\n    light_energy = energia_dia if acima_do_horizonte else 0.0\n    shadow_enabled = acima_do_horizonte\n# A posição do disco solar acompanha a direção. Cores do céu, ambiente,\n# exposição e luz noturna exigem decisões próprias: este ciclo não as anima.\n",
+      "pros": "Rotação dependente de delta e condição do horizonte visíveis.",
+      "cons": "É uma extensão mínima de orientação; não um sistema completo de dia/noite."
+    },
+    {
+      "title": "5. Configuração e limites",
+      "whenToUse": "Preparar ambiente e conferir quais efeitos podem ser observados.",
+      "description": "Leia antes de executar os scripts. Projeto usa Compatibility como base e exige mudança explícita para testar recursos Forward+.",
+      "code": "Godot 4.5, GDScript, desktop. Projeto inicia em Compatibility.\nImportar project.godot e executar oficina.tscn; cena montada em runtime.\nNão requer InputMap, texturas externas, plugins ou dados de usuário.\nEnergia normalizada; use_physical_light_units permanece no padrão false.\nUnidades de mundo ilustrativas; não há calibração fotométrica.\nSombras pertencem às luzes e às malhas visuais; não exigem CollisionShape3D.\nCéu visível, ambiente por cor; reflexos do céu e GI desativados.\nCamera3D.environment não definido: WorldEnvironment fornece o ambiente.\nPara Volumetric Fog/SSAO: selecionar Forward+ e reiniciar conforme editor.\nConfirmar renderizador ATUAL mostrado no painel, inclusive após fallback.\nMobile/Compatibility: controles volumétricos/SSAO ficam indisponíveis.\nGlow disponível nos três renderizadores; Compatibility 4.5 é simplificado.\nAgX omitido na UI Mobile; sua referência branca é inadequada para esse método.\nCiclo solar: extensão independente; não anexar à bancada sem remover a\norientação controlada por oficina.gd. Não promete cor/noite automáticas.\nProjeto revisado estruturalmente/documentalmente; execução no motor pendente.\n",
+      "language": "text",
+      "pros": "Método, unidades e dependências registrados.",
+      "cons": "Conferência documental não substitui compilar/executar a cena."
+    }
+  ],
+  "simulator": {
+    "type": "lighting_3d_env",
+    "title": "Laboratório: luz no piso e neblina na vista",
+    "description": "Modelo analítico próprio: iluminação de um piso com sombra de uma esfera elevada e, separadamente, três painéis iguais vistos através de neblina comum. Sem GI, Glow, reflexão ou volume Godot.",
+    "guide": [
+      {
+        "title": "Comece pela luz",
+        "text": "A vista superior mostra piso x=−5…5, z=0…10. Fonte pontual/Spot em (0,3,0); esfera com x=0, y=1,1 e z=4,5, raio 1. Sonda em (0,0,7). A marca ciano no topo é projeção da fonte; Directional usa esse ponto apenas como origem gráfica de sua direção."
+      },
+      {
+        "title": "Compare sombra e ambiente",
+        "text": "S alterna bloqueio; D zera ambiente e neblina. A sombra retira só luz direta. 1/2/3 escolhem o tipo, preservando outros parâmetros. Controles sem efeito no tipo escolhido ficam indisponíveis. R restaura tudo. Atalhos sem repetição/modificadores, apenas com foco no desenho."
+      },
+      {
+        "title": "Leia a neblina separadamente",
+        "text": "Os três painéis têm radiância inicial igual e distâncias 2, 6 e 10 u. T=exp(−densidade × distância); densidade zero dá T=1. Eles são referências independentes da luz no piso. Não há feixe iluminando o ar nem equivalência exata com a neblina da Godot. Modelo estático, ajustável em pausa."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Com SpotLight3D.`spot_angle`=32°, qual interpretação permite testar a iluminação sem confundir seus efeitos?",
+    "options": [
+      "O cone total mede 64°; sombras bloqueiam a parcela direta e preenchimento pode permanecer. Feixe volumétrico exige Forward+ e condições de meio/luz, sem ser garantido por Glow.",
+      "O cone total mede 32°; aumentar Glow ilumina automaticamente o piso e substitui GI.",
+      "O cone total mede 64°; neblina comum sempre integra o cone de luz no ar em qualquer renderizador.",
+      "Girar Omni muda o cone; mover Directional muda sua intensidade por distância."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto: meia abertura, contribuições e condições do volume são contratos distintos.",
+      "`spot_angle` é meia abertura. Glow é pós-processamento e não substitui iluminação do piso.",
+      "Neblina comum não integra feixes locais como a volumétrica, que requer Forward+.",
+      "Omni é pontual sem cone orientado; posição da Directional não define a iluminação."
+    ],
+    "explanation": "Compare uma variável por vez: abertura geométrica, luz recebida, preenchimento e aparência através do meio. O renderizador limita quais efeitos podem ser testados."
+  }
+},
 
   {
     id: "3d-inter-gridmap-decals",

@@ -166,8 +166,8 @@ window.SimulatorEngine = (function () {
     let refresh = () => {};
     const resize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
-      canvas.height = type === "raycast_picking_3d" ? (canvas.width < 500 ? 720 : 440) : type === "springarm_camera_3d" ? (canvas.width < 500 ? 720 : 440) : type === "character_3d_slopes" ? (canvas.width < 500 ? 720 : 560) : type === "csg_boolean_3d" ? (canvas.width < 500 ? 720 : 560) : type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
+      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
+      canvas.height = type === "lighting_3d_env" ? (canvas.width < 500 ? 800 : 440) : type === "pbr_material_3d" ? (canvas.width < 500 ? 720 : 440) : type === "raycast_picking_3d" ? (canvas.width < 500 ? 720 : 440) : type === "springarm_camera_3d" ? (canvas.width < 500 ? 720 : 440) : type === "character_3d_slopes" ? (canvas.width < 500 ? 720 : 560) : type === "csg_boolean_3d" ? (canvas.width < 500 ? 720 : 560) : type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
       canvas.parentElement.style.alignSelf = ["gi_reflection_3d", "vectors_2d", "layers_masks", "camera_parallax_2d", "tween_raycast_2d"].includes(type) ? "start" : "stretch";
       canvas.style.height = "auto";
       canvas.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
@@ -938,25 +938,38 @@ window.SimulatorEngine = (function () {
       }
 
       case "pbr_material_3d": {
-        addSlider("Metallic (0 = Isolante, 1 = Metal)", 0, 1, 0.05, 1.0, "metal", "");
-        addSlider("Roughness (0 = Espelho, 1 = Fosco)", 0.05, 1, 0.05, 0.2, "rough", "");
-        addSlider("Emission (Brilho Incandescente)", 0, 3, 0.1, 0.0, "emit", "x");
-        addSelect("Cor Albedo Base", [
-          { value: "#d4a359", label: "Latão Polido (#d4a359)" },
-          { value: "#c86438", label: "Cobre Forjado (#c86438)" },
-          { value: "#5ce1e6", label: "Cristal de Éter (#5ce1e6)" }
-        ], "albedo");
+        addSlider('Metallic de A',0,1,.05,1,'metal','');
+        addSlider('Roughness de A',0,1,.05,.2,'rough','');
+        addSlider('Emissão ciano de A',0,3,.25,0,'emit','x');
+        addSelect('Albedo de A',[{value:'#d4a359',label:'Dourado ilustrativo'},{value:'#c86438',label:'Cobre ilustrativo'},{value:'#5ce1e6',label:'Revestimento ciano'}],'albedo');
+        addSelect('Luz direta branca',[{value:'on',label:'Ligada'},{value:'off',label:'Desligada'}],'light');
+        addSlider('Azimute da luz',-75,75,5,-35,'angle','°');
+        addSelect('Material de B',[{value:'unique',label:'Referência independente'},{value:'shared',label:'Mesmos parâmetros de A'}],'sharing');
+        addButton('Latão ilustrativo · 1',()=>pbr24Preset(state,1));
+        addButton('Cobre ilustrativo · 2',()=>pbr24Preset(state,2));
+        addButton('Revestimento opaco · 3',()=>pbr24Preset(state,3));
+        addButton('Restaurar · R',()=>pbr24Defaults(state));
+        state.pbrUI=()=>{for(const key of ['metal','rough','emit','albedo','light','angle','sharing']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=Number(state[key]).toFixed(key==='angle'?0:2)+(key==='angle'?'°':key==='emit'?'x':'');input.setAttribute('aria-valuetext',value.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Comparação de materiais sob luz direta: 1/2/3 aplicam presets em A; Q/E mudam rugosidade por 0,05; L alterna luz; R restaura. Atalhos somente com foco no desenho.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['1','2','3','q','e','l','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(['1','2','3'].includes(k))pbr24Preset(state,Number(k));if(k==='q'||k==='e')state.rough=Math.round(Math.max(0,Math.min(1,state.rough+(k==='q'?-.05:.05)))*100)/100;if(k==='l')state.light=state.light==='on'?'off':'on';if(k==='r')pbr24Defaults(state);refresh();};const click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);pbr24Cache.clear();};
         break;
       }
 
       case "lighting_3d_env": {
-        addSelect("Tipo de Luz 3D Ativa", [
-          { value: "spot", label: "SpotLight3D (Cone Focado + God Rays)" },
-          { value: "omni", label: "OmniLight3D (Esfera Radial)" },
-          { value: "dir", label: "DirectionalLight3D (Raios Solares Paralelos)" }
-        ], "lightType");
-        addSlider("Volumetric Fog (Neblina a Vapor)", 0, 1, 0.05, 0.65, "fog", "");
-        addSlider("Ângulo / Posição da Luz", -60, 60, 2, -20, "lAngle", "°");
+        addSelect('Fonte de luz',[{value:'spot',label:'Spot · cone'},{value:'omni',label:'Omni · pontual'},{value:'dir',label:'Directional · paralela'}],'lightType');
+        addSlider('Energia normalizada',0,5,.25,3,'energy','x');
+        addSlider('Alcance · Omni/Spot',2,18,1,12,'range',' u');
+        addSlider('Azimute · Spot/Directional',-60,60,5,0,'angle','°');
+        addSlider('Meia abertura · Spot',10,60,2,32,'half','°');
+        addSelect('Sombra do obstáculo',[{value:'on',label:'Ligada'},{value:'off',label:'Desligada'}],'shadows');
+        addSlider('Preenchimento ambiente',0,.6,.02,.12,'ambient','');
+        addSlider('Densidade · neblina comum',0,.3,.02,0,'fog',' u⁻¹');
+        addButton('Luz direta isolada · D',()=>{state.ambient=0;state.fog=0;});
+        addButton('Restaurar · R',()=>light25Defaults(state));
+        state.lightUI=()=>{for(const key of ['lightType','energy','range','angle','half','shadows','ambient','fog']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);input.disabled=(key==='range'&&state.lightType==='dir')||(key==='half'&&state.lightType!=='spot')||(key==='angle'&&state.lightType==='omni');const val=group.querySelector('#val-'+key);if(val){val.textContent=Number(state[key]).toFixed(['angle','half','range'].includes(key)?0:2)+(['angle','half'].includes(key)?'°':key==='range'?' u':key==='fog'?' u⁻¹':key==='energy'?'x':'');input.setAttribute('aria-valuetext',val.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Laboratório de luz e neblina: 1 Spot, 2 Omni, 3 Directional; S alterna sombras, D isola luz direta e R restaura. Atalhos somente com foco no desenho.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['1','2','3','s','d','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(['1','2','3'].includes(k))state.lightType=({1:'spot',2:'omni',3:'dir'})[k];if(k==='s')state.shadows=state.shadows==='on'?'off':'on';if(k==='d'){state.ambient=0;state.fog=0;}if(k==='r')light25Defaults(state);refresh();};
+        const click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);light25Cache.clear();};
         break;
       }
 
@@ -1060,6 +1073,8 @@ window.SimulatorEngine = (function () {
       if(type === "character_3d_slopes") state.charUI();
       if(type === "springarm_camera_3d") state.cameraUI();
       if(type === "raycast_picking_3d") state.pickUI();
+      if(type === "pbr_material_3d") state.pbrUI();
+      if(type === "lighting_3d_env") state.lightUI();
       if (type === "fsm_state_machine") {
         const group=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-actorX"));
         const input=group.querySelector("#sim-input-actorX");input.value=String(state.actorX);
@@ -1090,7 +1105,7 @@ window.SimulatorEngine = (function () {
       }
 
     }
-    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d", "csg_boolean_3d", "character_3d_slopes", "springarm_camera_3d", "raycast_picking_3d"].includes(type)) draw(0); };
+    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d", "csg_boolean_3d", "character_3d_slopes", "springarm_camera_3d", "raycast_picking_3d", "pbr_material_3d","lighting_3d_env"].includes(type)) draw(0); };
     function loop(now) {
       activeLoopId = null;
       if (paused || document.hidden) return;
@@ -1116,7 +1131,7 @@ window.SimulatorEngine = (function () {
           cancelAnimationFrame(activeLoopId);
           activeLoopId = null;
         }
-        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d"].includes(type)) draw(0);
+        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env"].includes(type)) draw(0);
         schedule();
       }
     };
@@ -1544,6 +1559,38 @@ window.SimulatorEngine = (function () {
   function pick23Act(s) { const hit=pick23Measure(s).hit;s.attempts++;s.lastHit=hit?JSON.parse(JSON.stringify(hit)):null;if(hit?.name==='Mecanismo'){s.actions++;s.lastStatus='Mecanismo acionado uma vez';}else s.lastStatus=hit?'Primeiro objeto não interagível':'Sem resultado; nenhum impacto'; }
   function pick23Geometry(w,h) { const lw=w<500?320:640,lh=w<500?720:360,scale=Math.min(w/lw,h/lh);return {lw,lh,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2}; }
   function pick23PointAngle(w,h,x,y) { const g=pick23Geometry(w,h),px=(x-g.ox)/g.scale,py=(y-g.oy)/g.scale;if(px<15||px>305||py<60||py>265)return null;const wx=(px-160)/22,wy=(195-py)/22;if(wy>=5)return null;return Math.round(Math.max(-65,Math.min(65,Math.atan2(wx,5-wy)*180/Math.PI))); }
+  const pbr24Cache = new Map();
+  function pbr24Defaults(s) { Object.assign(s,{metal:1,rough:.2,emit:0,albedo:'#d4a359',light:'on',angle:-35,sharing:'unique'}); }
+  function pbr24Preset(s,kind) { Object.assign(s,kind===2?{metal:1,rough:.2,emit:0,albedo:'#c86438'}:kind===3?{metal:0,rough:.65,emit:0,albedo:'#5ce1e6'}:{metal:1,rough:.2,emit:0,albedo:'#d4a359'}); }
+  function pbr24Linear(x) { return x<=.04045?x/12.92:Math.pow((x+.055)/1.055,2.4); }
+  function pbr24Display(x) { const t=Math.max(0,x)/(1+Math.max(0,x));return t<=.0031308?12.92*t:1.055*Math.pow(t,1/2.4)-.055; }
+  function pbr24Color(hex) { return [1,3,5].map(i=>pbr24Linear(parseInt(hex.slice(i,i+2),16)/255)); }
+  function pbr24Norm(v) { const n=Math.hypot(...v);return v.map(x=>x/Math.max(1e-12,n)); }
+  function pbr24Material(s,reference=false) { return reference&&s.sharing!=='shared'?{metal:1,rough:.2,emit:0,albedo:'#d4a359'}:{metal:s.metal,rough:s.rough,emit:s.emit,albedo:s.albedo}; }
+  function pbr24Shade(n,m,light,angle) {
+    const base=pbr24Color(m.albedo),f0=base.map(c=>.04*(1-m.metal)+c*m.metal),emission=pbr24Color('#5ce1e6').map(c=>c*m.emit),r=Math.max(.08,m.rough),alpha=r*r,a2=alpha*alpha,theta=angle*Math.PI/180,l=pbr24Norm([Math.sin(theta),.6,Math.cos(theta)]),h=pbr24Norm([l[0],l[1],l[2]+1]),dot=(a,b)=>a.reduce((v,x,i)=>v+x*b[i],0),nl=Math.max(0,dot(n,l)),nv=Math.max(0,n[2]),nh=Math.max(0,dot(n,h)),vh=Math.max(0,h[2]);
+    const D=a2/(Math.PI*Math.pow(nh*nh*(a2-1)+1,2)),g1=x=>2*x/Math.max(1e-12,x+Math.sqrt(a2+(1-a2)*x*x)),G=g1(nl)*g1(nv),F=f0.map(c=>c+(1-c)*Math.pow(1-vh,5)),spec=F.map(c=>D*G*c/Math.max(1e-8,4*nl*nv)),diffuse=base.map((c,i)=>(1-F[i])*(1-m.metal)*c/Math.PI),direct=base.map((_,i)=>light==='on'?(diffuse[i]+spec[i])*nl*3:0),rgb=direct.map((c,i)=>c+emission[i]);
+    return {rgb,direct,emission,f0,diffuse,spec,rough:r,D,G};
+  }
+  function pbr24Image(m,light,angle) {
+    const key=JSON.stringify([m,light,angle]);if(pbr24Cache.has(key))return pbr24Cache.get(key);
+    const size=112,off=document.createElement('canvas');off.width=size;off.height=size;const context=off.getContext('2d'),im=context.createImageData(size,size);
+    for(let y=0;y<size;y++)for(let x=0;x<size;x++){const nx=2*(x+.5)/size-1,ny=1-2*(y+.5)/size,q=nx*nx+ny*ny,i=(y*size+x)*4;if(q>1)continue;const rgb=pbr24Shade([nx,ny,Math.sqrt(1-q)],m,light,angle).rgb;for(let c=0;c<3;c++)im.data[i+c]=Math.round(255*pbr24Display(rgb[c]));im.data[i+3]=255;}
+    context.putImageData(im,0,0);if(pbr24Cache.size>=4)pbr24Cache.delete(pbr24Cache.keys().next().value);pbr24Cache.set(key,off);return off;
+  }
+  const light25Cache=new Map();
+  function light25Defaults(s){Object.assign(s,{lightType:'spot',energy:3,range:12,angle:0,half:32,shadows:'on',ambient:.12,fog:0});}
+  function light25Dir(s){const t=s.angle*Math.PI/180,n=Math.sqrt(1.36);return [Math.sin(t)/n,-.6/n,Math.cos(t)/n];}
+  function light25Blocked(p,l,maxDistance){const o=[p[0],p[1]-1.1,p[2]-4.5],b=o.reduce((v,x,i)=>v+x*l[i],0),c=o.reduce((v,x)=>v+x*x,0)-1,disc=b*b-c;if(disc<0)return false;const t=-b-Math.sqrt(disc),exit=-b+Math.sqrt(disc);return (t>.0001&&t<maxDistance-.0001)||(t<=.0001&&exit>.0001);}
+  function light25Sample(s,x,z){
+    const p=[x,.0001,z],d=light25Dir(s);let l,maxDistance=Infinity,fall=1,cone=1;
+    if(s.lightType==='dir')l=d.map(v=>-v);else{const v=[-x,3-p[1],-z],len=Math.hypot(...v);maxDistance=len;l=v.map(n=>n/len);fall=Math.pow(Math.max(0,1-len/s.range),2)/(1+len*len);if(s.lightType==='spot'){const cos=-l.reduce((v,n,i)=>v+n*d[i],0),edge=Math.cos(s.half*Math.PI/180);cone=Math.max(0,Math.min(1,(cos-edge)/(1-edge)));}}
+    const blocked=s.shadows==='on'&&light25Blocked(p,l,maxDistance),direct=blocked?0:s.energy*Math.max(0,l[1])*fall*cone*(s.lightType==='dir'?1:20);
+    return {direct,ambient:s.ambient,total:direct+s.ambient,blocked,fall,cone,distance:maxDistance};
+  }
+  function light25Fog(density,distance){const t=Math.exp(-Math.max(0,density)*Math.max(0,distance));return {t,rgb:[.16,.25,.28].map(f=>.5*t+f*(1-t))};}
+  function light25Display(x){const v=Math.max(0,x)/(1+Math.max(0,x));return v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055;}
+  function light25Image(s){const key=JSON.stringify([s.lightType,s.energy,s.range,s.angle,s.half,s.shadows,s.ambient]);if(light25Cache.has(key))return light25Cache.get(key);const c=document.createElement('canvas');c.width=160;c.height=160;const ct=c.getContext('2d'),image=ct.createImageData(160,160);for(let y=0;y<160;y++)for(let x=0;x<160;x++){const px=(x+.5)/16-5,pz=(y+.5)/16,r=light25Sample(s,px,pz),i=(y*160+x)*4;for(let k=0;k<3;k++)image.data[i+k]=Math.round(255*light25Display([.55,.32,.12][k]*r.total));image.data[i+3]=255;}ct.putImageData(image,0,0);if(light25Cache.size>=4)light25Cache.delete(light25Cache.keys().next().value);light25Cache.set(key,c);return c;}
   function renderSimulation(type, ctx, w, h, dt, state, telemetry) {
     switch (type) {
       case "scene_tree": {
@@ -2335,79 +2382,26 @@ window.SimulatorEngine = (function () {
       }
 
       case "pbr_material_3d": {
-        const cx = w * 0.5, cy = h * 0.5;
-        const r = 82;
-
-        // Brilho de Emission externo
-        if (state.emit > 0) {
-          const glow = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * (1.2 + state.emit * 0.25));
-          glow.addColorStop(0, state.albedo);
-          glow.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = glow;
-          ctx.beginPath(); ctx.arc(cx, cy, r * 1.8, 0, Math.PI * 2); ctx.fill();
-        }
-
-        // Esfera PBR 3D
-        const specSize = Math.max(8, state.rough * 75);
-        const grad = ctx.createRadialGradient(cx - 28, cy - 28, specSize * 0.2, cx, cy, r);
-        grad.addColorStop(0, state.rough < 0.4 ? "#ffffff" : state.albedo);
-        grad.addColorStop(0.35, state.albedo);
-        grad.addColorStop(1, state.metal > 0.5 ? "#080503" : "#2b1d12");
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = grad;
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#f4d088";
-        ctx.stroke();
-
-        telemetry.innerHTML = `
-          <div>Metallic: ${state.metal.toFixed(2)} | Roughness: ${state.rough.toFixed(2)}</div>
-          <div>Emission Multiplier: ${state.emit.toFixed(1)}x</div>
-        `;
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?720:360,scale=Math.min(w/lw,h/lh),a=pbr24Material(state),b=pbr24Material(state,true),probe=pbr24Shade([0,0,1],a,state.light,state.angle),fmt=v=>'('+v.map(x=>x.toFixed(3)).join(', ')+')';
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title,m)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,340);ctx.strokeRect(x,10,300,340);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText('M '+m.metal.toFixed(2)+' · R '+m.rough.toFixed(2)+' · E '+m.emit.toFixed(2),x+14,62);ctx.drawImage(pbr24Image(m,state.light,state.angle),x+50,76,200,200);ctx.strokeStyle='#b48b4c';ctx.beginPath();ctx.arc(x+150,176,101,0,Math.PI*2);ctx.stroke();ctx.fillStyle=m.albedo;ctx.fillRect(x+15,295,18,18);ctx.fillStyle='#d2bc95';ctx.fillText(m.albedo+' · cor base',x+43,309);ctx.fillStyle='#5ce1e6';ctx.fillText('Luz '+(state.light==='on'?'ligada':'desligada')+' · sem céu/GI',x+14,334);};
+        panel(10,'A · MATERIAL EDITÁVEL',a);if(stacked)ctx.translate(-320,360);panel(330,state.sharing==='shared'?'B · PARÂMETROS DE A':'B · REFERÊNCIA FIXA',b);ctx.restore();
+        telemetry.innerHTML=`<div>A: Metallic <strong>${a.metal.toFixed(2)}</strong>; Roughness <strong>${a.rough.toFixed(2)}</strong> (efetiva no cálculo <strong>${probe.rough.toFixed(2)}</strong>); emissão ciano <strong>${a.emit.toFixed(2)}x</strong>. Cor base sRGB ${a.albedo}; base linear ${fmt(pbr24Color(a.albedo))}; F0 linear <strong>${fmt(probe.f0)}</strong>. Metallic interpola continuamente F0 e reduz difusa; não há troca abrupta em 0,5.</div><div>No centro de A, normal (0,0,1): contribuição direta <strong>${fmt(probe.direct)}</strong>, emissiva <strong>${fmt(probe.emission)}</strong>, soma linear <strong>${fmt(probe.rgb)}</strong>. F0=(1−M)×0,04+M×base_linear. A emissão tem cor ciano fixa, independente do albedo e da luz; não ilumina B nem cria halo.</div><div>B: <strong>${state.sharing==='shared'?'usa os mesmos parâmetros de A':'referência independente: M1/R0,20/E0/dourado'}</strong>. A direção e o estado da luz são iguais nos dois painéis. O controle representa compartilhamento lógico; não instancia Resources Godot. Presets mudam só o material A, mantendo luz e modo de comparação. R restaura todos os parâmetros.</div><div>Rasterizador Canvas/JS próprio: esfera ortográfica, luz direcional branca, Cook–Torrance/GGX, Smith separável, Fresnel Schlick e difusa Lambert ponderada. Roughness é regularizada em 0,08 para evitar o limite especular singular. Soma linear → L/(1+L) → sRGB. Não é o renderer Godot nem calibração de latão/cobre: sem céu/IBL, GI, sombras projetadas, normal/ORM maps, transparência, overlay ou Glow. Modelo estático; ajustes e reinício funcionam em pausa.</div>`;
         break;
       }
 
       case "lighting_3d_env": {
-        const cx = w * 0.5;
-        // Neblina Volumétrica de fundo
-        ctx.fillStyle = `rgba(180, 145, 95, ${state.fog * 0.28})`;
-        ctx.fillRect(0, 0, w, h);
-
-        if (state.lightType === "spot") {
-          const rad = (state.lAngle * Math.PI) / 180;
-          ctx.fillStyle = `rgba(255, 210, 125, ${0.25 + state.fog * 0.45})`;
-          ctx.beginPath();
-          ctx.moveTo(cx, 25);
-          ctx.lineTo(cx + Math.sin(rad - 0.35) * 260, 265);
-          ctx.lineTo(cx + Math.sin(rad + 0.35) * 260, 265);
-          ctx.closePath();
-          ctx.fill();
-        } else if (state.lightType === "omni") {
-          const ox = cx + state.lAngle * 2;
-          const g = ctx.createRadialGradient(ox, 135, 10, ox, 135, 145);
-          g.addColorStop(0, `rgba(92, 225, 230, ${0.5 + state.fog * 0.4})`);
-          g.addColorStop(1, "rgba(0,0,0,0)");
-          ctx.fillStyle = g;
-          ctx.beginPath(); ctx.arc(ox, 135, 145, 0, Math.PI * 2); ctx.fill();
-        } else {
-          // DirectionalLight3D
-          ctx.strokeStyle = "rgba(255, 215, 130, 0.45)";
-          ctx.lineWidth = 2;
-          for (let i = -4; i <= 4; i++) {
-            ctx.beginPath();
-            ctx.moveTo(cx + i * 45, 15);
-            ctx.lineTo(cx + i * 45 + state.lAngle * 2, 265);
-            ctx.stroke();
-          }
-        }
-
-        drawGear(ctx, cx, 210, 32, 9, state.t * 0.5, "#593d20", "#f4d088");
-        telemetry.innerHTML = `
-          <div>Luz Ativa: <strong>${state.lightType.toUpperCase()}</strong></div>
-          <div>volumetric_fog_density: ${(state.fog * 0.1).toFixed(3)}</div>
-        `;
+        const stacked=w<500,lw=stacked?320:660,lh=stacked?800:400,scale=Math.min(w/lw,h/lh),probe=light25Sample(state,0,7),f=light25Fog(state.fog,10),type={spot:'Spot',omni:'Omni',dir:'Directional'}[state.lightType];
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,380);ctx.strokeRect(x,10,300,380);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};
+        frame(10,'01 · LUZ NO PISO');ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText(type+' · '+(state.lightType==='spot'?'cone total '+(state.half*2)+'°':state.lightType==='omni'?'fonte em y=3 u':'sem alcance finito'),24,59);
+        ctx.drawImage(light25Image(state),40,80,240,240);ctx.strokeStyle='rgba(244,208,136,.15)';ctx.lineWidth=1;for(let i=0;i<=10;i++){ctx.beginPath();ctx.moveTo(40+i*24,80);ctx.lineTo(40+i*24,320);ctx.moveTo(40,80+i*24);ctx.lineTo(280,80+i*24);ctx.stroke();}
+        ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.arc(160,80,5,0,Math.PI*2);ctx.fill();if(state.lightType!=='omni'){const t=state.angle*Math.PI/180;ctx.strokeStyle='#5ce1e6';ctx.beginPath();ctx.moveTo(160,80);ctx.lineTo(160+Math.sin(t)*60,80+Math.cos(t)*60);ctx.stroke();}
+        ctx.fillStyle='#674c31';ctx.strokeStyle='#edc678';ctx.beginPath();ctx.arc(160,188,24,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#5ce1e6';ctx.strokeStyle='#5ce1e6';ctx.strokeRect(155,243,10,10);ctx.font='12px JetBrains Mono';ctx.fillText('sonda',174,253);ctx.fillStyle='#d2bc95';ctx.fillText('Vista superior · x: −5 a 5 u',24,345);ctx.fillText('z: 0 a 10 u · esfera elevada',24,365);
+        if(stacked)ctx.translate(-340,400);frame(350,'02 · NEBLINA NA VISTA');ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText('Painéis iguais · distâncias distintas',364,59);
+        for(let i=0;i<3;i++){const distance=[2,6,10][i],fog=light25Fog(state.fog,distance),x=370+i*90;ctx.fillStyle='rgb('+fog.rgb.map(c=>Math.round(255*light25Display(c))).join(',')+')';ctx.fillRect(x,100,72,170);ctx.strokeStyle='#b48b4c';ctx.strokeRect(x,100,72,170);ctx.fillStyle='#f4d088';ctx.fillText(distance+' u',x+18,296);ctx.fillStyle='#5ce1e6';ctx.fillText('T '+fog.t.toFixed(2),x+6,321);}
+        ctx.fillStyle='#d2bc95';ctx.fillText('Sem feixe volumétrico ou GI',364,350);ctx.fillText('T = exp(−densidade × distância)',364,372);ctx.restore();
+        telemetry.innerHTML=`<div>Modelo próprio JS · estático · unidades ilustrativas.</div><div>Sonda no piso (0, 0, 7): direta <strong>${probe.direct.toFixed(4)}</strong> + ambiente <strong>${probe.ambient.toFixed(2)}</strong> = <strong>${probe.total.toFixed(4)}</strong>; ${probe.blocked?'bloqueada pelo obstáculo':'sem bloqueio'}. A sombra remove só a luz direta.</div><div>${state.lightType==='spot'?'Meia abertura '+state.half+'° → cone total '+(state.half*2)+'°.':state.lightType==='dir'?'Alcance não se aplica à luz direcional.':'Rotação não altera esta fonte pontual.'} Neblina comum: T(10 u)=<strong>${f.t.toFixed(4)}</strong>. Ela afeta somente os três painéis de referência, sem modificar a luz no piso.</div><div>Queda, sombras duras, mistura linear e curva de exibição são do modelo; não são o renderer Godot. Sem reflexão, Glow, GI ou integração volumétrica.</div>`;
         break;
       }
 
