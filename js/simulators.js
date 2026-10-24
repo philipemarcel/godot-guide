@@ -166,8 +166,8 @@ window.SimulatorEngine = (function () {
     let refresh = () => {};
     const resize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
-      canvas.height = type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
+      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
+      canvas.height = type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
       canvas.parentElement.style.alignSelf = ["gi_reflection_3d", "vectors_2d", "layers_masks", "camera_parallax_2d", "tween_raycast_2d"].includes(type) ? "start" : "stretch";
       canvas.style.height = "auto";
       canvas.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
@@ -199,7 +199,6 @@ window.SimulatorEngine = (function () {
           input.value=String(state.actorX);state.notice="Posição bloqueada durante o ataque; interrompa ou termine o golpe.";refresh();return;
         }
         state[key] = parseFloat(input.value);
-        if (type === "transform_basis_3d") state.slerpToZero = false;
         if (type === "camera_parallax_2d" && key === "playerX" && state.follow === "instant") state.camX = state.playerX;
         valEl.textContent = `${state[key]}${unit}`;
         input.setAttribute("aria-valuetext", `${state[key]}${unit}`);
@@ -756,62 +755,109 @@ window.SimulatorEngine = (function () {
 
 
       case "async_loader_sim": {
-        state.progress = 0;
-        state.mode = "idle";
-        state.freezeFrames = 0;
-        addButton("Carregar Síncrono (load -> TRAVA A TELA!)", () => {
-          state.mode = "sync";
-          state.freezeFrames = 55;
-          state.progress = 100;
-        });
-        addButton("Carregar Assíncrono (load_threaded_request)", () => {
-          state.mode = "async";
-          state.freezeFrames = 0;
-          state.progress = 0;
-        });
+        addSelect("Carregamento representado",[{value:"async",label:"Em segundo plano"},{value:"sync",label:"Síncrono"}],"loadMode");
+        addSlider("Custo de carregar · modelo",1,5,.5,2,"loadSeconds"," s");
+        addSlider("Custo de instanciar · modelo",0,2,.25,.75,"installSeconds"," s");
+        addSelect("Próxima sala",[{value:"B",label:"Sala B"},{value:"A",label:"Sala A"}],"target");
+        addSelect("Resultado do pedido",[{value:"success",label:"Sucesso"},{value:"load",label:"Falha ao carregar"},{value:"root",label:"Raiz incompatível"},{value:"entry",label:"Sem Entrada"}],"outcome");
+        loader15Reset(state);
+        const feedback=document.createElement("p");feedback.className="study-note";feedback.style.gridColumn="1 / -1";feedback.setAttribute("role","status");
+        const actions={load:()=>loader15Start(state),apply:()=>loader15Apply(state),discard:()=>loader15Discard(state),coin:()=>{if(!loader15Blocked(state))state.coins=Math.min(999,state.coins+1);},reset:()=>{if(!loader15Busy(state))loader15Reset(state);},step:()=>{if(isPaused())loader15Advance(state,.25);}};
+        for(const [action,label] of [["load","Solicitar / repetir · L"],["apply","Aplicar sala · A"],["discard","Desistir da troca · D"],["coin","Ganhar 1 moeda · C"],["step","Avançar 0,25 s em pausa"],["reset","Restaurar experimento · R"]]){addButton(label,actions[action]);controlsContainer.children[controlsContainer.children.length-1].setAttribute("data-loader-action",action);}
+        controlsContainer.appendChild(feedback);
+        state.loaderUI=()=>{
+          if(feedback.textContent!==state.notice)feedback.textContent=state.notice;
+          const locked=loader15Busy(state)||state.phase==="READY";
+          for(const group of controlsContainer.children){const input=group.querySelector?.("input")||group.querySelector?.("select");if(input){input.disabled=locked;input.title=locked?"Termine ou descarte este pedido antes de configurar outro.":"Configuração do próximo pedido.";}}
+          const enabled={load:!locked,apply:state.phase==="READY",discard:state.phase==="READY"||(state.phase==="LOADING"&&state.run.mode==="async"),coin:!loader15Blocked(state),step:isPaused(),reset:!loader15Busy(state)};
+          for(const button of controlsContainer.children){const action=button.getAttribute?.("data-loader-action");if(action){button.disabled=!enabled[action];button.setAttribute("aria-disabled",String(button.disabled));button.title=action==="step"?"Pause para avançar o relógio em passos de 0,25 s.":action==="reset"&&button.disabled?"Aguarde o término da tarefa; desistir não cancela o carregamento.":button.disabled?"Ação indisponível nesta etapa.":"Ação disponível.";}}
+        };
+        canvas.tabIndex=0;canvas.setAttribute("role","group");canvas.setAttribute("aria-label","Carregamento de salas. L solicita, A aplica, D desiste, C ganha moeda, R restaura. Atalhos apenas com foco na cena.");
+        const onKey=event=>{const key=event.key.toLowerCase(),map={l:"load",a:"apply",d:"discard",c:"coin",r:"reset"};if(!map[key]||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;actions[map[key]]();refresh();};
+        const onClick=()=>canvas.focus();canvas.addEventListener("keydown",onKey);canvas.addEventListener("click",onClick);
+        const previousCleanup=currentCleanup;currentCleanup=()=>{previousCleanup?.();canvas.removeEventListener("keydown",onKey);canvas.removeEventListener("click",onClick);};
         break;
       }
 
       case "optimization_pool": {
-        addSlider("Projéteis Disparados/Seg", 20, 300, 20, 140, "count", "");
-        addSelect("Estratégia de Memória", [
-          { value: "pool", label: "Object Pooling + Culling (60 FPS Estável)" },
-          { value: "naive", label: "instantiate() + queue_free() Bruto (Gargalo)" }
-        ], "optMode");
-        state.bullets = [];
+        addSlider("Pedidos automáticos por segundo",4,24,4,8,"rate","/s");
+        addSlider("Vida do projétil",.5,3,.5,2,"life"," s");
+        addSlider("Capacidade fixa do pool",4,64,4,16,"capacity");
+        addSlider("Duração da emissão",2,8,2,4,"duration"," s");
+        addSelect("Desenho no diagrama",[{value:"all",label:"Todos os ativos"},{value:"clip",label:"Somente no recorte"}],"drawPolicy");
+        pool16Reset(state);
+        const feedback=document.createElement("p");feedback.className="study-note";feedback.style.gridColumn="1 / -1";feedback.setAttribute("role","status");
+        const actions={start:()=>pool16Start(state),burst:()=>pool16Burst(state),reset:()=>pool16Reset(state),step:()=>{if(isPaused())pool16Advance(state,.25);}};
+        for(const [key,label] of [["start","Iniciar / repetir · L"],["burst","Rajada de 8 pedidos · B"],["step","Avançar 0,25 s em pausa"],["reset","Restaurar experimento · R"]]){addButton(label,actions[key]);controlsContainer.children[controlsContainer.children.length-1].setAttribute("data-pool-action",key);}
+        controlsContainer.appendChild(feedback);
+        state.poolUI=()=>{
+          if(feedback.textContent!==state.notice)feedback.textContent=state.notice;
+          for(const group of controlsContainer.children){const input=group.querySelector?.("input");if(input)input.title="Configuração para o próximo Iniciar; não altera o ciclo em andamento.";const key=group.getAttribute?.("data-pool-action");if(key){group.disabled=(key==="burst"&&state.phase!=="RUNNING")||(key==="step"&&!isPaused());group.setAttribute("aria-disabled",String(group.disabled));group.title=key==="step"?"Pause para avançar 0,25 s.":key==="start"?"Reinicia relógio, objetos e contadores com os parâmetros selecionados.":group.disabled?"Disponível durante a emissão.":"Ação disponível.";}}
+        };
+        canvas.tabIndex=0;canvas.setAttribute("role","group");canvas.setAttribute("aria-label","Comparação de ciclos de vida: L inicia ou repete, B pede rajada, R restaura. Atalhos apenas com foco na cena.");
+        const onKey=event=>{const key=event.key.toLowerCase(),map={l:"start",b:"burst",r:"reset"};if(!map[key]||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;actions[map[key]]();refresh();};
+        const onClick=()=>canvas.focus();canvas.addEventListener("keydown",onKey);canvas.addEventListener("click",onClick);const previousCleanup=currentCleanup;currentCleanup=()=>{previousCleanup?.();canvas.removeEventListener("keydown",onKey);canvas.removeEventListener("click",onClick);};
         break;
       }
 
       case "multiplayer_rpc_sim": {
-        addSlider("Posição Host (Autoridade ID 1)", 40, 200, 2, 110, "hostX", "px");
-        addSlider("Latência de Rede (Ping)", 10, 250, 10, 60, "ping", "ms");
-        state.clientX = 110;
-        state.rpcPackets = [];
-        addButton("Chamar @rpc('atirar_vapor') na Rede!", () => {
-          state.rpcPackets.push({ p: 0 });
-        });
+        addSlider("RTT sintético · ida e volta",0,1000,100,200,"rtt"," ms");
+        addSelect("Apresentação da réplica",[{value:"instant",label:"Posição recebida"},{value:"smooth",label:"Suavização visual própria"}],"smoothing");
+        net17Reset(state);
+        const feedback=document.createElement("p");feedback.className="study-note";feedback.style.gridColumn="1 / -1";feedback.setAttribute("role","status");
+        const actions={left:()=>net17Send(state,"move",-1,0),right:()=>net17Send(state,"move",1,0),up:()=>net17Send(state,"move",0,-1),down:()=>net17Send(state,"move",0,1),shot:()=>net17Send(state,"shot"),repeat:()=>net17Send(state,"",0,0,true),invalid:()=>net17Send(state,"move",9,0),connect:()=>net17Connection(state),step:()=>{if(isPaused())net17Advance(state,.1);},reset:()=>net17Reset(state)};
+        for(const [key,label] of [["left","← Esquerda · A"],["up","↑ Cima · W"],["down","↓ Baixo · S"],["right","→ Direita · D"],["shot","Pedir tiro · Espaço"],["repeat","Reenviar mesmo pedido · P"],["invalid","Direção inválida · V"],["connect","Conectar / desconectar · C"],["step","Avançar 0,10 s em pausa"],["reset","Restaurar laboratório · R"]]){addButton(label,actions[key]);controlsContainer.children[controlsContainer.children.length-1].setAttribute("data-net-action",key);}
+        controlsContainer.appendChild(feedback);
+        const presentation=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-smoothing")).querySelector("#sim-input-smoothing");
+        const onPresentation=()=>{net17Visual(state,0);refresh();};presentation.addEventListener("change",onPresentation);
+        state.netUI=()=>{if(feedback.textContent!==state.notice)feedback.textContent=state.notice;for(const button of controlsContainer.children){const key=button.getAttribute?.("data-net-action");if(!key)continue;button.disabled=(["left","right","up","down","shot","invalid"].includes(key)&&!state.connected)||(key==="repeat"&&(!state.connected||!state.lastRequest))||(key==="step"&&!isPaused());button.setAttribute("aria-disabled",String(button.disabled));button.title=key==="step"?"Pause para avançar 0,10 s.":key==="connect"?"Descarta fila pendente. Reconectar cria nova sessão neste modelo.":button.disabled?"Ação indisponível neste estado.":"Ação disponível.";}};
+        canvas.tabIndex=0;canvas.setAttribute("role","group");canvas.setAttribute("aria-label","Rede didática. WASD ou setas pedem um passo; Espaço pede tiro; P repete pedido; V direção inválida; C conexão; R restaura. Atalhos apenas com foco na cena.");
+        const map={a:"left",arrowleft:"left",d:"right",arrowright:"right",w:"up",arrowup:"up",s:"down",arrowdown:"down"," ":"shot",p:"repeat",v:"invalid",c:"connect",r:"reset"};
+        const onKey=event=>{const key=event.key.toLowerCase();if(!map[key]||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;actions[map[key]]();refresh();};const onClick=()=>canvas.focus();canvas.addEventListener("keydown",onKey);canvas.addEventListener("click",onClick);const previousCleanup=currentCleanup;currentCleanup=()=>{previousCleanup?.();canvas.removeEventListener("keydown",onKey);canvas.removeEventListener("click",onClick);presentation.removeEventListener("change",onPresentation);};
         break;
       }
 
       // ======================== 3D SIMULATORS ========================
       case "space_3d_axes": {
-        addSlider("Rotação do Autômato (Yaw Y)", -180, 180, 5, 35, "yaw", "°");
-        addSlider("Posição 3D no Eixo Z", -3, 3, 0.2, 0, "pz", "m");
-        addSlider("Altura 3D no Eixo +Y", 0, 3, 0.2, 0.5, "py", "m");
-        addSelect("Modo de Avanço", [
-          { value: "local", label: "Frente Local (-transform.basis.z)" },
-          { value: "global", label: "Frente Global (Vector3.FORWARD)" }
-        ], "moveMode");
+        addSlider("Peça · position.x no pai",-4,4,"any",0,"lx"," u");
+        addSlider("Peça · position.y no pai",.5,3,"any",.5,"ly"," u");
+        addSlider("Peça · position.z no pai",-4,4,"any",-2,"lz"," u");
+        addSlider("Pai · rotação Y",-180,180,15,0,"parentYaw","°");
+        addSlider("Peça · rotação Y no pai",-180,180,15,0,"bodyYaw","°");
+        addSlider("Pai · escala uniforme positiva",.5,2,.5,1,"parentScale","×");
+        addSlider("Câmera do diagrama · azimute",0,360,15,45,"cameraYaw","°");
+        addSelect("Direção do passo de 1 u · F",[{value:"object",label:"Frente −Z da peça"},{value:"world",label:"−Z fixo do mundo"}],"advanceMode");
+        space18Reset(state);
+        const feedback=document.createElement("p");feedback.className="study-note";feedback.style.gridColumn="1 / -1";feedback.setAttribute("role","status");
+        const actions={left:()=>space18Coordinate(state,0,-1),right:()=>space18Coordinate(state,0,1),up:()=>space18Coordinate(state,1,1),down:()=>space18Coordinate(state,1,-1),front:()=>space18Coordinate(state,2,-1),back:()=>space18Coordinate(state,2,1),advance:()=>space18Advance(state),preset:()=>{space18Reset(state);state.parentYaw=90;state.notice="Exemplo: pai Y=90°, local (0, 0.5, −2) → global (0, 0.5, 1).";},reset:()=>space18Reset(state)};
+        for(const [key,label] of [["left","X −0,5 no pai · A"],["right","X +0,5 no pai · D"],["up","Y +0,5 no pai · E"],["down","Y −0,5 no pai · Q"],["front","Z −0,5 no pai · W"],["back","Z +0,5 no pai · S"],["advance","Avançar 1 u no mundo · F"],["preset","Exemplo: pai em 90° · P"],["reset","Restaurar laboratório · R"]]){addButton(label,actions[key]);}
+        controlsContainer.appendChild(feedback);
+        const parameterInputs=["lx","ly","lz","parentYaw","bodyYaw","parentScale"].map(key=>[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-"+key)).querySelector("#sim-input-"+key));
+        const onParameters=()=>{state.lastDelta=[0,0,0];state.notice="Parâmetro ajustado; último passo zerado. Preveja o resultado antes de usar F.";refresh();};parameterInputs.forEach(input=>input.addEventListener("input",onParameters));
+        state.spaceUI=()=>{if(feedback.textContent!==state.notice)feedback.textContent=state.notice;for(const key of ["lx","ly","lz","parentYaw","bodyYaw","parentScale","cameraYaw","advanceMode"]){const group=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-"+key)),input=group.querySelector("#sim-input-"+key);input.value=String(state[key]);const value=group.querySelector("#val-"+key);if(value){const unit=["lx","ly","lz"].includes(key)?" u":key==="parentScale"?"×":"°";value.textContent=Number(state[key].toFixed(3))+unit;input.setAttribute("aria-valuetext",Number(state[key].toFixed(3))+unit);}}};
+        canvas.tabIndex=0;canvas.setAttribute("role","group");canvas.setAttribute("aria-label","Espaço 3D: WASD ou setas mudam X/Z no pai; Q/E mudam Y; F avança na direção escolhida; P exemplo; R restaura. Atalhos apenas com foco na cena.");
+        const map={a:"left",arrowleft:"left",d:"right",arrowright:"right",w:"front",arrowup:"front",s:"back",arrowdown:"back",q:"down",e:"up",f:"advance",p:"preset",r:"reset"};
+        const onKey=event=>{const key=event.key.toLowerCase();if(!map[key]||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;actions[map[key]]();refresh();};const onClick=()=>canvas.focus();canvas.addEventListener("keydown",onKey);canvas.addEventListener("click",onClick);const previousCleanup=currentCleanup;currentCleanup=()=>{previousCleanup?.();canvas.removeEventListener("keydown",onKey);canvas.removeEventListener("click",onClick);parameterInputs.forEach(input=>input.removeEventListener("input",onParameters));};
         break;
       }
 
       case "transform_basis_3d": {
-        addSlider("Pitch (Eixo X Vermelho)", -90, 90, 2, 15, "rx", "°");
-        addSlider("Yaw (Eixo Y Verde)", -180, 180, 2, 40, "ry", "°");
-        addSlider("Roll (Eixo Z Azul)", -90, 90, 2, -10, "rz", "°");
-        addButton("Interpolar com quaternion slerp para Zero", () => {
-          state.slerpToZero = true;
-        });
+        addSlider("Pose inicial · Pitch X",-90,90,5,20,"rx","°");
+        addSlider("Pose inicial · Yaw Y",-180,180,5,40,"ry","°");
+        addSlider("Pose inicial · Roll Z",-180,180,5,-10,"rz","°");
+        addSelect("Ordem da pose inicial",[{value:"YXZ",label:"YXZ · Ry × Rx × Rz"},{value:"XYZ",label:"XYZ · Rx × Ry × Rz"}],"order");
+        addSlider("Escala uniforme da peça",.5,2,.5,1,"uniform","×");
+        addSlider("origin.x no pai",-2,3,.5,2,"ox"," u");
+        addSlider("Pai · rotação Y (origem zero)",0,90,15,0,"parentY","°");
+        addSlider("SLERP da pose inicial à identidade",0,1,.05,0,"weight","");
+        basis19Reset(state);
+        const presets={reset:()=>basis19Reset(state),axis:()=>{basis19Reset(state);Object.assign(state,{rx:0,ry:90,rz:0});},order:()=>{basis19Reset(state);Object.assign(state,{rx:90,ry:90,rz:0});},lockA:()=>{basis19Reset(state);Object.assign(state,{rx:90,ry:30,rz:0});},lockB:()=>{basis19Reset(state);Object.assign(state,{rx:90,ry:60,rz:30});}};
+        for(const [key,label] of [["reset","Restaurar · R"],["axis","Exemplo Y=90° · P"],["order","Comparar ordens: X=Y=90°"],["lockA","YXZ singular A: 90°,30°,0°"],["lockB","YXZ singular B: 90°,60°,30°"]])addButton(label,presets[key]);
+        state.basisUI=()=>{for(const key of ['rx','ry','rz','order','uniform','ox','parentY','weight']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){const unit=['rx','ry','rz','parentY'].includes(key)?'°':key==='uniform'?'×':key==='ox'?' u':'';value.textContent=Number(state[key].toFixed(3))+unit;input.setAttribute('aria-valuetext',value.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Basis 3D: A/D ou setas giram yaw, Q/E pitch, Z/C roll, por 5 graus na pose inicial; P exemplo; R restaura. Atalhos apenas com foco na cena.');
+        const keys={a:['ry',-5],arrowleft:['ry',-5],d:['ry',5],arrowright:['ry',5],q:['rx',-5],e:['rx',5],arrowdown:['rx',-5],arrowup:['rx',5],z:['rz',-5],c:['rz',5]};
+        const onKey=event=>{const key=event.key.toLowerCase();if(!keys[key]&&!['p','r'].includes(key)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;if(key==='r')presets.reset();else if(key==='p')presets.axis();else {const [k,d]=keys[key];state[k]=Math.max(k==='rx'?-90:-180,Math.min(k==='rx'?90:180,state[k]+d));}refresh();};
+        const onClick=()=>canvas.focus();canvas.addEventListener('keydown',onKey);canvas.addEventListener('click',onClick);const priorCleanup=currentCleanup;currentCleanup=()=>{priorCleanup?.();canvas.removeEventListener('keydown',onKey);canvas.removeEventListener('click',onClick);};
         break;
       }
 
@@ -970,6 +1016,11 @@ window.SimulatorEngine = (function () {
       // que redimensionar ou ajustar controles avance a simulação pausada.
       const frameState = dt > 0 ? state : JSON.parse(JSON.stringify(state));
       renderSimulation(type, ctx, w, h, dt, frameState, telemetryBox);
+      if(type === "async_loader_sim") state.loaderUI();
+      if(type === "optimization_pool") state.poolUI();
+      if(type === "multiplayer_rpc_sim") state.netUI();
+      if(type === "space_3d_axes") state.spaceUI();
+      if(type === "transform_basis_3d") state.basisUI();
       if (type === "fsm_state_machine") {
         const group=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-actorX"));
         const input=group.querySelector("#sim-input-actorX");input.value=String(state.actorX);
@@ -998,18 +1049,9 @@ window.SimulatorEngine = (function () {
           input.title=input.disabled ? "Ative a GI difusa para ajustar a energia da luz rebatida." : "Energia do rebatimento difuso na parede vermelha.";
         }
       }
-      if (type === "transform_basis_3d" && dt > 0) {
-        ["rx", "ry", "rz"].forEach(key => {
-          const input = controlsContainer.querySelector(`#sim-input-${key}`);
-          if (!input) return;
-          input.value = String(state[key]);
-          const display = controlsContainer.querySelector(`#val-${key}`);
-          if (display) display.textContent = `${input.value}°`;
-          input.setAttribute("aria-valuetext", `${input.value}°`);
-        });
-      }
+
     }
-    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d"].includes(type)) draw(0); };
+    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d"].includes(type)) draw(0); };
     function loop(now) {
       activeLoopId = null;
       if (paused || document.hidden) return;
@@ -1035,7 +1077,7 @@ window.SimulatorEngine = (function () {
           cancelAnimationFrame(activeLoopId);
           activeLoopId = null;
         }
-        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d"].includes(type)) draw(0);
+        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d"].includes(type)) draw(0);
         schedule();
       }
     };
@@ -1248,6 +1290,165 @@ window.SimulatorEngine = (function () {
       tile.context.putImageData(raster,0,0);tile.key=key;
     }
     ctx.imageSmoothingEnabled=false;ctx.drawImage(tile.surface,x,y,size,size);
+  }
+
+  // Synthetic teaching model: never blocks the browser or loads a real resource.
+  function loader15Reset(s) {
+    Object.assign(s,{phase:"IDLE",progress:0,age:0,clock:0,gear:0,coins:10,room:"A",playerId:1,requests:0,commits:0,errors:0,discards:0,run:null,notice:"Solicite um recurso. A sala atual continua instalada."});
+  }
+  function loader15Busy(s) {return ["LOADING","DRAINING","INSTALLING"].includes(s.phase);}
+  function loader15Blocked(s) {return s.phase==="INSTALLING" || (s.phase==="LOADING" && s.run.mode==="sync");}
+  function loader15Start(s) {
+    if(loader15Busy(s)||s.phase==="READY")return false;
+    s.run={mode:s.loadMode,seconds:s.loadSeconds,install:s.installSeconds,target:s.target,outcome:s.outcome};
+    s.phase="LOADING";s.age=0;s.progress=0;s.requests++;s.notice="Pedido aceito. Tempos são custos sintéticos.";return true;
+  }
+  function loader15Discard(s) {
+    if(s.phase==="LOADING"&&s.run.mode==="async") {s.phase="DRAINING";s.notice="Troca abandonada; aguardando a tarefa terminar, sem cancelá-la.";return true;}
+    if(s.phase==="READY") {s.phase="DISCARDED";s.discards++;s.notice="Recurso preparado descartado; sala preservada.";return true;}
+    return false;
+  }
+  function loader15Commit(s) {
+    if(s.run.outcome!=="success") {s.phase="ERROR";s.errors++;s.notice=s.run.outcome==="root"?"Raiz incompatível: sala atual preservada.":"Falta Marker2D Entrada: sala atual preservada.";}
+    else {s.phase="DONE";s.room=s.run.target;s.commits++;s.notice="Sala aplicada. Mesmo jogador, mesmas moedas.";}
+    s.age=0;
+  }
+  function loader15Apply(s) {
+    if(s.phase!=="READY")return false;
+    s.phase="INSTALLING";s.age=0;s.notice="Instanciação e aplicação: custo representado no thread principal.";
+    if(s.run.install===0)loader15Commit(s);return true;
+  }
+  function loader15Advance(s,dt) {
+    if(!Number.isFinite(dt)||dt<=0)return;
+    s.clock+=dt;
+    let remaining=dt;
+    while(remaining>1e-10) {
+      if(!loader15Busy(s)) {s.gear+=remaining*2;break;}
+      const loading=s.phase!=="INSTALLING",duration=loading?s.run.seconds:s.run.install;
+      const chunk=Math.min(remaining,Math.max(0,duration-s.age));
+      if(!loader15Blocked(s))s.gear+=chunk*2;
+      s.age+=chunk;remaining-=chunk;
+      if(loading)s.progress=s.run.mode==="sync"?0:Math.min(100,s.age/duration*100);
+      if(s.age+1e-9<duration)break;
+      if(!loading){loader15Commit(s);continue;}
+      const draining=s.phase==="DRAINING";s.age=0;
+      if(s.run.outcome==="load") {s.phase="ERROR";s.errors++;s.notice="Falha ao carregar; sala atual preservada.";}
+      else {s.progress=100;if(draining){s.phase="DISCARDED";s.discards++;s.notice="Tarefa terminou; resultado descartado. Pode solicitar novamente.";}else{s.phase="READY";s.notice="100% do recurso. A sala ainda não foi instanciada: use Aplicar.";}}
+    }
+  }
+
+  function pool16Reset(s) {
+    Object.assign(s,{phase:"IDLE",clock:0,run:null,nextBirth:1,attempts:0,burstCount:0,notice:"Use Iniciar para comparar a mesma sequência de pedidos.",fresh:{active:[],created:0,freed:0,accepted:0},pool:{active:[],free:[],created:0,accepted:0,reused:0,dropped:0},seen:[]});
+  }
+  function pool16Start(s) {
+    pool16Reset(s);s.run={rate:s.rate,life:s.life,capacity:s.capacity,duration:s.duration};s.phase="RUNNING";
+    s.pool.free=Array.from({length:s.run.capacity},(_,i)=>i+1);s.pool.created=s.run.capacity;s.notice="Experimento iniciado: criação inicial do pool contada separadamente.";
+  }
+  function pool16Expire(s,time) {
+    const expired=p=>p.birth+s.run.life<=time+1e-9;
+    const dead=s.fresh.active.filter(expired);s.fresh.freed+=dead.length;s.fresh.active=s.fresh.active.filter(p=>!expired(p));
+    for(const p of s.pool.active.filter(expired))s.pool.free.push(p.id);
+    s.pool.active=s.pool.active.filter(p=>!expired(p));
+  }
+  function pool16Emit(s,count) {
+    for(let i=0;i<count;i++) {
+      const request=++s.attempts;s.fresh.created++;s.fresh.accepted++;s.fresh.active.push({id:s.fresh.created,birth:s.clock,lane:request%5});
+      if(s.pool.free.length) {const id=s.pool.free.pop();if(s.seen.includes(id))s.pool.reused++;else s.seen.push(id);s.pool.accepted++;s.pool.active.push({id,birth:s.clock,lane:request%5});}
+      else s.pool.dropped++;
+    }
+  }
+  function pool16Burst(s) {if(s.phase!=="RUNNING")return false;pool16Emit(s,8);s.burstCount++;s.notice="Oito pedidos extras enviados às duas estratégias no mesmo instante.";return true;}
+  function pool16Advance(s,dt) {
+    if(!s.run||!["RUNNING","DRAINING"].includes(s.phase)||!Number.isFinite(dt)||dt<=0)return;
+    const end=Math.min(s.clock+dt,s.run.duration+s.run.life);
+    while(s.nextBirth/s.run.rate<=Math.min(end,s.run.duration)+1e-9) {
+      const time=s.nextBirth/s.run.rate;pool16Expire(s,time);s.clock=time;pool16Emit(s,1);s.nextBirth++;
+    }
+    s.clock=end;pool16Expire(s,end);
+    if(end+1e-9>=s.run.duration)s.phase="DRAINING";
+    if(end+1e-9>=s.run.duration+s.run.life){s.phase="DONE";s.notice="Ciclo concluído. Compare pedidos atendidos antes de comparar criações. Use Iniciar para repetir.";}
+  }
+  function pool16Visible(s,p) {const x=40+(s.clock-p.birth)*240;return x+4>=160 && x-4<=480;}
+
+  function net17Reset(s) {
+    Object.assign(s,{clock:0,connected:true,epoch:1,seq:0,packetId:0,queue:[],server:{x:320,y:170,shots:0,revision:0},replica:{x:320,y:170,shots:0,revision:0},visual:{x:320,y:170},lastSeq:0,lastMove:-1e9,lastShot:-1e9,lastRequest:null,sent:0,accepted:0,rejected:0,delivered:0,abandoned:0,notice:"Cliente 2 envia intenções; servidor 1 valida e altera o estado."});
+  }
+  function net17Queue(s,kind,payload,delay) {let at=s.clock+delay;if(kind==="request")for(const p of s.queue)if(p.kind==="request")at=Math.max(at,p.at);s.queue.push({id:++s.packetId,kind,payload,epoch:s.epoch,sentAt:s.clock,at});s.queue.sort((a,b)=>a.at-b.at||a.id-b.id);}
+  function net17Send(s,action,dx=0,dy=0,repeat=false) {
+    if(!s.connected){s.notice="Cliente desconectado. Conecte novamente ou restaure.";return false;}
+    if(repeat&&!s.lastRequest){s.notice="Ainda não existe pedido para reenviar.";return false;}
+    const payload=repeat?{...s.lastRequest}:{seq:++s.seq,action,dx,dy};
+    if(!repeat)s.lastRequest={...payload};s.sent++;
+    net17Queue(s,"request",payload,s.rtt/2000);s.notice=`Pedido ${payload.seq} enviado. Ainda não altera o estado autorizado.`;net17Advance(s,0);return true;
+  }
+  function net17Connection(s) {
+    s.abandoned+=s.queue.length;s.queue=[];s.connected=!s.connected;s.epoch++;
+    if(s.connected){s.server={x:320,y:170,shots:0,revision:0};s.replica={...s.server};s.visual={x:320,y:170};s.seq=0;s.lastSeq=0;s.lastMove=-1e9;s.lastShot=-1e9;s.lastRequest=null;s.notice="Nova sessão: jogador recriado e sequência reiniciada; fila antiga descartada.";}
+    else s.notice="Desconectado: jogador removido no servidor; réplicas antigas não são estado válido. Fila descartada.";
+  }
+  function net17Receive(s,p) {
+    if(p.kind==="state") {if(p.payload.revision>s.replica.revision){s.replica={...p.payload};s.delivered++;s.notice=`Estado recebido: revisão ${s.replica.revision}. A apresentação usa a posição replicada.`;if(s.smoothing==="instant")s.visual={x:s.replica.x,y:s.replica.y};}return;}
+    const q=p.payload;
+    const reject=reason=>{s.rejected++;s.notice=`Pedido ${q.seq} recusado: ${reason}`;};
+    if(!Number.isSafeInteger(q.seq)||q.seq<=s.lastSeq||q.seq>1e9){reject("sequência repetida ou inválida.");return;}
+    s.lastSeq=q.seq;
+    if(!["move","shot"].includes(q.action)){reject("ação desconhecida.");return;}
+    if(q.action==="move"&&!(Number.isInteger(q.dx)&&Number.isInteger(q.dy)&&((Math.abs(q.dx)===1&&q.dy===0)||(Math.abs(q.dy)===1&&q.dx===0)))){reject("direção fora do contrato.");return;}
+    const field=q.action==="move"?"lastMove":"lastShot",wait=q.action==="move"?.1:.5;
+    if(s.clock-s[field]+1e-9<wait){reject("cooldown do servidor.");return;}
+    s[field]=s.clock;
+    if(q.action==="move"){s.server.x=Math.max(80,Math.min(560,s.server.x+q.dx*40));s.server.y=Math.max(100,Math.min(260,s.server.y+q.dy*40));}else s.server.shots++;
+    s.server.revision++;s.accepted++;s.notice=`Pedido ${q.seq} aceito; estado autorizado revisado. Réplica aguarda mensagem.`;
+    net17Queue(s,"state",{...s.server},s.rtt/2000);
+  }
+  function net17Visual(s,dt) {
+    const alpha=s.smoothing==="instant"?1:1-Math.exp(-12*dt);
+    s.visual.x+=(s.replica.x-s.visual.x)*alpha;s.visual.y+=(s.replica.y-s.visual.y)*alpha;
+  }
+  function net17Advance(s,dt) {
+    if(!Number.isFinite(dt)||dt<0)return;
+    const end=s.clock+dt;
+    while(s.queue.length&&s.queue[0].at<=end+1e-9){const p=s.queue.shift(),at=Math.max(s.clock,p.at);net17Visual(s,at-s.clock);s.clock=at;if(s.connected&&p.epoch===s.epoch)net17Receive(s,p);}
+    net17Visual(s,Math.max(0,end-s.clock));s.clock=Math.max(s.clock,end);
+  }
+
+  function space18Reset(s) {Object.assign(s,{lx:0,ly:.5,lz:-2,parentYaw:0,bodyYaw:0,parentScale:1,cameraYaw:45,advanceMode:"object",lastDelta:[0,0,0],moves:0,notice:"Pai em (2, 0, 1). Peça local (0, 0.5, -2), global (2, 0.5, -1)."});}
+  function space18Rotate(p,degrees) {const a=degrees*Math.PI/180,c=Math.cos(a),v=Math.sin(a);return [c*p[0]+v*p[2],p[1],-v*p[0]+c*p[2]];}
+  function space18World(s,p=[s.lx,s.ly,s.lz]) {const r=space18Rotate(p.map(n=>n*s.parentScale),s.parentYaw);return [r[0]+2,r[1],r[2]+1];}
+  function space18Local(s,p) {return space18Rotate([p[0]-2,p[1],p[2]-1],-s.parentYaw).map(n=>n/s.parentScale);}
+  function space18Forward(s) {return space18Rotate([0,0,-1],s.parentYaw+s.bodyYaw);}
+  function space18Apply(s,p) {
+    if(!p.every(Number.isFinite)||p[0]<-4-1e-9||p[0]>4+1e-9||p[1]<.5-1e-9||p[1]>3+1e-9||p[2]<-4-1e-9||p[2]>4+1e-9){s.lastDelta=[0,0,0];s.notice="Limite didático local: X/Z entre −4 e 4; Y entre 0,5 e 3. R restaura.";return false;}
+    const before=space18World(s);[s.lx,s.ly,s.lz]=p;const after=space18World(s);s.lastDelta=after.map((n,i)=>n-before[i]);s.moves++;s.notice="Passo aplicado. Compare os números locais, globais e o deslocamento no mundo.";return true;
+  }
+  function space18Coordinate(s,axis,direction) {const p=[s.lx,s.ly,s.lz];p[axis]+=direction*.5;return space18Apply(s,p);}
+  function space18Advance(s) {const before=space18World(s),dir=s.advanceMode==="world"?[0,0,-1]:space18Forward(s);return space18Apply(s,space18Local(s,before.map((n,i)=>n+dir[i])));}
+  // Orthographic camera from (sin(yaw)*cos(pitch), sin(pitch), cos(yaw)*cos(pitch).
+  function space18Project(p,yaw,pitch=35) {const a=yaw*Math.PI/180,b=pitch*Math.PI/180,c=Math.cos(a),v=Math.sin(a),u=Math.sin(b),q=Math.cos(b);return {x:c*p[0]-v*p[2],y:v*u*p[0]-q*p[1]+c*u*p[2],depth:v*q*p[0]+u*p[1]+c*q*p[2]};}
+  function space18Corners(s) {const center=space18World(s),points=[];for(const y of [-.5,.5])for(const z of [-.5,.5])for(const x of [-.5,.5]){const r=space18Rotate([x*s.parentScale,y*s.parentScale,z*s.parentScale],s.parentYaw+s.bodyYaw);points.push(r.map((n,i)=>n+center[i]));}return points;}
+
+  function basis19Reset(s) { Object.assign(s,{rx:20,ry:40,rz:-10,uniform:1,ox:2,parentY:0,order:'YXZ',weight:0}); }
+  function basis19Mul(a,b) { return Array.from({length:3},(_,i)=>Array.from({length:3},(_,j)=>a[i].reduce((n,v,k)=>n+v*b[k][j],0))); }
+  function basis19Vec(a,p) { return a.map(row=>row.reduce((n,v,i)=>n+v*p[i],0)); }
+  function basis19Rotation(s) {
+    const [x,y,z]=[s.rx,s.ry,s.rz].map(v=>v*Math.PI/180),cx=Math.cos(x),sx=Math.sin(x),cy=Math.cos(y),sy=Math.sin(y),cz=Math.cos(z),sz=Math.sin(z);
+    const rx=[[1,0,0],[0,cx,-sx],[0,sx,cx]],ry=[[cy,0,sy],[0,1,0],[-sy,0,cy]],rz=[[cz,-sz,0],[sz,cz,0],[0,0,1]];
+    return s.order==='YXZ'?basis19Mul(basis19Mul(ry,rx),rz):basis19Mul(basis19Mul(rx,ry),rz);
+  }
+  function basis19Quaternion(m) {
+    let q;const trace=m[0][0]+m[1][1]+m[2][2];
+    if(trace>0){const k=2*Math.sqrt(trace+1);q=[(m[2][1]-m[1][2])/k,(m[0][2]-m[2][0])/k,(m[1][0]-m[0][1])/k,k/4];}
+    else {let i=0;if(m[1][1]>m[i][i])i=1;if(m[2][2]>m[i][i])i=2;const j=(i+1)%3,k=(i+2)%3,v=2*Math.sqrt(Math.max(0,1+m[i][i]-m[j][j]-m[k][k]));q=[0,0,0,0];q[i]=v/4;q[j]=(m[i][j]+m[j][i])/v;q[k]=(m[i][k]+m[k][i])/v;q[3]=(m[k][j]-m[j][k])/v;}
+    const length=Math.hypot(...q);q=q.map(v=>v/length);return q[3]<0?q.map(v=>-v):q;
+  }
+  function basis19SlerpIdentity(q,weight) {
+    const t=Math.max(0,Math.min(1,weight)),angle=Math.acos(Math.max(-1,Math.min(1,q[3]))),remaining=1-t;
+    if(angle<1e-8)return [0,0,0,1];const k=Math.sin(angle*remaining)/Math.sin(angle);return [q[0]*k,q[1]*k,q[2]*k,Math.cos(angle*remaining)];
+  }
+  function basis19Matrix(q) {const [x,y,z,w]=q;return [[1-2*(y*y+z*z),2*(x*y-z*w),2*(x*z+y*w)],[2*(x*y+z*w),1-2*(x*x+z*z),2*(y*z-x*w)],[2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]];}
+  function basis19Model(s) {
+    const source=basis19Rotation(s),q=basis19Quaternion(source),rotation=basis19Matrix(basis19SlerpIdentity(q,s.weight)),basis=rotation.map(row=>row.map(v=>v*s.uniform)),origin=[s.ox,0,1],parent=basis19Rotation({rx:0,ry:s.parentY,rz:0,order:'YXZ'}),point=basis19Vec(basis,[1,0,0]).map((v,i)=>v+origin[i]);
+    return {source,q,rotation,basis,origin,parent,point,world:basis19Vec(parent,point),worldOrigin:basis19Vec(parent,origin),worldBasis:basis19Mul(parent,basis)};
   }
 
   function renderSimulation(type, ctx, w, h, dt, state, telemetry) {
@@ -1858,230 +2059,117 @@ window.SimulatorEngine = (function () {
 
 
       case "async_loader_sim": {
-        if (state.freezeFrames > 0) {
-          state.freezeFrames--;
-        } else {
-          state.gearAngle = (state.gearAngle || 0) + dt * 3.5;
-        }
-        if (state.mode === "async" && state.progress < 100) {
-          state.progress = Math.min(100, state.progress + dt * 42);
-        }
-
-        drawGear(ctx, w * 0.28, 135, 46, 12, state.gearAngle || 0, "#b85d35", "#f4d088");
-        ctx.fillStyle = state.freezeFrames > 0 ? "#e05347" : "#4cd97b";
-        ctx.font = "bold 13px JetBrains Mono";
-        ctx.fillText(
-          state.freezeFrames > 0 ? "TRAVADO! (Main Thread Bloqueada)" : "60 FPS Fluido (Animação Rodando)",
-          w * 0.12,
-          225
-        );
-
-        // Barra de progresso
-        ctx.fillStyle = "#17100a";
-        ctx.strokeStyle = "#d4a359";
-        ctx.fillRect(w * 0.52, 115, w * 0.4, 34);
-        ctx.strokeRect(w * 0.52, 115, w * 0.4, 34);
-
-        ctx.fillStyle = "#5ce1e6";
-        ctx.fillRect(w * 0.52 + 3, 118, (w * 0.4 - 6) * (state.progress / 100), 28);
-        ctx.fillStyle = "#f4d088";
-        ctx.fillText(`Progresso: ${Math.round(state.progress)}%`, w * 0.52, 102);
-
-        telemetry.innerHTML = `
-          <div>Modo: ${state.mode.toUpperCase()}</div>
-          <div>Status: ${state.progress >= 100 ? "THREAD_LOAD_LOADED" : "THREAD_LOAD_IN_PROGRESS"}</div>
-        `;
+        loader15Advance(state,dt);
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?680:340,scale=Math.min(w/lw,h/lh);
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title)=>{ctx.fillStyle="#1e150c";ctx.strokeStyle="#b48b4c";ctx.lineWidth=2;ctx.fillRect(x,10,300,320);ctx.strokeRect(x,10,300,320);ctx.fillStyle="#f4d088";ctx.font="bold 15px Cinzel";ctx.fillText(title,x+14,36);};
+        panel(10,"CARREGAR ≠ APLICAR");
+        drawGear(ctx,160,120,44,12,state.gear,"#ac713f","#f4d088");
+        ctx.fillStyle=loader15Blocked(state)?"#ffba88":"#5ce1e6";ctx.font="13px JetBrains Mono";
+        ctx.fillText(loader15Blocked(state)?"UI bloqueada · representação":"UI disponível · representação",24,190);
+        ctx.fillStyle="#090604";ctx.fillRect(24,220,272,20);ctx.fillStyle="#d4a359";ctx.fillRect(24,220,272*state.progress/100,20);
+        ctx.fillStyle="#f4d088";ctx.fillText(`Recurso: ${state.progress.toFixed(0)}%`,24,265);ctx.fillText(`Etapa: ${state.phase}`,24,295);
+        if(stacked)ctx.translate(-320,340);
+        panel(330,"RAIZ PERSISTENTE");
+        ctx.fillStyle=state.room==="A"?"#493324":"#254348";ctx.fillRect(344,62,272,146);ctx.strokeStyle="#d4a359";ctx.strokeRect(344,62,272,146);
+        ctx.fillStyle="#f4d088";ctx.font="14px JetBrains Mono";ctx.fillText(`Sala ${state.room} · instalada`,358,88);
+        const px=state.room==="A"?390:565;ctx.fillStyle="#5ce1e6";ctx.beginPath();ctx.moveTo(px,120);ctx.lineTo(px+14,140);ctx.lineTo(px,160);ctx.lineTo(px-14,140);ctx.closePath();ctx.fill();
+        ctx.fillStyle="#5ce1e6";ctx.fillText(`Jogador ID ${state.playerId} · fora da sala`,344,241);
+        ctx.fillStyle="#f4d088";ctx.fillText(`Moedas: ${state.coins}`,344,270);ctx.fillText(`Trocas aplicadas: ${state.commits}`,344,299);ctx.restore();
+        telemetry.innerHTML=`<div>Etapa: <strong>${state.phase}</strong> · recurso: <strong>${state.progress.toFixed(1)}%</strong> · relógio: <strong>${state.clock.toFixed(2)} s</strong></div><div>Sala instalada: <strong>${state.room}</strong> · jogador ID: <strong>${state.playerId}</strong> · moedas: <strong>${state.coins}</strong> · UI: <strong>${loader15Blocked(state)?"bloqueio representado":"disponível no modelo"}</strong></div><div>Pedidos: <strong>${state.requests}</strong> · aplicados: <strong>${state.commits}</strong> · descartados: <strong>${state.discards}</strong> · erros: <strong>${state.errors}</strong></div><div>Tempos sintéticos. Não executa threads, arquivos ou cenas Godot; não mede FPS. A pausa e o navegador continuam utilizáveis.</div>`;
         break;
       }
 
       case "optimization_pool": {
-        const isPool = state.optMode === "pool";
-        while (state.bullets.length < state.count) {
-          state.bullets.push({
-            x: w * 0.5,
-            y: h * 0.5,
-            vx: (Math.random() - 0.5) * 260,
-            vy: (Math.random() - 0.5) * 260
-          });
-        }
-        if (state.bullets.length > state.count) state.bullets.length = state.count;
-
-        state.bullets.forEach((b) => {
-          b.x += b.vx * dt;
-          b.y += b.vy * dt;
-          if (b.x < 10 || b.x > w - 10 || b.y < 10 || b.y > h - 10) {
-            b.x = w * 0.5;
-            b.y = h * 0.5;
-          }
-          ctx.fillStyle = isPool ? "#5ce1e6" : "#ffaa33";
-          ctx.fillRect(b.x - 3, b.y - 3, 6, 6);
-        });
-
-        drawGear(ctx, w * 0.5, h * 0.5, 24, 8, state.t * 2, "#8c6229", "#f4d088");
-        const simFps = isPool ? 60 : Math.min(60, Math.max(18, Math.round(60 - (state.count - 40) * 0.14)));
-
-        telemetry.innerHTML = `
-          <div>FPS Estimado: <strong>${simFps} FPS</strong></div>
-          <div>Alocações/seg: <strong>${isPool ? "0 (Reciclando do Pool!)" : state.count + " instantiate()/s"}</strong></div>
-        `;
+        pool16Advance(state,dt);
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?680:340,scale=Math.min(w/lw,h/lh);
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const drawPanel=(x,title,data,isPool)=>{
+          ctx.fillStyle="#1e150c";ctx.strokeStyle="#b48b4c";ctx.lineWidth=2;ctx.fillRect(x,10,300,320);ctx.strokeRect(x,10,300,320);
+          ctx.fillStyle="#f4d088";ctx.font="bold 14px Cinzel";ctx.fillText(title,x+14,36);
+          ctx.fillStyle="#122c30";ctx.fillRect(x+14+160*.34,62,320*.34,128);ctx.strokeStyle="#5ce1e6";ctx.strokeRect(x+14+160*.34,62,320*.34,128);
+          ctx.save();ctx.beginPath();ctx.rect(x+14,62,272,128);ctx.clip();
+          for(const p of data.active){if(state.drawPolicy==="clip"&&!pool16Visible(state,p))continue;const px=x+14+(40+(state.clock-p.birth)*240)*.34;ctx.fillStyle=isPool?"#5ce1e6":"#efb667";ctx.beginPath();ctx.arc(px,84+p.lane*21,4,0,Math.PI*2);ctx.fill();}
+          ctx.restore();ctx.font="12px JetBrains Mono";ctx.fillStyle="#d2bc95";ctx.fillText("Azul: recorte x=160…480",x+14,213);
+          ctx.fillStyle="#f4d088";ctx.fillText(`Ativos: ${data.active.length}`,x+14,239);ctx.fillText(`Criados: ${data.created}`,x+14,264);
+          ctx.fillText(isPool?`Livres: ${data.free.length} · recusas: ${data.dropped}`:`Destruídos: ${data.freed}`,x+14,289);
+          ctx.fillStyle="#5ce1e6";ctx.fillText(isPool?`Reativações: ${data.reused}`:`Atendidos: ${data.accepted}`,x+14,314);
+        };
+        drawPanel(10,"CRIAR / DESTRUIR",state.fresh,false);if(stacked)ctx.translate(-320,340);drawPanel(330,"POOL FIXO · REÚSO",state.pool,true);ctx.restore();
+        const fv=state.fresh.active.filter(p=>pool16Visible(state,p)).length,pv=state.pool.active.filter(p=>pool16Visible(state,p)).length,run=state.run;
+        telemetry.innerHTML=`<div>Etapa: <strong>${state.phase}</strong> · tempo: <strong>${state.clock.toFixed(2)} s</strong> · pedidos: <strong>${state.attempts}</strong> · rajadas extras: <strong>${state.burstCount}</strong></div><div>Ciclo atual: <strong>${run?`${run.rate}/s · vida ${run.life} s · capacidade ${run.capacity} · emissão ${run.duration} s`:"aguardando Iniciar"}</strong>. Controles numéricos valem no próximo início.</div><div>Criar/destruir: criados <strong>${state.fresh.created}</strong> · atendidos <strong>${state.fresh.accepted}</strong> · destruídos <strong>${state.fresh.freed}</strong> · ativos <strong>${state.fresh.active.length}</strong>. Pool: criados <strong>${state.pool.created}</strong> · atendidos <strong>${state.pool.accepted}</strong> · reativações <strong>${state.pool.reused}</strong> · recusados <strong>${state.pool.dropped}</strong> · ativos <strong>${state.pool.active.length}</strong> · livres <strong>${state.pool.free.length}</strong>.</div><div>No recorte: <strong>${fv}/${pv}</strong> · submetidos ao desenho (criar/pool): <strong>${state.drawPolicy==="clip"?fv:state.fresh.active.length}/${state.drawPolicy==="clip"?pv:state.pool.active.length}</strong>. O recorte não pausa vida ou movimento. Contagens do modelo; não são bytes, FPS, draw calls ou tempos da Godot.</div>`;
         break;
       }
 
       case "multiplayer_rpc_sim": {
-        const lagFactor = Math.max(2, 18 - state.ping * 0.06);
-        state.clientX += (state.hostX - state.clientX) * Math.min(1, lagFactor * dt);
-
-        // Divisória Host vs Client
-        ctx.strokeStyle = "#8c6229";
-        ctx.beginPath(); ctx.moveTo(w * 0.5, 20); ctx.lineTo(w * 0.5, h - 20); ctx.stroke();
-
-        ctx.fillStyle = "#f4d088";
-        ctx.font = "bold 12px JetBrains Mono";
-        ctx.fillText("HOST (Autoridade ID: 1)", 30, 36);
-        ctx.fillText("CLIENTE (Peer Conectado)", w * 0.5 + 30, 36);
-
-        drawGear(ctx, state.hostX, 150, 26, 8, state.hostX * 0.05, "#c87d32", "#f4d088");
-        drawGear(ctx, w * 0.5 + state.clientX, 150, 26, 8, state.clientX * 0.05, "#2d6e7e", "#5ce1e6");
-
-        // Pacotes RPC viajando
-        state.rpcPackets = state.rpcPackets.filter((pkt) => pkt.p < 1);
-        state.rpcPackets.forEach((pkt) => {
-          pkt.p += dt * (1000 / Math.max(80, state.ping * 4));
-          const px = state.hostX + (w * 0.5 + state.clientX - state.hostX) * pkt.p;
-          ctx.beginPath();
-          ctx.arc(px, 100, 7, 0, Math.PI * 2);
-          ctx.fillStyle = "#4cd97b";
-          ctx.fill();
-          ctx.fillText("@rpc()", px - 18, 86);
-        });
-
-        telemetry.innerHTML = `
-          <div>is_multiplayer_authority(): true no Host</div>
-          <div>Ping: ${state.ping}ms | Synchronizer Ativo</div>
-        `;
+        net17Advance(state,dt);
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?680:340,scale=Math.min(w/lw,h/lh);
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title,data,visual,color)=>{
+          ctx.fillStyle="#1e150c";ctx.strokeStyle="#b48b4c";ctx.lineWidth=2;ctx.fillRect(x,10,300,320);ctx.strokeRect(x,10,300,320);ctx.fillStyle="#f4d088";ctx.font="bold 14px Cinzel";ctx.fillText(title,x+14,36);
+          ctx.fillStyle="#090604";ctx.fillRect(x+14,70,272,130);ctx.strokeStyle="#755736";ctx.strokeRect(x+14,70,272,130);
+          if(state.connected){const px=x+14+(visual.x-40)*.49,py=75+(visual.y-80)*.57;drawGear(ctx,px,py,14,8,0,color,"#f4d088");}
+          ctx.font="12px JetBrains Mono";ctx.fillStyle="#5ce1e6";ctx.fillText(state.connected?"Controlado por 2 · autoridade 1":"Sessão desconectada",x+14,226);
+          ctx.fillStyle="#f4d088";ctx.fillText(`Estado: (${data.x}, ${data.y})`,x+14,251);ctx.fillText(`Tiros: ${data.shots} · revisão: ${data.revision}`,x+14,276);ctx.fillStyle="#d2bc95";ctx.fillText(title.startsWith("CLIENTE")?`Visual: (${visual.x.toFixed(1)}, ${visual.y.toFixed(1)})`:"Só o servidor altera este estado.",x+14,305);
+        };
+        panel(10,"SERVIDOR · ID 1",state.server,state.server,"#c48a44");if(stacked)ctx.translate(-320,340);panel(330,"CLIENTE · ID 2",state.replica,state.visual,"#5ce1e6");ctx.restore();
+        const requestCount=state.queue.filter(p=>p.kind==="request").length;
+        telemetry.innerHTML=`<div>Sessão: <strong>${state.connected?"conectada":"desconectada · valores antigos inválidos"}</strong> · relógio: <strong>${state.clock.toFixed(2)} s</strong> · RTT configurado: <strong>${state.rtt} ms</strong> (atraso base por trecho RTT/2; pedidos ordenados).</div><div>Pedidos enviados: <strong>${state.sent}</strong> · aceitos: <strong>${state.accepted}</strong> · recusados: <strong>${state.rejected}</strong> · fila: <strong>${requestCount} pedidos / ${state.queue.length-requestCount} estados</strong> · mensagens abandonadas: <strong>${state.abandoned}</strong>.</div><div>Servidor: <strong>(${state.server.x}, ${state.server.y}), tiros ${state.server.shots}, rev ${state.server.revision}</strong> · réplica: <strong>(${state.replica.x}, ${state.replica.y}), tiros ${state.replica.shots}, rev ${state.replica.revision}</strong>. ${state.smoothing==="smooth"?"Suavização exponencial própria; não é comportamento automático do Synchronizer.":"Visual usa a posição recebida, sem previsão local."}</div><div>Modelo sem ENet, sockets, perdas, retransmissões, autenticação ou execução de @tool. RTT não foi medido. Revisões e sequências são escolhas deste protocolo didático; números não comprovam desempenho de rede.</div>`;
         break;
       }
 
       // ======================== 3D RENDERERS ========================
       case "space_3d_axes": {
-        const cx = w * 0.5, cy = h * 0.58;
-        // Desenha grade do chão 3D (X e Z)
-        ctx.strokeStyle = "rgba(212, 163, 89, 0.2)";
-        for (let i = -4; i <= 4; i++) {
-          const a = project3D(i, 0, -4, cx, cy, 26);
-          const b = project3D(i, 0, 4, cx, cy, 26);
-          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-          const c = project3D(-4, 0, i, cx, cy, 26);
-          const d = project3D(4, 0, i, cx, cy, 26);
-          ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.stroke();
-        }
-
-        // Eixos Origem 3D
-        const o = project3D(0, 0, 0, cx, cy, 26);
-        const axX = project3D(3.5, 0, 0, cx, cy, 26);
-        const axY = project3D(0, 3.2, 0, cx, cy, 26);
-        const axZ = project3D(0, 0, -3.5, cx, cy, 26);
-
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "#e05347"; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(axX.x, axX.y); ctx.stroke();
-        ctx.strokeStyle = "#4cd97b"; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(axY.x, axY.y); ctx.stroke();
-        ctx.strokeStyle = "#5ce1e6"; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.lineTo(axZ.x, axZ.y); ctx.stroke();
-
-        ctx.font = "bold 12px JetBrains Mono";
-        ctx.fillStyle = "#e05347"; ctx.fillText("+X", axX.x + 6, axX.y);
-        ctx.fillStyle = "#4cd97b"; ctx.fillText("+Y (Cima 3D)", axY.x + 6, axY.y);
-        ctx.fillStyle = "#5ce1e6"; ctx.fillText("-Z (Frente)", axZ.x + 6, axZ.y);
-
-        // Autômato 3D
-        const objPos = project3D(0, state.py, state.pz, cx, cy, 26);
-        drawGear(ctx, objPos.x, objPos.y, 20, 8, (state.yaw * Math.PI) / 180, "#c87d32", "#f4d088");
-
-        const yawRad = (state.yaw * Math.PI) / 180;
-        const dirX = state.moveMode === "local" ? -Math.sin(yawRad) : 0;
-        const dirZ = state.moveMode === "local" ? -Math.cos(yawRad) : -1;
-        const fwd = project3D(dirX * 2.2, state.py, state.pz + dirZ * 2.2, cx, cy, 26);
-
-        ctx.strokeStyle = "#ffaa33";
-        ctx.beginPath(); ctx.moveTo(objPos.x, objPos.y); ctx.lineTo(fwd.x, fwd.y); ctx.stroke();
-
-        telemetry.innerHTML = `
-          <div>Posição 3D: Vector3(0.0, ${state.py.toFixed(1)}m, ${state.pz.toFixed(1)}m)</div>
-          <div>Vetor Frente: (${dirX.toFixed(2)}, 0, ${dirZ.toFixed(2)})</div>
-        `;
+        const stacked=w<500,lw=stacked?320:640,lh=stacked?780:390,scale=Math.min(w/lw,h/lh),world=space18World(state),forward=space18Forward(state),chosen=state.advanceMode==="world"?[0,0,-1]:forward;
+        const format=v=>v.map(n=>Math.abs(n)<.0005?"0.000":n.toFixed(3)).join(", ");
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title)=>{ctx.fillStyle="#1e150c";ctx.strokeStyle="#b48b4c";ctx.lineWidth=2;ctx.fillRect(x,10,300,370);ctx.strokeRect(x,10,300,370);ctx.fillStyle="#f4d088";ctx.font="bold 14px Cinzel";ctx.fillText(title,x+14,36);};
+        panel(10,"VISTA ORTOGRÁFICA");
+        const corners=space18Corners(state),end=world.map((n,i)=>n+chosen[i]),axisEnds=[[3,0,0],[0,3,0],[0,0,3],[0,0,-3]],points=[...corners,...axisEnds,[-4,0,-4],[4,0,-4],[-4,0,4],[4,0,4],[2,0,1],world,end];
+        const raw=points.map(p=>space18Project(p,state.cameraYaw)),minX=Math.min(...raw.map(p=>p.x)),maxX=Math.max(...raw.map(p=>p.x)),minY=Math.min(...raw.map(p=>p.y)),maxY=Math.max(...raw.map(p=>p.y)),unit=Math.min(230/Math.max(1,maxX-minX),185/Math.max(1,maxY-minY));
+        const project=p=>{const r=space18Project(p,state.cameraYaw);return {x:160+(r.x-(minX+maxX)/2)*unit,y:158+(r.y-(minY+maxY)/2)*unit,depth:r.depth};};
+        const line=(a,b,color,width=1,dash=[])=>{const p=project(a),q=project(b);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);};
+        for(let i=-4;i<=4;i++){line([i,0,-4],[i,0,4],"#4c3821");line([-4,0,i],[4,0,i],"#4c3821");}
+        const colors=["#ff8b7b","#88e897","#76b6ff","#bcb8d0"],names=["+X","+Y","+Z","−Z"];
+        axisEnds.forEach((p,i)=>{line([0,0,0],p,colors[i],2,i===3?[3,3]:[]);const q=project(p);ctx.fillStyle=colors[i];ctx.font="bold 12px JetBrains Mono";ctx.fillText(names[i],q.x+4,q.y-4);});
+        line([2,0,1],world,"#d4a359",2,[3,3]);
+        const faces=[[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]],verts=corners.map(project);
+        faces.map((ids,i)=>({ids,i,depth:ids.reduce((n,j)=>n+verts[j].depth,0)/4})).sort((a,b)=>a.depth-b.depth).forEach(face=>{ctx.beginPath();face.ids.forEach((id,i)=>{const p=verts[id];if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});ctx.closePath();ctx.fillStyle=face.i===2?"#2b7880":["#79502c","#e3ad60","#b8793c","#a16b34","#c58a44","#9f6832"][face.i];ctx.fill();ctx.strokeStyle="#f4d088";ctx.lineWidth=1;ctx.stroke();});
+        line(world,end,"#5ce1e6",3);const tip=project(end),start=project(world),angle=Math.atan2(tip.y-start.y,tip.x-start.x);ctx.strokeStyle="#5ce1e6";ctx.beginPath();ctx.moveTo(tip.x-7*Math.cos(angle-.5),tip.y-7*Math.sin(angle-.5));ctx.lineTo(tip.x,tip.y);ctx.lineTo(tip.x-7*Math.cos(angle+.5),tip.y-7*Math.sin(angle+.5));ctx.stroke();
+        const parent=project([2,0,1]);ctx.fillStyle="#f4d088";ctx.fillRect(parent.x-3,parent.y-3,6,6);
+        ctx.font="12px JetBrains Mono";ctx.fillStyle="#d2bc95";ctx.fillText("Grade: 1 u · enquadramento automático",24,293);ctx.fillText("Ciano: direção do próximo F",24,317);ctx.fillText("Tracejado: pai → peça",24,341);ctx.fillText("Girar a vista não muda coordenadas.",24,365);
+        if(stacked)ctx.translate(-320,390);
+        panel(330,"PLANTA · +X → / +Z ↓");
+        const bound=Math.max(5,Math.abs(world[0])+1.5,Math.abs(world[2])+1.5),topUnit=110/bound,top=p=>({x:480+p[0]*topUnit,y:160+p[2]*topUnit});
+        ctx.strokeStyle="#4c3821";ctx.lineWidth=1;for(let i=-Math.floor(bound);i<=Math.floor(bound);i++){const a=top([i,0,-bound]),b=top([i,0,bound]),c=top([-bound,0,i]),d=top([bound,0,i]);ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.moveTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.stroke();}
+        const origin=top([0,0,0]),pp=top([2,0,1]),wp=top(world),ep=top(end);ctx.strokeStyle="#ff8b7b";ctx.beginPath();ctx.moveTo(370,origin.y);ctx.lineTo(590,origin.y);ctx.stroke();ctx.strokeStyle="#76b6ff";ctx.beginPath();ctx.moveTo(origin.x,50);ctx.lineTo(origin.x,270);ctx.stroke();
+        ctx.strokeStyle="#d4a359";ctx.setLineDash([3,3]);ctx.beginPath();ctx.moveTo(pp.x,pp.y);ctx.lineTo(wp.x,wp.y);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle="#f4d088";ctx.fillRect(pp.x-4,pp.y-4,8,8);ctx.fillStyle="#5ce1e6";ctx.beginPath();ctx.arc(wp.x,wp.y,6,0,Math.PI*2);ctx.fill();ctx.strokeStyle="#5ce1e6";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(ep.x,ep.y);ctx.stroke();
+        ctx.fillStyle="#d2bc95";ctx.font="12px JetBrains Mono";ctx.fillText("Quadrado: pai · círculo: peça",344,293);ctx.fillStyle="#f4d088";ctx.fillText(`Altura global Y: ${world[1].toFixed(3)} u`,344,317);ctx.fillText(`Distância do último passo:`,344,341);ctx.fillStyle="#5ce1e6";ctx.fillText(`${Math.hypot(...state.lastDelta).toFixed(3)} u`,344,365);ctx.restore();
+        telemetry.innerHTML=`<div>Peça no pai · position: <strong>(${format([state.lx,state.ly,state.lz])})</strong> u. No mundo · global_position: <strong>(${format(world)})</strong> u. Pai fixo: <strong>(2, 0, 1)</strong>.</div><div>Frente −Z da peça expressa no mundo: <strong>(${format(forward)})</strong>. Próximo F: <strong>${state.advanceMode==="world"?"−Z global":"frente da peça"}</strong>, vetor unitário. Escala do pai: <strong>${state.parentScale}×</strong>; pai Y: <strong>${state.parentYaw}°</strong>; peça Y: <strong>${state.bodyYaw}°</strong>.</div><div>Último Δ global: <strong>(${format(state.lastDelta)})</strong> u · comprimento: <strong>${Math.hypot(...state.lastDelta).toFixed(3)} u</strong> · passos aplicados: <strong>${state.moves}</strong>. Coordenadas locais foram convertidas após F para respeitar 1 u global.</div><div>Modelo estático Canvas/JS: câmera ortográfica matemática, planta sem ocultação, sem Godot/WebGL/física. Convenção desta prática: 1 u corresponde a 1 m; não são pixels. Só rotação Y e escala uniforme positiva; pausa não bloqueia ajustes.</div>`;
         break;
       }
 
       case "transform_basis_3d": {
-        if (state.slerpToZero && dt > 0) {
-          const hx = state.rx * Math.PI / 360, hy = state.ry * Math.PI / 360, hz = state.rz * Math.PI / 360;
-          const sx = Math.sin(hx), cx = Math.cos(hx), sy = Math.sin(hy), cy = Math.cos(hy), sz = Math.sin(hz), cz = Math.cos(hz);
-          let qx = cy * sx * cz + sy * cx * sz;
-          let qy = sy * cx * cz - cy * sx * sz;
-          let qz = cy * cx * sz - sy * sx * cz;
-          let qw = cy * cx * cz + sy * sx * sz;
-          if (qw < 0) { qx = -qx; qy = -qy; qz = -qz; qw = -qw; }
-          const angle = Math.acos(Math.min(1, Math.max(-1, qw)));
-          const remaining = Math.exp(-6.3 * dt);
-          const factor = angle > 1e-7 ? Math.sin(angle * remaining) / Math.sin(angle) : remaining;
-          qx *= factor; qy *= factor; qz *= factor;
-          qw = Math.cos(angle * remaining);
-          const m23 = 2 * (qy * qz - qw * qx);
-          state.rx = Math.asin(Math.max(-1, Math.min(1, -m23))) * 180 / Math.PI;
-          if (Math.abs(m23) < 0.9999999) {
-            state.ry = Math.atan2(2 * (qx * qz + qw * qy), 1 - 2 * (qx * qx + qy * qy)) * 180 / Math.PI;
-            state.rz = Math.atan2(2 * (qx * qy + qw * qz), 1 - 2 * (qx * qx + qz * qz)) * 180 / Math.PI;
-          } else {
-            state.ry = Math.atan2(-2 * (qx * qz - qw * qy), 1 - 2 * (qy * qy + qz * qz)) * 180 / Math.PI;
-            state.rz = 0;
-          }
-          if (angle * remaining < 0.001) {
-            state.rx = state.ry = state.rz = 0;
-            state.slerpToZero = false;
-          }
-        }
-        const cx = w * 0.5, cy = h * 0.52;
-        const rx = (state.rx * Math.PI) / 180;
-        const ry = (state.ry * Math.PI) / 180;
-        const rz = (state.rz * Math.PI) / 180;
-
-        // Anéis do Giroscópio Steampunk
-        ctx.strokeStyle = "rgba(212, 163, 89, 0.35)";
-        ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.ellipse(cx, cy, 90, 90 * Math.abs(Math.cos(rx)) + 12, rz, 0, Math.PI * 2); ctx.stroke();
-        ctx.beginPath(); ctx.ellipse(cx, cy, 70 * Math.abs(Math.cos(ry)) + 12, 70, rx, 0, Math.PI * 2); ctx.stroke();
-
-        // 3 Vetores da Basis
-        // Colunas da matriz R_y * R_x * R_z, antes da projeção isométrica.
-        const cxr = Math.cos(rx), sxr = Math.sin(rx), cyr = Math.cos(ry), syr = Math.sin(ry), czr = Math.cos(rz), szr = Math.sin(rz);
-        const projectAxis = (x, y, z) => {
-          const p = project3D(x, y, z, 0, 0, 1);
-          return { x: p.x, y: p.y };
-        };
-        const bx = projectAxis(cyr * czr + syr * sxr * szr, cxr * szr, -syr * czr + cyr * sxr * szr);
-        const by = projectAxis(-cyr * szr + syr * sxr * czr, cxr * czr, syr * szr + cyr * sxr * czr);
-        const bz = projectAxis(-syr * cxr, sxr, -cyr * cxr);
-
-        const drawAxis = (v, col, lbl) => {
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy);
-          ctx.lineTo(cx + v.x * 78, cy + v.y * 78);
-          ctx.stroke();
-          ctx.fillStyle = col;
-          ctx.font = "bold 12px JetBrains Mono";
-          ctx.fillText(lbl, cx + v.x * 86 - 16, cy + v.y * 86);
-        };
-        drawAxis(bx, "#e05347", "basis.x");
-        drawAxis(by, "#4cd97b", "basis.y");
-        drawAxis(bz, "#5ce1e6", "-basis.z");
-
-        telemetry.innerHTML = `
-          <div>Euler: Pitch ${Math.round(state.rx)}° | Yaw ${Math.round(state.ry)}° | Roll ${Math.round(state.rz)}°</div>
-          <div>Status: Base ortonormal • Slerp por quaternion (Euler YXZ nos controles)</div>
-        `;
+        const m=basis19Model(state),stack=w<500,lw=stack?320:640,lh=stack?780:390,scale=Math.min(w/lw,h/lh),fmt=n=>Math.abs(n)<.0005?'0.000':n.toFixed(3),vec=p=>p.map(fmt).join(', '),column=(a,i)=>a.map(row=>row[i]);
+        ctx.save();ctx.translate((w-lw*scale)/2,(h-lh*scale)/2);ctx.scale(scale,scale);
+        const panel=(x,title)=>{ctx.fillStyle='#1e150c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,370);ctx.strokeRect(x,10,300,370);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};panel(10,'BASIS NO MUNDO');
+        const origin=m.worldOrigin,transform=p=>basis19Vec(m.worldBasis,p).map((v,i)=>v+origin[i]),corners=[];for(const x of [-.5,.5])for(const y of [-.5,.5])for(const z of [-.5,.5])corners.push(transform([x,y,z]));
+        const axes=[0,1,2].map(i=>origin.map((v,j)=>v+m.worldBasis[j][i])),bounds=[...corners,...axes,m.world,[0,0,0],[-3,0,-3],[3,0,3],[-3,0,3],[3,0,-3]],raw=bounds.map(p=>space18Project(p,45)),minX=Math.min(...raw.map(p=>p.x)),maxX=Math.max(...raw.map(p=>p.x)),minY=Math.min(...raw.map(p=>p.y)),maxY=Math.max(...raw.map(p=>p.y)),unit=Math.min(220/(maxX-minX||1),190/(maxY-minY||1)),project=p=>{const r=space18Project(p,45);return{x:160+(r.x-(minX+maxX)/2)*unit,y:164+(r.y-(minY+maxY)/2)*unit,depth:r.depth};};
+        const line=(a,b,color,width=1)=>{const p=project(a),q=project(b);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke();};
+        for(let i=-3;i<=3;i++){line([i,0,-3],[i,0,3],'#4c3821');line([-3,0,i],[3,0,i],'#4c3821');}
+        const verts=corners.map(project),faces=[[0,1,3,2],[4,6,7,5],[0,4,5,1],[2,3,7,6],[0,2,6,4],[1,5,7,3]];
+        faces.map((ids,i)=>({ids,i,depth:ids.reduce((n,j)=>n+verts[j].depth,0)/4})).sort((a,b)=>a.depth-b.depth).forEach(face=>{ctx.beginPath();face.ids.forEach((id,i)=>{const p=verts[id];if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});ctx.closePath();ctx.fillStyle=face.i===2?'#2b7880':['#79502c','#e3ad60','#b8793c','#a16b34','#c58a44','#9f6832'][face.i];ctx.fill();ctx.strokeStyle='#f4d088';ctx.lineWidth=1;ctx.stroke();});
+        axes.forEach((end,i)=>{const color=['#ff8b7b','#88e897','#76b6ff'][i],p=project(end);line(origin,end,color,3);ctx.fillStyle=color;ctx.font='bold 12px JetBrains Mono';ctx.fillText(['x','y','z'][i],p.x+4,p.y-5);});
+        const p=project(m.world);ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();line([0,0,0],origin,'#d4a359',2);
+        ctx.font='12px JetBrains Mono';ctx.fillStyle='#d2bc95';ctx.fillText('Setas: +x / +y / +z da Basis',24,293);ctx.fillText('Ciano: ponto local p=(1,0,0)',24,317);ctx.fillText('Grade global: 1 u · vista fixa',24,341);ctx.fillText('Escala e origin fora do SLERP',24,365);
+        if(stack)ctx.translate(-320,390);panel(330,'TRANSFORM NO PAI · 3×4');ctx.fillStyle='#d2bc95';ctx.font='12px JetBrains Mono';ctx.fillText(['x','y','z','origin'].map(v=>v.padStart(6)).join(' '),342,64);
+        for(let i=0;i<3;i++)ctx.fillText([...m.basis[i],m.origin[i]].map(n=>fmt(n).padStart(6)).join(' '),342,94+i*24);
+        const lines=[['p no objeto','(1.000, 0.000, 0.000)'],['transform * p → pai',`(${vec(m.point)})`],['global_transform * p → mundo',`(${vec(m.world)})`]];
+        lines.forEach(([title,value],i)=>{ctx.fillStyle='#d2bc95';ctx.fillText(title,344,186+i*53);ctx.fillStyle='#5ce1e6';ctx.fillText(value,344,205+i*53);});ctx.fillStyle='#f4d088';ctx.fillText(`Peso: ${state.weight.toFixed(2)} · escala: ${state.uniform.toFixed(1)}×`,344,357);ctx.restore();
+        telemetry.innerHTML=`<div>Pose inicial Euler <strong>${state.order}: (${state.rx}°, ${state.ry}°, ${state.rz}°)</strong>. Peso SLERP <strong>${state.weight.toFixed(2)}</strong>: 0=inicial; 1=identidade no pai. Controle manual, sem relógio ou movimento automático.</div><div>Basis no pai · colunas:<br>x <strong>(${vec(column(m.basis,0))})</strong><br>y <strong>(${vec(column(m.basis,1))})</strong><br>z <strong>(${vec(column(m.basis,2))})</strong><br>Comprimentos: <strong>${state.uniform.toFixed(3)}</strong> em cada eixo; produtos entre eixos ≈0. ${state.uniform===1?'Ortonormal (rotação própria).':'Ortogonal, com escala; não ortonormal.'}</div><div>origin no pai: <strong>(${vec(m.origin)})</strong>; no mundo: <strong>(${vec(m.worldOrigin)})</strong>. Pai só gira Y=<strong>${state.parentY}°</strong>, origem zero e escala 1. Frente mundial escolhida: <strong>(${vec(column(m.worldBasis,2).map(v=>-v/state.uniform))})</strong> (−z normalizado).<br>p no pai: <strong>(${vec(m.point)})</strong>; p no mundo: <strong>(${vec(m.world)})</strong>.</div><div>Modelo Canvas/JS, sem Godot/WebGL/física. Rotações próprias + escala uniforme positiva; sem cisalhamento/reflexão. A matriz no painel é local ao pai; as setas aparecem no mundo. Valores arredondados a três casas; eixos projetados podem se sobrepor.</div>`;
         break;
       }
+
 
       case "csg_boolean_3d": {
         const cx = w * 0.5, cy = h * 0.5;

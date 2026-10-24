@@ -3234,444 +3234,735 @@ window.GODOT_LESSONS_2D = [
   }
 },
 
-  {
-    id: "2d-pro-architecture-async",
-    area: "2d",
-    level: "profissional",
-    levelLabel: "Profissional",
-    title: "15. Arquitetura Escalável, Scene Manager Assíncrono e Padrões de Projeto",
-    subtitle: "Como estruturar jogos grandes sem congelar a tela nos carregamentos e sem transformar Autoloads em 'Objetos Deus' incontroláveis.",
-    nodesUsed: ["ResourceLoader", "Autoload", "SceneTree", "CanvasLayer"],
-    feynman: {
-      title: "Explicação Feynman: A Troca de Cenário no Teatro sem Fechar a Cortina por 10 Segundos",
-      explanation: "Em um jogo pequeno, quando o jogador passa pela porta da Fase 1 para a Fase 2, usamos `change_scene_to_file()`. Isso é como parar a peça de teatro, acender a luz do auditório e fazer a plateia esperar parada enquanto os operários carregam um castelo pesado para o palco (o jogo dá aquela 'congelada' feia!). Num jogo **Profissional**, usamos o `ResourceLoader.load_threaded_request()`: enquanto uma cortina de vapor estilosa aparece com uma engrenagem girando e uma barra de 0% a 100%, uma equipe nos bastidores (outra *Thread* do processador) monta o castelo peça por peça sem travar a tela nem por um milissegundo!",
-      analogies: [
-        {
-          term: "load_threaded_request()",
-          analogy: "Encomendar a montagem da próxima fase nos bastidores (em segundo plano) enquanto a tela de loading continua rodando lisinha a 60 FPS."
-        },
-        {
-          term: "Autoload (Singleton)",
-          analogy: "A caixa de força central da fábrica: fica fora das salas normais, então mesmo quando você demole a Sala 1 e constrói a Sala 2, a caixa de força continua ligada!"
-        },
-        {
-          term: "Injeção de Dependência e Grupos",
-          analogy: "Em vez de um nó caçar outro com caminhos frágeis (`../../../Player`), o sistema entrega a referência pronta na mão de quem precisa."
-        },
-        {
-          term: "Audio Manager Global",
-          analogy: "Um maestro no Autoload que faz *crossfade* (abaixa a música de exploração suavemente enquanto sobe a música de batalha) sem cortar o áudio na troca de fase."
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Autoloads são nós adicionados diretamente como filhos da raiz (`root`) da `SceneTree`, irmãos da `current_scene`. Por isso, eles sobrevivem às trocas de fase. Em projetos profissionais, limitamos Autoloads a serviços globais bem definidos (`SceneManager`, `AudioManager`, `SaveManager`, `EventBus`).",
-      anatomy: [
-        {
-          prop: "ResourceLoader.load_threaded_request(caminho)",
-          desc: "Inicia o carregamento de uma cena ou recurso pesado em uma thread separada do processador."
-        },
-        {
-          prop: "ResourceLoader.load_threaded_get_status(caminho, progresso)",
-          desc: "Consulta se o carregamento terminou e preenche o array `progresso[0]` (de 0.0 a 1.0) para sua barra de loading!"
-        },
-        {
-          prop: "ResourceLoader.load_threaded_get(caminho)",
-          desc: "Retorna a `PackedScene` pronta assim que o status atinge `THREAD_LOAD_LOADED`."
-        },
-        {
-          prop: "get_tree().change_scene_to_packed(cena_pronta)",
-          desc: "Faz a troca instantânea para a cena já carregada na memória."
-        }
-      ]
-    },
-    approaches: [
+{
+  "id": "2d-pro-architecture-async",
+  "area": "2d",
+  "level": "profissional",
+  "levelLabel": "Profissional",
+  "title": "15. Arquitetura de cenas e carregamento em segundo plano",
+  "subtitle": "Carregue um recurso, valide a próxima sala e preserve o estado da partida sem prometer uma troca instantânea.",
+  "nodesUsed": [
+    "ResourceLoader",
+    "PackedScene",
+    "Node2D",
+    "Marker2D",
+    "SceneTree"
+  ],
+  "feynman": {
+    "title": "A oficina continua aberta enquanto a próxima sala é preparada",
+    "explanation": "Imagine uma oficina com um jogador, suas moedas e um espaço que recebe uma sala por vez. O carregador busca o recurso da próxima sala; isso ainda não cria seus nós. Quando o recurso fica disponível, o controlador instancia a candidata, verifica o contrato e só então substitui a sala instalada. O jogador permanece fora desse espaço, portanto não é destruído junto com a sala. Esta organização separa estado persistente, conteúdo substituível e interface. A comparação ajuda a entender responsabilidades; não significa que instalar a sala será gratuito ou instantâneo.",
+    "analogies": [
       {
-        title: "Forma 1: Carregamento Assíncrono com Barra de Progresso Real (Background Thread)",
-        whenToUse: "Troca entre fases grandes, abertura do mundo principal ou carregamento sem travar a animação da tela.",
-        description: "Pedimos ao `ResourceLoader` para carregar em segundo plano e monitoramos a porcentagem até atingir 100%.",
-        code: `extends CanvasLayer
-
-var caminho_destino: String = ""
-var carregando: bool = false
-@onready var barra: ProgressBar = %BarraProgresso
-
-func ir_para_cena(caminho: String) -> void:
-    caminho_destino = caminho
-    visible = true
-    carregando = true
-    # Inicia carregamento em outra thread da CPU!
-    ResourceLoader.load_threaded_request(caminho_destino)
-
-func _process(_delta: float) -> void:
-    if not carregando:
-        return
-    var progresso: Array = []
-    var status := ResourceLoader.load_threaded_get_status(caminho_destino, progresso)
-    
-    if progresso.size() > 0:
-        barra.value = progresso[0] * 100.0
-        
-    if status == ResourceLoader.THREAD_LOAD_LOADED:
-        carregando = false
-        var cena_empacotada: PackedScene = ResourceLoader.load_threaded_get(caminho_destino)
-        get_tree().change_scene_to_packed(cena_empacotada)
-        visible = false`,
-        pros: "Zero congelamento de tela (stutter), permite mostrar animações de engrenagens girando e dicas na tela de loading.",
-        cons: "Exige tratar o estado caso o caminho do arquivo esteja incorreto (`THREAD_LOAD_FAILED`)."
+        "term": "Recurso e instância",
+        "analogy": "PackedScene é a descrição serializada. instantiate cria os nós; add_child os coloca na árvore ativa. São etapas diferentes."
       },
       {
-        title: "Forma 2: Gerenciador de Mundo Contínuo (Metroidvania / Salas Conectadas)",
-        whenToUse: "Jogos estilo Hollow Knight, Castlevania ou Zelda onde o jogador nunca perde sua instância ao atravessar portas entre salas.",
-        description: "Em vez de usar `change_scene_to_file` (que destrói a árvore inteira), mantemos uma cena `JogoPrincipal` fixa com o `Jogador` vivo e trocamos apenas o nó filho dentro de `$ContainerSalaAtual`!",
-        code: `extends Node2D
-
-@onready var container_sala: Node2D = $ContainerSalaAtual
-@onready var jogador: CharacterBody2D = $Jogador
-var sala_atual: Node2D = null
-
-func transicionar_sala(nova_sala_packed: PackedScene, nome_porta_entrada: String) -> void:
-    # 1. Remove a sala antiga com segurança
-    if sala_atual:
-        sala_atual.queue_free()
-        
-    # 2. Instancia e adiciona a nova sala
-    sala_atual = nova_sala_packed.instantiate() as Node2D
-    container_sala.add_child(sala_atual)
-    
-    # 3. Posiciona o mesmo Jogador (com seus buffs e itens intactos!) na porta de entrada
-    var marcador_entrada := sala_atual.find_child(nome_porta_entrada) as Marker2D
-    if marcador_entrada:
-        jogador.global_position = marcador_entrada.global_position`,
-        pros: "O nó do Jogador, sua câmera e seus efeitos ativos nunca são destruídos entre uma sala e outra.",
-        cons: "Exige limpar projéteis órfãos que tenham sido adicionados fora do `container_sala`."
+        "term": "Carregamento e aplicação",
+        "analogy": "Receber as peças não é montar a máquina. O progresso do recurso pode chegar a 100% antes de qualquer sala nova ser instalada."
       },
       {
-        title: "Forma 3: Service Locator / Registro Limpo com Grupos Globais",
-        whenToUse: "Quando inimigos ou sistemas precisam encontrar a Câmera ou o Jogador sem depender de Autoloads inchados.",
-        description: "Usamos `get_tree().get_first_node_in_group('player')` que busca em C++ de forma ultrarrápida o primeiro nó marcado no grupo.",
-        code: `extends CharacterBody2D
-
-func _ready() -> void:
-    # Registra este nó no grupo global "player"
-    add_to_group("player")
-
-# --- Em qualquer Inimigo ou Sistema do jogo ---
-func localizar_jogador() -> Node2D:
-    return get_tree().get_first_node_in_group("player") as Node2D`,
-        pros: "Rápido, nativo da engine e não exige que o Jogador seja um Autoload global permanente.",
-        cons: "Sempre verifique se o retorno não é `null` (caso o jogador tenha morrido ou não esteja na cena)."
+        "term": "Persistência por posição na árvore",
+        "analogy": "O jogador é irmão do ContainerSala. Trocar o filho desse contêiner preserva a instância do jogador e suas moedas."
       }
-    ],
-    simulator: {
-      type: "async_loader_sim",
-      title: "Laboratório de Carregamento Síncrono (Trava) vs Assíncrono (Threaded)",
-      description: "Simule a troca de uma fase pesada usando carregamento bloqueante vs `load_threaded_request()` e observe o ponteiro de FPS e a engrenagem de loading!"
-    },
-    quiz: {
-      question: "Qual é a grande vantagem de usar `ResourceLoader.load_threaded_request()` na transição entre fases pesadas?",
-      options: [
-        "Diminui a resolução do monitor.",
-        "Carrega a nova cena em segundo plano (em outra thread da CPU), permitindo exibir animações fluidas e barra de progresso real de 0% a 100% sem congelar o jogo.",
-        "Apaga todos os Autoloads do projeto.",
-        "Faz o código rodar sem GDScript."
-      ],
-      correctIndex: 1,
-      explanation: "Perfeito! O carregamento em segundo plano mantém o loop principal livre para desenhar a tela de transição a 60 FPS enquanto os arquivos pesados são montados na memória."
-    }
+    ]
   },
-
-  {
-    id: "2d-pro-optimization-servers",
-    area: "2d",
-    level: "profissional",
-    levelLabel: "Profissional",
-    title: "16. Otimização Extrema: Object Pooling, MultiMesh2D e Servidores (Rendering/PhysicsServer2D)",
-    subtitle: "Como fazer um 'Bullet Hell' ou jogo de horda rodar 10.000 projéteis ou inimigos simultâneos a 60 FPS cravados.",
-    nodesUsed: ["VisibleOnScreenNotifier2D", "MultiMeshInstance2D", "RenderingServer", "PhysicsServer2D"],
-    feynman: {
-      title: "Explicação Feynman: Lavar os Pratos do Restaurante e Falar Direto com o Cozinheiro",
-      explanation: "Imagine um restaurante que, a cada cliente que pede um prato de sopa, fabrica um prato de porcelana novo do zero e, quando o cliente termina, JOGA O PRATO NO LIXO e quebra no chão (`instantiate()` e `queue_free()` 100 vezes por segundo!). Em pouco tempo a cozinha trava! A solução inteligente é o **Object Pooling (Piscina de Objetos)**: o restaurante compra 200 pratos antes de abrir; quando o cliente termina, o prato é apenas escondido, limpo e guardado na pilha para o próximo usar! E se você precisar desenhar 10.000 balas na tela? Em vez de contratar 10.000 garçons (`Node2D` + `Sprite2D` + `Area2D`), você fala direto com a fábrica central da Godot — o `RenderingServer` e o `PhysicsServer2D` — ou usa um carimbo coletivo chamado `MultiMeshInstance2D`!",
-      analogies: [
-        {
-          term: "Object Pooling (Piscina de Objetos)",
-          analogy: "Reciclar projéteis e números de dano desativando-os (`visible = false`, `process_mode = DISABLED`) e reutilizando-os em vez de criar e destruir nós sem parar."
-        },
-        {
-          term: "VisibleOnScreenNotifier2D / Enabler2D",
-          analogy: "Sensor de economia de energia: desliga a inteligência e animação dos inimigos que estão longe, fora da visão da câmera!"
-        },
-        {
-          term: "MultiMeshInstance2D",
-          analogy: "Desenhar 10.000 engrenagens ou folhas de grama em UMA ÚNICA viagem à placa de vídeo (1 Draw Call!)."
-        },
-        {
-          term: "RenderingServer & PhysicsServer2D",
-          analogy: "Pular a burocracia dos Nós e enviar comandos direto para o motor C++ da Godot usando códigos leves (`RID`)."
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Por baixo dos panos, todo `Sprite2D` é apenas um ajudante amigável que conversa com o `RenderingServer`, e toda `Area2D` conversa com o `PhysicsServer2D`. Em 95% do jogo, usar Nós normais é o ideal. Mas nos 5% críticos (milhares de balas, chuva densa, cardumes, enxames), usar Pooling, `MultiMeshInstance2D` ou Servers multiplica a performance por 10x a 50x!",
-      anatomy: [
-        {
-          prop: "VisibleOnScreenEnabler2D",
-          desc: "Nó mágico que pausa automaticamente o pai quando ele sai da tela e o reativa quando entra na visão da câmera!"
-        },
-        {
-          prop: "MultiMeshInstance2D.multimesh.instance_count",
-          desc: "Define quantas cópias ultra-rápidas da malha serão desenhadas num único lote pela GPU."
-        },
-        {
-          prop: "RenderingServer.canvas_item_create() -> RID",
-          desc: "Cria um item visual leve direto no servidor C++ sem o peso de um `Node` na árvore."
-        },
-        {
-          prop: "Monitor do Editor (Debugger -> Profiler / Monitors)",
-          desc: "O manômetro real da Godot: mostra exatamente qual função GDScript, física ou Draw Call está gastando milissegundos."
-        }
-      ]
-    },
-    approaches: [
+  "howItWorks": {
+    "overview": "ResourceLoader.load_threaded_request inicia um pedido e retorna um Error; OK significa pedido aceito, não recurso pronto. Consulte load_threaded_get_status em quadros separados. Enquanto IN_PROGRESS, o array de progresso contém uma razão entre 0 e 1. Só chame load_threaded_get depois de THREAD_LOAD_LOADED para evitar esperar pela conclusão nessa chamada. Em seguida, valide o tipo de recurso, instancie e confira a raiz e o Marker2D Entrada. A árvore ativa é modificada no thread principal. Mesmo com carregamento em segundo plano, instantiate, add_child e _ready podem produzir custo perceptível.",
+    "anatomy": [
       {
-        title: "Forma 1: Object Pool (Piscina de Projéteis Recicláveis)",
-        whenToUse: "Metralhadoras a vapor, textos flutuantes de dano, efeitos de impacto frequentes.",
-        description: "Criamos uma lista de projéteis pré-instanciados e os emprestamos/devolvemos para a fila sem chamar `instantiate()` nem `queue_free()` durante o tiroteio.",
-        code: `extends Node2D
-
-@export var cena_projetil: PackedScene
-@export var tamanho_inicial: int = 100
-var fila_disponiveis: Array[Node2D] = []
-
-func _ready() -> void:
-    for i in tamanho_inicial:
-        var p := cena_projetil.instantiate() as Node2D
-        desativar_no_pool(p)
-        add_child(p)
-
-func obter_projetil(pos: Vector2, dir: Vector2) -> Node2D:
-    var p: Node2D
-    if fila_disponiveis.is_empty():
-        p = cena_projetil.instantiate() as Node2D
-        add_child(p)
-    else:
-        p = fila_disponiveis.pop_back()
-        
-    p.global_position = pos
-    p.visible = true
-    p.process_mode = Node.PROCESS_MODE_INHERIT
-    return p
-
-func desativar_no_pool(p: Node2D) -> void:
-    p.visible = false
-    p.set_deferred("process_mode", Node.PROCESS_MODE_DISABLED)
-    fila_disponiveis.push_back(p)`,
-        pros: "Elimina picos de engasgo (pauses de alocação de memória) quando dezenas de tiros saem ao mesmo tempo.",
-        cons: "Ao reutilizar um objeto do pool, lembre-se de resetar a velocidade e os timers internos dele!"
+        "prop": "Pedido → andamento → recurso pronto",
+        "desc": "Trate erro no pedido, THREAD_LOAD_FAILED e THREAD_LOAD_INVALID_RESOURCE. Não faça um while de espera: bloquearia o processamento da interface. Arquivos pequenos ou em cache podem aparecer prontos quase imediatamente."
       },
       {
-        title: "Forma 2: Desativação Automática Fora da Tela (VisibleOnScreenEnabler2D)",
-        whenToUse: "Fases grandes cheias de inimigos, armadilhas e plataformas animadas espalhadas pelo mapa.",
-        description: "Basta adicionar um `VisibleOnScreenEnabler2D` como filho do inimigo! Sem escrever uma linha de código, ele congela o inimigo fora da tela.",
-        code: `extends CharacterBody2D
-
-@onready var notificador: VisibleOnScreenNotifier2D = $VisibleOnScreenNotifier2D
-
-func _ready() -> void:
-    # Se quiser lógica customizada ao entrar/sair da tela da câmera:
-    notificador.screen_entered.connect(func(): set_physics_process(true))
-    notificador.screen_exited.connect(func(): set_physics_process(false))`,
-        pros: "Economiza até 80% de CPU e Física em fases amplas com esforço quase zero.",
-        cons: "Aumente o retângulo (`rect`) do notificador para que o inimigo acorde um pouquinho antes de aparecer na borda da tela."
+        "prop": "Recurso pronto → candidata → sala instalada",
+        "desc": "100% descreve o recurso. A prática deixa Aplicar como ação separada. A candidata deve ser Node2D e conter um filho direto Marker2D chamado Entrada; os caminhos fazem parte de um contrato explícito."
       },
       {
-        title: "Forma 3: Renderização em Massa Direto no RenderingServer / MultiMesh",
-        whenToUse: "Bullet Hells extremos (2.000+ projéteis), enxames de insetos mecânicos ou campos de asteroides.",
-        description: "Em vez de 2.000 nós `Sprite2D`, um único script gerencia um array de posições e desenha tudo com `_draw()` (`draw_texture`) ou `MultiMeshInstance2D`.",
-        code: `extends Node2D
-
-@export var textura_bala: Texture2D
-var posicoes_balas: PackedVector2Array = []
-var velocidades_balas: PackedVector2Array = []
-
-func _process(delta: float) -> void:
-    for i in posicoes_balas.size():
-        posicoes_balas[i] += velocidades_balas[i] * delta
-    # Pede para redesenhar todas as balas num único nó!
-    queue_redraw()
-
-func _draw() -> void:
-    for pos in posicoes_balas:
-        draw_texture(textura_bala, pos)`,
-        pros: "Consegue desenhar milhares de projéteis com apenas 1 nó na árvore de cena!",
-        cons: "Exige gerenciar a colisão por distância matemática ou `PhysicsServer2D`."
+        "prop": "Desistir da troca",
+        "desc": "A API usada não fornece aqui um cancelamento do trabalho em andamento. O carregador marca o pedido como abandonado, continua acompanhando e descarta seu resultado ao terminar. Até lá, não aceita outro pedido nem reinicia o experimento."
+      },
+      {
+        "prop": "Referências, grupos e Autoload",
+        "desc": "Passe uma referência quando a dependência é conhecida. Grupos ajudam a localizar nós, mas não garantem unicidade nem substituem automaticamente injeção de dependência. Um Autoload pode guardar serviços entre mudanças de current_scene; não é obrigatório quando uma raiz persistente já atende ao ciclo de vida necessário."
       }
-    ],
-    simulator: {
-      type: "optimization_pool",
-      title: "Laboratório de Performance: Instanciação Bruta vs Object Pooling & Culling",
-      description: "Dispare centenas de projéteis a vapor e ative/desative o Object Pooling e o Screen Culling para observar os manômetros de FPS, Nós na Árvore e Draw Calls!"
-    },
-    quiz: {
-      question: "Qual nó nativo da Godot 2D pausa automaticamente o processamento de um inimigo quando ele está fora da visão da câmera e o reativa quando entra na tela?",
-      options: [
-        "StaticBody2D",
-        "VisibleOnScreenEnabler2D",
-        "CanvasModulate",
-        "AudioStreamPlayer2D"
-      ],
-      correctIndex: 1,
-      explanation: "Exato! O `VisibleOnScreenEnabler2D` desativa o nó pai fora da câmera automaticamente, economizando processamento precioso em mapas grandes!"
-    }
+    ]
   },
-
-  {
-    id: "2d-pro-multiplayer-tools",
-    area: "2d",
-    level: "profissional",
-    levelLabel: "Profissional",
-    title: "17. Multiplayer 2D (RPC, Spawner, Synchronizer) e Scripts de Editor (@tool)",
-    subtitle: "Como sincronizar partidas online sem dor de cabeça e transformar o próprio Editor da Godot com ferramentas visuais feitas por você.",
-    nodesUsed: ["ENetMultiplayerPeer", "MultiplayerSpawner", "MultiplayerSynchronizer", "@rpc", "@tool"],
-    feynman: {
-      title: "Explicação Feynman: Os Dois Tabuleiros pelo Walkie-Talkie e o Robô Ajudante da Oficina",
-      explanation: "Como dois amigos jogam juntos cada um na sua casa? Na verdade, existem DOIS jogos rodando separados, um em cada computador! Para os dois verem a mesma coisa, um computador vira o Juiz Oficial (**Servidor / Autoridade ID 1**) e os outros são os **Clientes**. Quando você aperta 'Atirar', seu jogo usa um Walkie-Talkie chamado `@rpc` (*Remote Procedure Call*) para avisar o outro computador: 'Ei, execute a função `atirar()` aí também!'. E para não precisar ficar mandando a posição X e Y pelo walkie-talkie na mão, o `MultiplayerSynchronizer` faz isso sozinho! Já a palavra `@tool` no topo de um script faz o seu código ganhar vida DENTRO DO PRÓPRIO EDITOR da Godot, antes mesmo de você apertar Play!",
-      analogies: [
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Use carregador.gd e oficina.gd juntos no projeto fornecido. medidor.gd é uma extensão opcional para comparar referência explícita e procura por grupo. A oficina cria os nós e controles; as salas do ZIP são fixtures passivos, sem scripts de _ready.",
+    "duration": "70–100 min, incluindo falhas e variações (estimativa)",
+    "prerequisite": "Aulas 1, 3, 7 e 13: árvore de nós, ciclo de vida, sinais e Resources. Referência: Godot 4.5, GDScript, Compatibility. Projeto revisado documentalmente, ainda não executado no motor neste ambiente.",
+    "objectives": [
+      "Distinguir pedido, progresso, recurso pronto, instanciação e instalação sem bloquear à espera de load_threaded_get.",
+      "Preservar jogador e moedas ao trocar somente o conteúdo de ContainerSala, mantendo a sala atual se a candidata for incompatível.",
+      "Escolher referência explícita, grupo ou Autoload segundo contrato e ciclo de vida, tratando ausência e duplicidade."
+    ],
+    "practice": {
+      "title": "Prática guiada: duas salas, o mesmo jogador",
+      "intro": "O projeto mínimo tem salas com arte geométrica, pontos de entrada e variantes inválidas para testar o contrato. O jogador é um marcador visual, sem física ou movimento: o objetivo é observar identidade e persistência, não locomoção.",
+      "tree": "Oficina (Node2D) — oficina.gd\n├── ContainerSala (Node2D criado por código)\n│   └── SalaA ou SalaB (Node2D instanciado)\n│       ├── Piso (Polygon2D)\n│       └── Entrada (Marker2D)\n├── Jogador (Node2D persistente, grupo jogador)\n├── CarregadorSala (Node criado por código) — carregador.gd\n└── CanvasLayer / controles e leituras (criados por código)\n\nmedidor.gd — extensão opcional\nsala_sem_entrada.tscn, raiz_control.tscn, gradiente.tres — casos inválidos",
+      "download": {
+        "url": "assets/aula-15-arquitetura-carregamento.zip",
+        "label": "Baixar projeto de apoio: salas e carregamento"
+      },
+      "downloadNote": "Godot 4.5. Inclui cenas válidas e inválidas, scripts e instruções. Execução no motor ainda pendente; o laboratório do navegador não executa estes arquivos.",
+      "steps": [
         {
-          term: "Autoridade (is_multiplayer_authority)",
-          analogy: "O dono legítimo daquele boneco: só o dono lê o teclado para movê-lo; os outros computadores apenas assistem à posição sincronizada."
+          "title": "Preveja o que será preservado",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn. Execute com F6. Na árvore Remote, localize ContainerSala e Jogador como irmãos. Anote o ID do jogador, a sala e as 10 moedas. Ganhe duas moedas com C ou pelo botão antes de carregar outra sala.",
+          "expect": "O jogador mantém a mesma identidade durante a prática. A sala inicial A já é preloaded para abrir a oficina; isso não significa que todas as salas futuras precisam estar preloaded."
         },
         {
-          term: "@rpc (Remote Procedure Call)",
-          analogy: "Um megafone de rede: chamar `disparar_canhao.rpc()` faz a função rodar tanto no seu PC quanto nos PCs conectados!"
+          "title": "Solicite B e observe o recurso",
+          "text": "Selecione Sala B e use L ou Solicitar carregamento. Leia carregador.gd: só existe um pedido por vez, a resposta Error é verificada e _process consulta o status sem laço de espera. O sinal de progresso atualiza a barra. Se a cena é pequena ou está em cache, a barra pode saltar direto para 100%; não adicione uma espera artificial ao projeto real para fazê-la parecer lenta.",
+          "expect": "Ao receber preparado, a barra chega a 100%, mas a sala A continua instalada. Nenhum instantiate aconteceu no carregador. O marcador giratório acompanha o processamento da interface, sem servir como medidor de FPS."
         },
         {
-          term: "MultiplayerSpawner & Synchronizer",
-          analogy: "Dois assistentes automáticos da Godot 4: o Spawner replica qualquer jogador/inimigo criado no servidor para todos os clientes, e o Synchronizer mantém `position` e `velocity` iguais!"
+          "title": "Aplique a candidata e compare o estado",
+          "text": "Use A ou Aplicar sala preparada. oficina.gd instancia fora da árvore, exige raiz Node2D e Marker2D Entrada no caminho direto, depois remove a sala antiga e adiciona a candidata. O jogador recebe a posição global de Entrada após add_child. Compare o ID e as moedas anotados; depois solicite A e repita.",
+          "expect": "A posição de entrada muda com a sala, mas ID e moedas permanecem. instantiate e entrada na árvore ainda usam trabalho no thread principal; esta técnica não garante ausência de engasgos. Salas maiores exigem medição no profiler."
         },
         {
-          term: "@tool (Script de Ferramenta)",
-          analogy: "Permite que seu script rode dentro do Editor para desenhar linhas-guia de patrulha, atualizar cores ao vivo ou gerar mapas com um clique!"
+          "title": "Teste falhas antes de remover a sala atual",
+          "text": "Selecione, um de cada vez: Sem Entrada, Raiz incompatível, Recurso não é cena e Caminho ausente. Solicite e, se o recurso for uma PackedScene preparada, aplique. O primeiro falha no contrato do marcador; o segundo no tipo da raiz; o terceiro é rejeitado pelo carregador; o último pode ser recusado no pedido ou terminar como falha de carregamento.",
+          "expect": "A sala instalada, o jogador e suas moedas continuam disponíveis. Não há find_child por nome aproximado. Esses testes verificam um contrato limitado; não desfazem efeitos arbitrários de scripts executados em _init ou _ready."
+        },
+        {
+          "title": "Desista e repita sem recarregar a página",
+          "text": "Durante um pedido, use D se ainda estiver em andamento. O projeto passa a aguardar o término para descartar o resultado; a API não é apresentada como cancelamento do worker. Se o recurso já está preparado, D apenas libera a referência pendente. Depois solicite de novo. R restaura sala A e 10 moedas quando não existe carregamento em andamento.",
+          "expect": "Não é possível disparar pedidos duplicados nem reiniciar uma tarefa em andamento. Como arquivos pequenos terminam rapidamente, o caso de desistência durante o carregamento é mais fácil de observar no modelo com duração sintética."
+        },
+        {
+          "title": "Compare referência e procura por grupo",
+          "text": "Leia medidor.gd. Para usar a extensão, adicione ao fim de _ready de oficina.gd: var meter = preload(\"res://medidor.gd\").new(); depois, em linhas separadas, meter.position = Vector2(16, 650), add_child(meter) e meter.configurar(player). Observe o ID. Para comparar, substitua configurar por procurar_por_grupo. Remova temporariamente a chamada add_to_group do jogador ou adicione outro Node2D ao mesmo grupo antes da procura.",
+          "expect": "A referência explícita funciona sem busca. A busca recusa zero ou mais de um candidato. get_first_node_in_group retorna o primeiro na ordem da árvore ou null; não prova que há exatamente um jogador. O grupo não é uma promessa de velocidade nem um contêiner de dependências."
+        },
+        {
+          "title": "Justifique o ciclo de vida escolhido",
+          "text": "Explique por que esta oficina não precisa de Autoload: sua raiz permanece enquanto só muda um filho de ContainerSala. Se o jogo passar a substituir current_scene inteira, um serviço Autoload pode guardar estado que deva atravessar essa troca. change_scene_to_packed não destrói a SceneTree inteira: remove a current_scene e termina a mudança ao final do quadro. Consulte scene_changed quando precisar acessar a nova cena por essa API.",
+          "expect": "Escolha o mecanismo pela duração e pelo contrato dos dados. Autoload não impede que outras instâncias da classe existam. Não transforme cada objeto do jogo em estado global."
         }
       ]
     },
-    howItWorks: {
-      overview: "Na Godot 4, o sistema de Multiplayer de Alto Nível foi revolucionado pelos nós `MultiplayerSpawner` e `MultiplayerSynchronizer`. Já o `@tool` permite criar validadores de configuração (`_get_configuration_warnings`), botões no Inspector (`@export_tool_button` na Godot 4.4+) e pré-visualizações em tempo de edição.",
-      anatomy: [
-        {
-          prop: "ENetMultiplayerPeer.new()",
-          desc: "Cria um servidor (`create_server(porta)`) ou cliente (`create_client(ip, porta)`) UDP rápido em poucas linhas."
-        },
-        {
-          prop: "is_multiplayer_authority()",
-          desc: "Retorna true se este computador é o responsável oficial por controlar este nó específico."
-        },
-        {
-          prop: "@rpc('any_peer', 'call_local', 'reliable')",
-          desc: "Configura quem pode chamar a função pela rede, se ela roda localmente também e se o pacote não pode se perder."
-        },
-        {
-          prop: "Engine.is_editor_hint()",
-          desc: "Dentro de um script `@tool`, retorna `true` quando o código está rodando no Editor e `false` quando o jogo está aberto."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Movimento de Jogador Multiplayer com Autoridade e Synchronizer",
-        whenToUse: "Jogos Co-op ou Arena 2D onde cada jogador controla seu próprio personagem pela rede.",
-        description: "Definimos a autoridade pelo ID do par (`peer_id`) e só lemos o teclado se `is_multiplayer_authority()` for verdadeiro. O nó filho `MultiplayerSynchronizer` replica `position` e `velocity` para os demais!",
-        code: `extends CharacterBody2D
-
-@export var velocidade: float = 260.0
-
-func _enter_tree() -> void:
-    # O nome do nó (ex: "1", "482910") define qual jogador manda nele!
-    set_multiplayer_authority(name.to_int())
-
-func _physics_process(_delta: float) -> void:
-    # Se este boneco pertence a outro jogador na rede, NÃO leia meu teclado!
-    if not is_multiplayer_authority():
-        return
-        
-    var dir := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-    velocity = dir * velocidade
-    move_and_slide()
-    
-    if Input.is_action_just_pressed("atacar"):
-        # Chama a função em TODOS os computadores conectados!
-        executar_efeito_ataque.rpc()
-
-@rpc("call_local", "reliable")
-func executar_efeito_ataque() -> void:
-    $AnimationPlayer.play("ataque_vapor")`,
-        pros: "Limpo, seguro e funciona perfeitamente em conjunto com o `MultiplayerSynchronizer`.",
-        cons: "Ações críticas (como descontar vida ou dar ouro) devem sempre ser validadas pelo Servidor (`multiplayer.is_server()`)."
+        "question": "Por que não chamar load_threaded_get logo depois de fazer o pedido?",
+        "answer": "Porque pode bloquear o chamador enquanto o recurso ainda não terminou. Consulte o status em quadros separados e obtenha o resultado depois de LOADED."
       },
       {
-        title: "Forma 2: Criando Servidor e Cliente ENet em 12 Linhas",
-        whenToUse: "Lobby de conexão para partidas LAN ou Online.",
-        description: "Inicializa o `ENetMultiplayerPeer` e o entrega para `multiplayer.multiplayer_peer`.",
-        code: `extends Node
-
-const PORTA: int = 7777
-
-func hospedar_partida() -> void:
-    var peer := ENetMultiplayerPeer.new()
-    peer.create_server(PORTA, 4) # Até 4 jogadores
-    multiplayer.multiplayer_peer = peer
-    print("Servidor Steampunk aberto na porta ", PORTA)
-
-func entrar_na_partida(ip_servidor: String = "127.0.0.1") -> void:
-    var peer := ENetMultiplayerPeer.new()
-    peer.create_client(ip_servidor, PORTA)
-    multiplayer.multiplayer_peer = peer`,
-        pros: "Sem bibliotecas externas: a Godot já traz toda a pilha de rede ENet pronta.",
-        cons: "Para jogar pela internet sem abrir portas no roteador, combine com SteamMultiplayerPeer ou WebRTC."
+        "question": "O recurso está em 100%. Por que A ainda aparece?",
+        "answer": "O recurso foi carregado, mas Aplicar ainda não instanciou nem instalou a sala. Separar essas etapas torna o custo e a validação observáveis."
       },
       {
-        title: "Forma 3: Script @tool que Desenha Raio de Visão e Valida Erros no Editor",
-        whenToUse: "Para ajudar o level designer a enxergar o alcance de torretas/inimigos direto no Editor sem precisar dar Play!",
-        description: "Colocamos `@tool` na primeira linha e usamos `Engine.is_editor_hint()` para desenhar um círculo de alcance no editor sempre que `raio_alcance` mudar no Inspector!",
-        code: `@tool
-extends Node2D
-
-@export var raio_alcance: float = 140.0:
-    set(valor):
-        raio_alcance = valor
-        queue_redraw() # Redesenha no Editor na hora em que você arrasta a barra!
-
-func _process(delta: float) -> void:
-    # Impede que a lógica de jogo rode enquanto estamos apenas editando a fase!
-    if Engine.is_editor_hint():
-        return
-    # Lógica normal do jogo aqui...
-
-func _draw() -> void:
-    if Engine.is_editor_hint():
-        draw_circle(Vector2.ZERO, raio_alcance, Color(0.36, 0.88, 0.9, 0.2))
-        draw_arc(Vector2.ZERO, raio_alcance, 0, TAU, 48, Color.CYAN, 2.0)`,
-        pros: "Transforma a experiência de criar fases: você vê o raio de visão, caminhos de patrulha e avisos ao vivo no Editor.",
-        cons: "Sempre proteja o `_process` e `_physics_process` com `if Engine.is_editor_hint(): return` para o inimigo não sair andando sozinho dentro do Editor!"
+        "question": "Por que o jogador não perde suas moedas ao trocar a sala?",
+        "answer": "O mesmo nó Jogador permanece como irmão de ContainerSala. Somente o filho que representa a sala é substituído; nenhuma nova instância do jogador é criada."
+      },
+      {
+        "question": "Desistir interrompe imediatamente o carregamento?",
+        "answer": "Não nesta implementação. O pedido é marcado como abandonado, continua sendo acompanhado e seu resultado é descartado ao atingir um estado terminal."
       }
     ],
-    simulator: {
-      type: "multiplayer_rpc_sim",
-      title: "Laboratório de Rede Multiplayer (`@rpc` & Synchronizer) e `@tool`",
-      description: "Simule pacotes viajando entre o Host (Autoridade ID 1) e o Cliente (Peer 2), teste a latência (Ping) com interpolação do Synchronizer e dispare chamadas `@rpc()`!"
+    "pitfalls": [
+      {
+        "title": "Barra em 100% confundida com troca completa",
+        "text": "Progresso refere-se ao recurso, não à instanciação, ao _ready nem a uma medição de fluidez. O projeto só troca depois da ação Aplicar."
+      },
+      {
+        "title": "Sala antiga removida cedo demais",
+        "text": "Confirme PackedScene, raiz e Entrada antes de remover a sala atual. O exemplo usa fixtures passivos; validação estrutural não garante recuperação de efeitos colaterais de scripts arbitrários."
+      },
+      {
+        "title": "Jogador localizado por um nome qualquer",
+        "text": "Use o contrato de caminho para Entrada e uma referência explícita para o jogador. Se usar grupo, trate ausência e duplicidade; não confunda primeiro encontrado com único."
+      },
+      {
+        "title": "Levar tudo para um Thread",
+        "text": "A árvore ativa não deve ser modificada indiscriminadamente por outro thread. O carregador desta prática só busca recursos em segundo plano; a manipulação de nós ocorre no principal. Meça antes de repartir custos maiores."
+      }
+    ],
+    "summary": "Carregar o recurso, criar nós e instalar uma sala são etapas diferentes. Estado persiste quando seu dono persiste. Um contrato explícito evita remover conteúdo válido diante de uma candidata incompatível; erros, descarte e repetição também fazem parte da arquitetura.",
+    "next": "Na aula 16, investigue gargalos e otimizações com medições, sem assumir que pooling ou servidores sempre tornam o jogo mais rápido.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — Background loading",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/io/background_loading.html"
+      },
+      {
+        "label": "Godot 4.5 — ResourceLoader",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_resourceloader.html"
+      },
+      {
+        "label": "Godot 4.5 — PackedScene",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_packedscene.html"
+      },
+      {
+        "label": "Godot 4.5 — Troca manual de cenas",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/scripting/change_scenes_manually.html"
+      },
+      {
+        "label": "Godot 4.5 — SceneTree",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_scenetree.html"
+      },
+      {
+        "label": "Godot 4.5 — Autoload",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/scripting/singletons_autoload.html"
+      },
+      {
+        "label": "Godot 4.5 — APIs e threads",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/performance/thread_safe_apis.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Carregador: um pedido, status e descarte",
+      "whenToUse": "Quando uma sala deve ser carregada sem esperar pelo recurso no thread principal.",
+      "description": "Salve carregador.gd. Os sinais comunicam progresso, recurso preparado, falha e descarte. O arquivo não altera a sala. Desistir marca o pedido e aguarda seu término; não cancela a tarefa da Godot.",
+      "code": "class_name CarregadorSala\nextends Node\n\nsignal progresso_alterado(ratio: float)\nsignal preparado(scene: PackedScene)\nsignal falhou(message: String)\nsignal descartado\n\nvar ocupado: bool = false\nvar abandonado: bool = false\nvar caminho: String = \"\"\n\nfunc solicitar(path: String) -> Error:\n    if ocupado:\n        return ERR_BUSY\n    var error := ResourceLoader.load_threaded_request(path)\n    if error != OK:\n        return error\n    caminho = path\n    ocupado = true\n    abandonado = false\n    progresso_alterado.emit(0.0)\n    return OK\n\nfunc desistir_da_troca() -> void:\n    # Não cancela a thread: continuamos consultando até um estado terminal.\n    if ocupado:\n        abandonado = true\n\nfunc _process(_delta: float) -> void:\n    if not ocupado:\n        return\n    var progress: Array = []\n    var status := ResourceLoader.load_threaded_get_status(caminho, progress)\n    match status:\n        ResourceLoader.THREAD_LOAD_IN_PROGRESS:\n            if not progress.is_empty():\n                progresso_alterado.emit(clampf(float(progress[0]), 0.0, 1.0))\n        ResourceLoader.THREAD_LOAD_LOADED:\n            # Só fazemos get depois de LOADED para evitar esperar pela thread aqui.\n            var resource := ResourceLoader.load_threaded_get(caminho)\n            ocupado = false\n            caminho = \"\"\n            if abandonado:\n                abandonado = false\n                descartado.emit()\n            elif resource is PackedScene:\n                progresso_alterado.emit(1.0)\n                preparado.emit(resource)\n            else:\n                falhou.emit(\"O recurso carregado não é PackedScene.\")\n        ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:\n            ocupado = false\n            caminho = \"\"\n            abandonado = false\n            falhou.emit(\"Falha ou requisição inválida. Sala atual preservada.\")\n",
+      "pros": "Separa a obtenção do recurso da política de troca e trata estados terminais.",
+      "cons": "Só aceita um pedido por vez; não mede nem elimina o custo de instanciar e adicionar nós."
     },
-    quiz: {
-      question: "Ao usar `@tool` no topo de um script GDScript, qual verificação você deve usar no `_physics_process` para evitar que seu inimigo saia andando e atirando enquanto você está apenas editando a cena no Editor?",
-      options: [
-        "if Engine.is_editor_hint(): return",
-        "if is_on_floor(): return",
-        "queue_free()",
-        "move_and_slide()"
-      ],
-      correctIndex: 0,
-      explanation: "Exato! `Engine.is_editor_hint()` retorna `true` quando o script está rodando dentro do Editor da Godot. Com esse filtro, você deixa apenas o visual de edição (`_draw`, setters) ativo no editor e guarda a física para a hora do Play!"
+    {
+      "title": "2. Raiz persistente e contrato da sala",
+      "whenToUse": "Na oficina principal, mantendo jogador e moedas entre trocas de um filho.",
+      "description": "Salve oficina.gd na raiz Node2D de oficina.tscn. Use as cenas do projeto de apoio. A candidata é verificada antes de remover a sala atual. Estas salas são passivas, sem scripts; a verificação não é uma transação capaz de desfazer efeitos arbitrários de _ready.",
+      "code": "extends Node2D\n\nconst LOADER = preload(\"res://carregador.gd\")\nconst INITIAL = preload(\"res://sala_a.tscn\")\nconst TARGETS := {\n    \"Sala A\": \"res://sala_a.tscn\", \"Sala B\": \"res://sala_b.tscn\",\n    \"Sem Entrada\": \"res://sala_sem_entrada.tscn\",\n    \"Raiz incompatível\": \"res://raiz_control.tscn\",\n    \"Recurso não é cena\": \"res://gradiente.tres\",\n    \"Caminho ausente\": \"res://inexistente.tscn\"\n}\nvar loader: CarregadorSala\nvar world: Node2D\nvar player: Node2D\nvar room: Node2D\nvar pending: PackedScene\nvar choices: OptionButton\nvar bar: ProgressBar\nvar message: Label\nvar stats: Label\nvar load_button: Button\nvar apply_button: Button\nvar discard_button: Button\nvar reset_button: Button\nvar coins: int = 10\nvar spin: float = 0.0\n\nfunc _ready() -> void:\n    world = Node2D.new()\n    world.name = \"ContainerSala\"\n    add_child(world)\n    player = Node2D.new()\n    player.name = \"Jogador\"\n    player.add_to_group(\"jogador\")\n    var art := Polygon2D.new()\n    art.polygon = PackedVector2Array([Vector2(0,-14), Vector2(14,0), Vector2(0,14), Vector2(-14,0)])\n    art.color = Color(\"5ce1e6\")\n    player.add_child(art)\n    add_child(player)\n    loader = LOADER.new()\n    add_child(loader)\n    loader.progresso_alterado.connect(func(ratio: float): bar.value = ratio * 100.0)\n    loader.preparado.connect(_preparado)\n    loader.falhou.connect(_falhou)\n    loader.descartado.connect(func(): message.text = \"Resultado descartado. Você pode solicitar outra sala.\")\n    criar_interface()\n    pending = INITIAL\n    aplicar()\n\nfunc criar_interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 315)\n    box.custom_minimum_size.x = 608\n    layer.add_child(box)\n    choices = OptionButton.new()\n    for label in TARGETS:\n        choices.add_item(label)\n        choices.set_item_metadata(choices.item_count - 1, TARGETS[label])\n    choices.select(1)\n    box.add_child(choices)\n    load_button = botao(box, \"L · Solicitar carregamento\", solicitar)\n    apply_button = botao(box, \"A · Aplicar sala preparada\", aplicar)\n    discard_button = botao(box, \"D · Desistir da troca\", desistir)\n    botao(box, \"C · Ganhar 1 moeda\", ganhar_moeda)\n    reset_button = botao(box, \"R · Reiniciar experimento\", reiniciar)\n    bar = ProgressBar.new()\n    bar.max_value = 100\n    box.add_child(bar)\n    message = Label.new()\n    message.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(message)\n    stats = Label.new()\n    stats.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(stats)\n\nfunc botao(parent: Node, text: String, action: Callable) -> Button:\n    var button := Button.new()\n    button.text = text\n    button.pressed.connect(action)\n    parent.add_child(button)\n    return button\n\nfunc _process(delta: float) -> void:\n    spin += delta * 2.0\n    queue_redraw()\n    var busy := loader.ocupado\n    load_button.disabled = busy or pending != null\n    apply_button.disabled = busy or pending == null\n    discard_button.disabled = (not busy and pending == null) or loader.abandonado\n    reset_button.disabled = busy\n    choices.disabled = busy or pending != null\n    stats.text = \"Moedas: %d | ID do jogador: %d | sala: %s\" % [coins, player.get_instance_id(), room.name]\n\nfunc _draw() -> void:\n    var center := Vector2(600, 28)\n    draw_circle(center, 12, Color(\"5b3f22\"))\n    draw_line(center, center + Vector2.from_angle(spin) * 11, Color(\"f4d088\"), 3)\n\nfunc solicitar() -> void:\n    if loader.ocupado or pending != null:\n        return\n    bar.value = 0\n    var path := str(choices.get_item_metadata(choices.selected))\n    var error := loader.solicitar(path)\n    message.text = \"Carregando o recurso...\" if error == OK else \"Pedido recusado: \" + error_string(error)\n\nfunc _preparado(scene: PackedScene) -> void:\n    pending = scene\n    message.text = \"Recurso carregado (100%). Ainda falta instanciar e aplicar a sala.\"\n\nfunc _falhou(text: String) -> void:\n    pending = null\n    message.text = text\n\nfunc desistir() -> void:\n    if loader.ocupado:\n        loader.desistir_da_troca()\n        message.text = \"Troca abandonada; aguardando a tarefa terminar para descartar o resultado.\"\n    elif pending != null:\n        pending = null\n        message.text = \"Cena preparada descartada. Sala atual preservada.\"\n\nfunc aplicar() -> void:\n    if loader.ocupado or pending == null:\n        return\n    var candidate := pending.instantiate()\n    pending = null\n    if not candidate is Node2D:\n        if candidate != null:\n            candidate.free()\n        message.text = \"A raiz precisa ser Node2D. Sala atual preservada.\"\n        return\n    var entry := candidate.get_node_or_null(\"Entrada\") as Marker2D\n    if entry == null:\n        candidate.free()\n        message.text = \"Falta Marker2D Entrada. Sala atual preservada.\"\n        return\n    # Estes fixtures são passivos; não executam efeitos de _ready na validação.\n    if is_instance_valid(room):\n        world.remove_child(room)\n        room.queue_free()\n    room = candidate as Node2D\n    world.add_child(room)\n    player.global_position = entry.global_position\n    message.text = \"Sala aplicada; o mesmo jogador e suas moedas foram preservados.\"\n\nfunc ganhar_moeda() -> void:\n    coins = mini(999, coins + 1)\n\nfunc reiniciar() -> void:\n    if loader.ocupado:\n        message.text = \"Desista e aguarde a tarefa terminar antes de reiniciar.\"\n        return\n    coins = 10\n    pending = INITIAL\n    aplicar()\n    bar.value = 0\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_L: solicitar()\n        KEY_A: aplicar()\n        KEY_D: desistir()\n        KEY_C: ganhar_moeda()\n        KEY_R: reiniciar()\n",
+      "pros": "Explicita dono do estado, ponto de entrada, botões, teclas e restauração.",
+      "cons": "A montagem ainda acontece no thread principal. Não é gerenciador universal de streaming, rede ou mundos enormes."
+    },
+    {
+      "title": "3. Dependência explícita ou grupo com contrato",
+      "whenToUse": "Como extensão opcional para uma leitura que precisa conhecer o jogador.",
+      "description": "Salve medidor.gd e instale como descrito no passo 6. configurar recebe a referência do controlador. procurar_por_grupo é uma alternativa com validação de quantidade e tipo, não uma operação equivalente a injeção automática de dependência.",
+      "code": "extends Label\n# Extensão opcional; configure uma referência explícita antes de usar.\nvar alvo: Node2D\n\nfunc configurar(node: Node2D) -> void:\n    alvo = node\n\nfunc procurar_por_grupo() -> bool:\n    var matches := get_tree().get_nodes_in_group(\"jogador\")\n    if matches.size() != 1 or not matches[0] is Node2D:\n        alvo = null\n        text = \"Esperado exatamente um Node2D no grupo jogador.\"\n        return false\n    configurar(matches[0] as Node2D)\n    return true\n\nfunc _process(_delta: float) -> void:\n    if not is_instance_valid(alvo):\n        text = \"Sem referência válida. Configure ou faça a busca explicitamente.\"\n        return\n    text = \"ID observado: %d | posição global: %s\" % [alvo.get_instance_id(), str(alvo.global_position)]\n",
+      "pros": "Mostra de onde vem a dependência e trata alvo ausente ou liberado.",
+      "cons": "A busca pontual não acompanha automaticamente substituições do jogador. Um projeto maior deve definir como atualizar a referência."
     }
+  ],
+  "simulator": {
+    "type": "async_loader_sim",
+    "title": "Laboratório: recurso pronto não é sala instalada",
+    "description": "Modelo determinístico em Canvas/JavaScript, com custos sintéticos de carregamento e instanciação. Não lê arquivos, cria threads, instancia cenas Godot nem mede FPS. O bloqueio é representado pela engrenagem parada e pela ação de moeda indisponível; o navegador e a pausa continuam funcionando. A progressão linear é apenas didática, não uma previsão do progresso real.",
+    "guide": [
+      {
+        "title": "Compare os custos",
+        "text": "Solicite com L; compare síncrono e segundo plano. Use C durante o carregamento. Ao chegar a READY e 100%, confira que a sala ainda é A. Use A: o custo de instanciar bloqueia a UI representada nos dois modos."
+      },
+      {
+        "title": "Pause, avance e repita",
+        "text": "Pause a simulação para avançar em passos de 0,25 s. Com foco na cena: L solicita, A aplica, D desiste, C ganha moeda, R restaura. Botões equivalentes acima. R aguarda a tarefa terminal; depois de concluir, é possível solicitar outra sala sem recarregar."
+      },
+      {
+        "title": "Falhe ou descarte com segurança",
+        "text": "Escolha falha ao carregar, raiz incompatível ou ausência de Entrada. A sala atual e o jogador persistem. Durante carregamento em segundo plano, D entra em DRAINING até o trabalho terminar e o resultado ser descartado. Configurações ficam bloqueadas durante o pedido e a espera por Aplicar."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "O carregamento em segundo plano chegou a 100%, mas a interface pode engasgar quando você aplica a sala. Qual explicação corresponde a esta aula?",
+    "options": [
+      "100% se refere ao recurso; instantiate, add_child e _ready ainda podem ter custo no thread principal.",
+      "100% significa que os nós já estão na árvore e que qualquer engasgo é impossível.",
+      "É necessário destruir toda a SceneTree, incluindo todos os Autoloads, para aplicar uma sala.",
+      "load_threaded_get deve ser chamado imediatamente após o pedido, mesmo antes de LOADED."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Recurso pronto e sala instalada são etapas distintas.",
+      "O progresso do recurso não comprova instanciação ou fluidez.",
+      "A prática troca só um filho. change_scene_to_packed também não destrói toda a árvore.",
+      "Antes de LOADED, get pode bloquear esperando o recurso."
+    ],
+    "explanation": "O pedido em segundo plano reduz a espera do carregamento no principal, mas não torna a criação e a ativação de nós gratuitas. A prática separa Aplicar para observar essa diferença e validar a candidata antes de substituir a sala."
   }
+},
+
+{
+  "id": "2d-pro-optimization-servers",
+  "area": "2d",
+  "level": "profissional",
+  "levelLabel": "Profissional",
+  "title": "16. Otimização 2D: medir, reutilizar e desenhar em lote",
+  "subtitle": "Investigue o gargalo antes de escolher pooling, visibilidade, MultiMesh ou APIs de servidores.",
+  "nodesUsed": [
+    "Profiler",
+    "VisibleOnScreenEnabler2D",
+    "MultiMeshInstance2D",
+    "RenderingServer",
+    "PhysicsServer2D"
+  ],
+  "feynman": {
+    "title": "Três problemas diferentes na mesma oficina",
+    "explanation": "Uma oficina pode perder tempo fabricando peças descartáveis, atualizando máquinas que não precisam trabalhar ou enviando muitos objetos semelhantes para desenho. Reaproveitar peças ajuda no primeiro problema; controlar processamento ajuda no segundo; desenhar instâncias em lote pode ajudar no terceiro. Nenhuma dessas escolhas garante um número de FPS. Primeiro reproduza o problema e meça; depois mude uma coisa e compare o mesmo trabalho. Como na aula 15, criar e ativar objetos tem custo, mas é preciso descobrir se esse custo é relevante para o jogo.",
+    "analogies": [
+      {
+        "term": "Pool fixo",
+        "analogy": "Uma reserva de objetos já criados, emprestados e devolvidos. Se todos estão ocupados, é necessário decidir se o pedido será recusado, se a reserva crescerá ou se algum objeto será substituído. A prática escolhe recusar."
+      },
+      {
+        "term": "Visibilidade e processamento",
+        "analogy": "Não desenhar uma máquina e parar seu motor são decisões diferentes. Ocultar um CanvasItem não garante que sua lógica ou colisão deixou de trabalhar."
+      },
+      {
+        "term": "MultiMesh e servidores",
+        "analogy": "MultiMesh repete uma malha por instanciamento. As APIs de servidor oferecem controle de nível mais baixo por RID. Nenhum deles cria automaticamente a lógica ou a colisão de milhares de inimigos."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Registre um cenário reproduzível: quantidade de pedidos, vida dos objetos, duração, câmera e hardware. Use o Profiler para investigar tempos de script/quadro/física e os monitores apropriados para contagens. Um contador de criações não é tempo medido. Se o problema estiver na criação/destruição frequente, teste um pool. Se estiver no processamento desnecessário, defina quais objetos podem parar sem mudar as regras. Se estiver no envio de instâncias visuais semelhantes, avalie MultiMesh. Se a camada de nós for o gargalo demonstrado, considere servidores, aceitando gerenciar mais responsabilidades.",
+    "anatomy": [
+      {
+        "prop": "Pooling: ativos, livres e contrato de retorno",
+        "desc": "Cada objeto pertence a exatamente uma coleção. Retornar duas vezes o mesmo objeto pode duplicar empréstimos. Restaure posição, velocidade, vida e estado específico; desconecte eventos por uso e encerre efeitos quando existirem. Na prática, o controlador central atualiza apenas os ativos."
+      },
+      {
+        "prop": "VisibleOnScreenNotifier2D e Enabler2D",
+        "desc": "Notifier sinaliza entrada/saída; Enabler muda process_mode do nó indicado por enable_node_path (pai por padrão). Ambos dependem da visibilidade de renderização e não funcionam corretamente se o CanvasItem relevante estiver oculto. Isso não é uma promessa de remover corpos da física."
+      },
+      {
+        "prop": "MultiMeshInstance2D e MultiMesh",
+        "desc": "Defina TRANSFORM_2D e flags como use_colors antes de instance_count, que aloca os buffers. set_instance_transform_2d configura cada índice. visible_instance_count limita um prefixo de índices, não seleciona automaticamente objetos pela câmera. O lote não tem culling individual por instância como nós independentes."
+      },
+      {
+        "prop": "RID, RenderingServer e PhysicsServer2D",
+        "desc": "Um RID é um identificador opaco, não um Node. Libere os RIDs criados por sua implementação, sem liberar os pertencentes a um nó. RenderingServer cuida do visual; PhysicsServer2D exige configurar formas, corpos/áreas, espaço, filtros e ciclo de vida. Não é usado no projeto visual desta aula."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "O projeto principal usa oficina.gd e projetil.gd juntos. visibilidade.tscn é um exercício separado com Enabler. extensoes.tscn reúne uma grade MultiMesh e um item de servidor. Abra cada cena indicada com F6; não cole os arquivos combinados em um único script.",
+    "duration": "80–110 min, incluindo coleta e comparação (estimativa)",
+    "prerequisite": "Aulas 3, 5, 6 e 15: delta, colisões, câmera, ciclo de vida e troca de cenas. Godot 4.5, GDScript, Compatibility. Projeto revisado documentalmente, ainda não executado no motor neste ambiente. Não exige arte externa nem InputMap adicional.",
+    "objectives": [
+      "Formular uma hipótese de gargalo e comparar o mesmo cenário usando tempos reais, sem converter contagens em FPS inventados.",
+      "Implementar empréstimo, devolução e reset de um pool fixo; reconhecer recusas e o custo inicial da reserva.",
+      "Distinguir culling visual, desativação de processamento, instanciamento MultiMesh e responsabilidades de um RID."
+    ],
+    "practice": {
+      "title": "Prática guiada: conte o trabalho e depois meça o custo",
+      "intro": "Comece com projéteis visuais sem colisão. Isso isola o ciclo de vida, sem alegar equivalência a um bullet hell completo. Os exercícios de visibilidade e lote são separados para não misturar o efeito de várias mudanças.",
+      "tree": "oficina.tscn — Node2D / oficina.gd\n├── Mundo (Node2D criado por código)\n│   └── Projéteis (instâncias de projetil.tscn / projetil.gd)\n└── CanvasLayer / controles e contadores (criados por código)\n\nvisibilidade.tscn — Node2D / visibilidade.gd\n├── Camera2D — controlada fora do alvo desativado\n├── Alvo (Node2D)\n│   ├── Rotor (Node2D / rotor.gd)\n│   │   ├── Arte (Polygon2D)\n│   │   └── Leitura (Label)\n│   └── Enabler (VisibleOnScreenEnabler2D) — enable_node_path: ../Rotor\n└── CanvasLayer / instrução\n\nextensoes.tscn — Node2D\n├── Lote (MultiMeshInstance2D / lote.gd)\n├── ItemServidor (Node2D / item_servidor.gd)\n└── CanvasLayer / instrução",
+      "download": {
+        "url": "assets/aula-16-otimizacao-medicao.zip",
+        "label": "Baixar projeto de apoio: otimização e medição"
+      },
+      "downloadNote": "Inclui três cenas de estudo, cena de projétil e seis scripts. Referência Godot 4.5; execução real ainda pendente. As contagens do navegador não homologam os scripts.",
+      "steps": [
+        {
+          "title": "Defina uma comparação justa",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn com F6. O cenário usa taxa 8/s, vida 2 s e emissão por 4 s, sem rajada extra. O primeiro pedido ocorre em 0,125 s e o último em 4 s: são 32 pedidos. Preveja o máximo simultâneo: taxa × vida = 16, neste caso regular e com expiração antes da emissão no mesmo instante.",
+          "expect": "Essa conta é uma previsão para este cronograma, não uma fórmula universal de capacidade. Rajadas, vidas variáveis e desempates alteram a necessidade. O projeto ainda não executou no motor neste ambiente: confira esses valores ao rodar."
+        },
+        {
+          "title": "Observe criar e destruir",
+          "text": "Escolha Criar e destruir e pressione L ou Iniciar. Aguarde o relógio chegar a 6 s: a emissão acaba em 4 s e a última vida termina em 6 s. Anote pedidos, atendidos, criados, liberações solicitadas e ativos. Cada expiração remove o projétil da coleção ativa e solicita queue_free; a liberação da Godot ocorre ao final do quadro.",
+          "expect": "Sem rajada, prevê-se 32 pedidos atendidos, 32 criações, 32 liberações solicitadas e zero ativos ao fim. Esses números descrevem operações do controlador, não bytes, duração ou FPS."
+        },
+        {
+          "title": "Reutilize com capacidade suficiente",
+          "text": "Escolha Pool fixo, capacidade 16 e use L novamente. O início limpa o experimento anterior e cria a reserva antes da emissão; o custo inicial deve ser considerado separadamente. Objetos livres ficam ocultos e não entram no loop central de atualização. Ao ativar, o script restaura os campos do projétil visual. Ao expirar, devolve uma única vez e retira da lista ativa.",
+          "expect": "No fim regular, prevê-se 16 criados, 32 atendidos, 16 reativações de objetos já usados, zero recusas, zero ativos e 16 livres. O pool preserva objetos alocados enquanto a alternativa os libera. Menos criações durante o ciclo não prova menor tempo de quadro."
+        },
+        {
+          "title": "Esgote a reserva e repita",
+          "text": "Reduza a capacidade para 4 e reinicie. Compare atendidos e recusas com a alternativa anterior; depois volte a 16 e use B para uma rajada de oito pedidos durante a emissão. A política desta prática recusa quando o pool acaba, sem crescer nem roubar tiros ativos. R limpa; L recria a reserva e repete. No navegador, pause e avance em passos de 0,25 s para inspecionar os limites.",
+          "expect": "Com capacidade 4 e sem rajada, a previsão é atender 8 dos 32 pedidos e recusar 24. Uma cena com menos tiros não é uma comparação de desempenho equivalente. Crescer o pool ou substituir o mais antigo são políticas diferentes, que precisam ser explicitadas e testadas."
+        },
+        {
+          "title": "Colete evidências no motor",
+          "text": "Execute os dois modos com capacidade suficiente e sem rajadas, sob a mesma taxa, vida, duração e câmera. No editor, abra Debugger → Profiler e inicie a coleta. Separe preparação da reserva, emissão e esvaziamento. Registre versão, renderizador, dispositivo, quantidade atendida e os tempos observados; repita a coleta para verificar variação. Depois compare também uma exportação no hardware-alvo, registrando build e condições.",
+          "expect": "Preencha a tabela do LEIA-ME com resultados reais; ela começa sem números medidos. Se este fixture pequeno não mostrar diferença relevante, registre isso. UI, editor e profiler também têm custo; não conclua um ganho de 10x ou 60 FPS apenas por contar objetos."
+        },
+        {
+          "title": "Separe visibilidade de regras do jogo",
+          "text": "Pare a oficina, abra visibilidade.tscn e execute com F6. C alterna a câmera entre perto e longe. O Enabler usa enable_node_path=../Rotor, controlando somente o contador/rotação de Rotor. A câmera e seu controlador ficam fora desse alvo. Ao voltar, compare a leitura com os segundos passados longe. Notifier apenas avisaria por sinais; Enabler altera process_mode.",
+          "expect": "A leitura do Rotor deve parar fora da região e continuar ao retornar. Isso depende da avaliação de visibilidade da renderização, não de uma busca de distância física. Não esconda o alvo para tentar economizar e esperar que o mesmo detector o reative. Não pause o movimento de um projétil que precisa voltar à tela ou expirar; colisão e regras fora da câmera exigem outra decisão."
+        },
+        {
+          "title": "Experimente lote e RID, delimitando o escopo",
+          "text": "Abra extensoes.tscn com F6. lote.gd prepara 64 quads coloridos; V alterna visible_instance_count entre 16 e 64. O prefixo segue a ordem dos índices. A peça ciano à direita é criada por item_servidor.gd com canvas_item_create, associada ao CanvasItem pai e liberada em _exit_tree. Compare os nós na árvore Remote: as 64 instâncias não são 64 Node2D.",
+          "expect": "MultiMesh não cria colisão, IA ou culling individual. Um draw_texture repetido dentro de _draw também não garante um único draw call. Para lotes espalhados, avalie subdividir por regiões. O item de servidor não é um corpo físico; PhysicsServer2D fica como aprofundamento após medir um gargalo que justifique sua complexidade."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "O pool criou menos objetos. Isso já comprova que ficou mais rápido?",
+        "answer": "Não. Confira se atendeu aos mesmos pedidos e meça o custo relevante no mesmo cenário e dispositivo. Preparação, memória mantida e custo de atualização também entram na decisão."
+      },
+      {
+        "question": "Por que capacidade 4 não pode ser comparada como trabalho equivalente à alternativa que atende os 32 pedidos?",
+        "answer": "Porque o pool desta prática recusa quando não há objeto livre. Ele atende 8 e recusa 24 no cronograma regular; menor carga visual e lógica pode explicar qualquer diferença observada."
+      },
+      {
+        "question": "Ocultar um objeto desliga sua lógica e colisão?",
+        "answer": "Não automaticamente. Visibilidade de desenho, processamento de nós e participação física são mecanismos distintos. O fixture não tem colisão; adicionar Area2D exige tratar também monitoramento, formas, filtros e eventos."
+      },
+      {
+        "question": "visible_instance_count=16 escolhe os 16 mais próximos da câmera?",
+        "answer": "Não. Mostra um prefixo dos índices do MultiMesh. O lote não fornece culling individual como nós independentes; organização por regiões pode ser necessária."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "Estado antigo reaparece no tiro reutilizado",
+        "text": "Defina um único ponto de ativação/reset. Nesta prática, posição, origem, velocidade, nascimento e vida são repostos. Se acrescentar Timer, Tween, alvo ou conexão por disparo, restaure/encerre também esses mecanismos."
+      },
+      {
+        "title": "Mesmo objeto emprestado duas vezes",
+        "text": "Mantenha ativos e livres disjuntos e devolva somente ao retirar dos ativos. Não conecte retornos duplicados por disparo; teste expiração repetida e esgotamento."
+      },
+      {
+        "title": "Objeto fora da câmera nunca volta nem expira",
+        "text": "Você pode ter parado a própria lógica que o moveria ou devolveria ao pool. Não use visibilidade como regra universal de simulação. O recorte do laboratório afeta só desenho; tempo de vida continua."
+      },
+      {
+        "title": "Um nó confundido com um draw call ou ganho garantido",
+        "text": "Quantidade de nós, comandos de desenho e chamadas de renderização são contagens diferentes. Batching, materiais e backend influenciam o resultado. Servidores não resolvem automaticamente uma GPU já saturada."
+      }
+    ],
+    "summary": "Otimize o gargalo demonstrado. Pooling muda o ciclo de vida e exige reset/política de esgotamento; visibilidade não define sozinha a simulação; MultiMesh repete uma malha; servidores transferem responsabilidades ao seu código. Compare comportamento e trabalho antes de comparar tempo.",
+    "next": "Na aula 17, revise comunicação multiplayer e scripts de editor, mantendo autoridade, validação e ciclo de vida explícitos.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — Medição e otimização",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/performance/general_optimization.html"
+      },
+      {
+        "label": "Godot 4.5 — Profiler",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/scripting/debug/the_profiler.html"
+      },
+      {
+        "label": "Godot 4.5 — VisibleOnScreenEnabler2D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_visibleonscreenenabler2d.html"
+      },
+      {
+        "label": "Godot 4.5 — VisibleOnScreenNotifier2D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_visibleonscreennotifier2d.html"
+      },
+      {
+        "label": "Godot 4.5 — MultiMesh",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_multimesh.html"
+      },
+      {
+        "label": "Godot 4.5 — RenderingServer",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_renderingserver.html"
+      },
+      {
+        "label": "Godot 4.5 — PhysicsServer2D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_physicsserver2d.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Ciclo de vida: controlador e projétil reutilizável",
+      "whenToUse": "Para investigar criação/liberação de objetos visuais frequentes com cenário controlado.",
+      "description": "Dois arquivos separados: oficina.gd na raiz de oficina.tscn e projetil.gd na raiz de projetil.tscn. O ZIP já instala os dois. A reserva é fixa, rejeita excesso e conta sua preparação. Objetos livres não recebem atualizações porque o controlador percorre só a lista ativa; esta cena não tem Area2D ou colisão.",
+      "code": "# ARQUIVO: projetil.gd\nclass_name ProjetilOficina\nextends Node2D\n\nvar ativo: bool = false\nvar nascimento: float = 0.0\nvar origem := Vector2.ZERO\nvar velocidade := Vector2.ZERO\nvar vida: float = 2.0\nvar usos: int = 0\n\nfunc ativar(pos: Vector2, vel: Vector2, instante: float, duracao: float) -> void:\n    # Todo estado transitório deste projétil visual é restaurado aqui.\n    origem = pos\n    position = pos\n    velocidade = vel\n    nascimento = instante\n    vida = duracao\n    usos += 1\n    ativo = true\n    show()\n\nfunc atualizar(instante: float) -> void:\n    position = origem + velocidade * (instante - nascimento)\n\nfunc desativar() -> void:\n    ativo = false\n    velocidade = Vector2.ZERO\n    hide()\n\nfunc _draw() -> void:\n    draw_circle(Vector2.ZERO, 4, Color(\"5ce1e6\"))\n\n# Não há colisão, Timer, Tween ou sinais por tiro neste fixture.\n# Se acrescentá-los, amplie ativar/desativar e teste também o estado físico.\n\n# ARQUIVO: oficina.gd — salve separadamente\nextends Node2D\n\nconst BULLET = preload(\"res://projetil.tscn\")\nvar ativos: Array[ProjetilOficina] = []\nvar livres: Array[ProjetilOficina] = []\nvar modo_pool: bool = true\nvar rodando: bool = false\nvar tempo: float = 0.0\nvar proximo: int = 1\nvar taxa: int = 8\nvar capacidade: int = 16\nvar vida: float = 2.0\nvar duracao: float = 4.0\nvar pedidos: int = 0\nvar atendidos: int = 0\nvar criados: int = 0\nvar destruicoes: int = 0\nvar reusos: int = 0\nvar recusas: int = 0\nvar escolha: OptionButton\nvar limite: SpinBox\nvar status: Label\nvar mundo: Node2D\n\nfunc _ready() -> void:\n    mundo = Node2D.new()\n    add_child(mundo)\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 330)\n    box.custom_minimum_size.x = 608\n    layer.add_child(box)\n    escolha = OptionButton.new()\n    escolha.add_item(\"Pool fixo\")\n    escolha.add_item(\"Criar e destruir\")\n    box.add_child(escolha)\n    var label := Label.new()\n    label.text = \"Capacidade do pool (aplicada ao iniciar):\"\n    box.add_child(label)\n    limite = SpinBox.new()\n    limite.min_value = 4\n    limite.max_value = 64\n    limite.step = 4\n    limite.value = 16\n    box.add_child(limite)\n    botao(box, \"L · Iniciar / repetir\", iniciar)\n    botao(box, \"B · Rajada de 8 pedidos\", rajada)\n    botao(box, \"R · Limpar experimento\", limpar)\n    status = Label.new()\n    status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(status)\n\nfunc botao(parent: Node, text: String, action: Callable) -> void:\n    var button := Button.new()\n    button.text = text\n    button.pressed.connect(action)\n    parent.add_child(button)\n\nfunc limpar() -> void:\n    rodando = false\n    # Durante limpeza explícita, todos os objetos são liberados.\n    # A remoção imediata evita somar nós antigos ao próximo experimento.\n    for child in mundo.get_children():\n        mundo.remove_child(child)\n        child.queue_free()\n    ativos.clear()\n    livres.clear()\n    tempo = 0.0\n    proximo = 1\n    pedidos = 0\n    atendidos = 0\n    criados = 0\n    destruicoes = 0\n    reusos = 0\n    recusas = 0\n\nfunc criar() -> ProjetilOficina:\n    var p := BULLET.instantiate() as ProjetilOficina\n    mundo.add_child(p)\n    p.desativar()\n    criados += 1\n    return p\n\nfunc iniciar() -> void:\n    limpar()\n    modo_pool = escolha.selected == 0\n    capacidade = int(limite.value)\n    if modo_pool:\n        for _i in capacidade:\n            livres.push_back(criar())\n    rodando = true\n\nfunc emitir() -> void:\n    pedidos += 1\n    var p: ProjetilOficina\n    if modo_pool:\n        if livres.is_empty():\n            recusas += 1 # Política deliberada: não cresce nem rouba tiro ativo.\n            return\n        p = livres.pop_back()\n        if p.usos > 0:\n            reusos += 1\n    else:\n        p = criar()\n    atendidos += 1\n    p.ativar(Vector2(40, 80 + (pedidos % 5) * 38), Vector2(240, 0), tempo, vida)\n    ativos.push_back(p)\n\nfunc rajada() -> void:\n    if rodando and tempo < duracao:\n        for _i in 8:\n            emitir()\n\nfunc expirar_e_mover(instante: float) -> void:\n    # Varredura reversa permite remover sem pular o próximo elemento.\n    for i in range(ativos.size() - 1, -1, -1):\n        var p := ativos[i]\n        if p.nascimento + p.vida <= instante + 0.000000001:\n            ativos.remove_at(i)\n            p.desativar()\n            if modo_pool:\n                livres.push_back(p)\n            else:\n                mundo.remove_child(p)\n                p.queue_free()\n                destruicoes += 1\n        else:\n            p.atualizar(instante)\n\nfunc _physics_process(delta: float) -> void:\n    if rodando:\n        var fim := minf(tempo + delta, duracao + vida)\n        # Expirar antes de emitir define o desempate no mesmo instante.\n        while float(proximo) / taxa <= minf(fim, duracao) + 0.000000001:\n            tempo = float(proximo) / taxa\n            expirar_e_mover(tempo)\n            emitir()\n            proximo += 1\n        tempo = fim\n        expirar_e_mover(tempo)\n        if tempo >= duracao + vida - 0.000000001:\n            rodando = false\n    status.text = (\"Tempo: %.2f s | pedidos: %d | atendidos: %d\\n\" +\n        \"Criados: %d | liberações solicitadas: %d | reativações: %d\\n\" +\n        \"Ativos: %d | livres: %d | recusas: %d\\n\" +\n        \"Modelo visual sem colisão. Contagens não são medidas de FPS.\") % [\n        tempo, pedidos, atendidos, criados, destruicoes, reusos,\n        ativos.size(), livres.size(), recusas]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_L: iniciar()\n        KEY_B: rajada()\n        KEY_R: limpar()\n",
+      "pros": "Expõe pedidos atendidos/recusados, criações, devolução, reset e repetição.",
+      "cons": "Não é benchmark de um jogo completo. Reserva mantém memória; pooling só deve ser adotado quando o benefício medido compensa a complexidade."
+    },
+    {
+      "title": "2. Processamento condicionado à visibilidade",
+      "whenToUse": "Quando parar uma lógica fora da região visível não altera indevidamente as regras.",
+      "description": "Scripts de cenas diferentes: visibilidade.gd na raiz e rotor.gd no Rotor. A cena fornecida já tem Enabler com enable_node_path=../Rotor e rect de 80×80. O controlador da câmera não faz parte do alvo desativado; C permite sair e voltar. Não há código de colisão neste exercício.",
+      "code": "# ARQUIVO: visibilidade.gd\nextends Node2D\n\nfunc _ready() -> void:\n    $Camera2D.position = Vector2(320, 300)\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and (event.ctrl_pressed or event.alt_pressed or event.meta_pressed):\n        return\n    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_C:\n        $Camera2D.position.x = 1000 if $Camera2D.position.x < 500 else 320\n\n# O controlador e a câmera ficam fora do alvo desativado.\n# C afasta e aproxima a câmera; o Enabler controla só Rotor.\n\n# ARQUIVO: rotor.gd — salve separadamente\nextends Node2D\n\nvar segundos: float = 0.0\n\nfunc _process(delta: float) -> void:\n    segundos += delta\n    $Arte.rotation += delta\n    $Leitura.text = \"Processado: %.2f s\" % segundos\n",
+      "pros": "Torna observável o que parou de processar sem parar o controlador responsável pelo retorno.",
+      "cons": "Depende de render culling e visibilidade; não representa uma pausa física completa nem economia percentual garantida."
+    },
+    {
+      "title": "3. Extensões visuais: MultiMesh e um RID próprio",
+      "whenToUse": "Para estudar instanciamento visual e propriedade de recursos de servidor, após identificar o problema relevante.",
+      "description": "Dois arquivos separados em extensoes.tscn: lote.gd no MultiMeshInstance2D e item_servidor.gd no Node2D ItemServidor. Os quads não precisam de textura externa. V altera o prefixo visível. O script de servidor libera somente o item que criou; não libera o CanvasItem do pai.",
+      "code": "# ARQUIVO: lote.gd\nextends MultiMeshInstance2D\n\nfunc _ready() -> void:\n    var quad := QuadMesh.new()\n    quad.size = Vector2(18, 18)\n    var batch := MultiMesh.new()\n    batch.transform_format = MultiMesh.TRANSFORM_2D\n    batch.use_colors = true # Antes de alocar instance_count.\n    batch.mesh = quad\n    batch.instance_count = 64\n    for i in 64:\n        var pos := Vector2(40 + (i % 8) * 32, 45 + floori(float(i) / 8.0) * 32)\n        batch.set_instance_transform_2d(i, Transform2D(0.0, pos))\n        batch.set_instance_color(i, Color(\"d4a359\"))\n    batch.visible_instance_count = 64\n    multimesh = batch\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and (event.ctrl_pressed or event.alt_pressed or event.meta_pressed):\n        return\n    if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:\n        multimesh.visible_instance_count = 16 if multimesh.visible_instance_count == 64 else 64\n\n# V alterna o prefixo de 16/64 índices; não escolhe automaticamente os mais próximos.\n# Não cria Area2D, colisão, IA ou um nó por instância.\n\n# ARQUIVO: item_servidor.gd — salve separadamente\nextends Node2D\n\nvar item: RID\n\nfunc _ready() -> void:\n    item = RenderingServer.canvas_item_create()\n    RenderingServer.canvas_item_set_parent(item, get_canvas_item())\n    RenderingServer.canvas_item_add_rect(item, Rect2(-16, -16, 32, 32), Color(\"5ce1e6\"))\n    RenderingServer.canvas_item_set_transform(item, Transform2D(0.25, Vector2(420, 140)))\n\nfunc _exit_tree() -> void:\n    # Só libera o RID criado por este script. Não libera get_canvas_item().\n    if item.is_valid():\n        RenderingServer.free_rid(item)\n        item = RID()\n\n# Este exemplo é visual: não cria corpo, shape ou area do PhysicsServer2D.\n",
+      "pros": "Mostra configuração antes da alocação e criação/liberação explícita de RID.",
+      "cons": "Não implementa PhysicsServer2D, colisão, IA ou culling individual por instância. Um único nó não implica uma única chamada de desenho em qualquer implementação."
+    }
+  ],
+  "simulator": {
+    "type": "optimization_pool",
+    "title": "Laboratório: comparar pedidos, criações e reúso",
+    "description": "Modelo determinístico em Canvas/JavaScript. As duas estratégias recebem os mesmos pedidos; o pool fixo recusa quando acaba a reserva. Criação inicial, reativações e recusas são contadas. Não mede FPS, bytes, draw calls ou tempo da Godot; não executa MultiMesh, servidores ou física. O recorte azul limita apenas o desenho representado, mantendo movimento e expiração.",
+    "guide": [
+      {
+        "title": "Preveja e confira",
+        "text": "Inicie com 8/s, vida 2 s, capacidade 16 e emissão 4 s. O primeiro pedido é em 0,125 s. Ao fim de 6 s: 32 atendidos em cada lado; 32 criações na alternativa e 16 no pool, com 16 reativações. A reserva começa pré-criada."
+      },
+      {
+        "title": "Teste limites e repetição",
+        "text": "Pause e avance 0,25 s. Com foco na cena: L inicia/reinicia, B pede rajada de 8 durante RUNNING, R limpa. Botões equivalentes acima. Capacidade 4 produz recusas: compare atendidos antes de interpretar criações. L zera relógio, objetos e contadores com os parâmetros escolhidos."
+      },
+      {
+        "title": "Separe desenho e ciclo de vida",
+        "text": "Alterne Todos os ativos / Somente no recorte. Os contadores de ativos, pedidos e expiração não mudam por essa escolha. Parâmetros numéricos só valem no próximo início; o ciclo atual mostra o snapshot usado. Este diagrama não simula automaticamente Enabler ou culling de MultiMesh."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Um teste com pool mostra menos criações, mas também recusou parte dos tiros por falta de objetos livres. Qual é o próximo passo para avaliar se a mudança ajuda?",
+    "options": [
+      "Comparar pedidos atendidos, ajustar uma política/capacidade equivalente e medir o gargalo no mesmo cenário e dispositivo.",
+      "Concluir que menos objetos criados sempre significam menos tempo de quadro, independentemente dos tiros recusados.",
+      "Trocar tudo por MultiMesh porque cada instância passa a ganhar colisão e inteligência próprias.",
+      "Ocultar todos os projéteis para garantir que seus scripts e colisões sejam desativados automaticamente."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Preserve o trabalho comparado e então meça o custo relevante.",
+      "Contagem não é duração; além disso, o teste atendeu a cargas diferentes.",
+      "MultiMesh resolve uma parte visual; não cria lógica ou colisão por instância.",
+      "Visibilidade, processamento e física têm controles distintos."
+    ],
+    "explanation": "Um pool que recusa trabalho pode parecer mais leve porque faz menos. Primeiro compare comportamento e pedidos atendidos; depois colete tempos no mesmo cenário, incluindo a preparação da reserva e a memória mantida."
+  }
+},
+
+{
+  "id": "2d-pro-multiplayer-tools",
+  "area": "2d",
+  "level": "profissional",
+  "levelLabel": "Profissional",
+  "title": "17. Multiplayer 2D: pedidos, autoridade e ferramentas de editor",
+  "subtitle": "Conecte duas execuções locais, valide ações no servidor e separe replicação de estado da prévia feita com @tool.",
+  "nodesUsed": [
+    "ENetMultiplayerPeer",
+    "MultiplayerSpawner",
+    "MultiplayerSynchronizer",
+    "SceneReplicationConfig",
+    "@rpc",
+    "@tool"
+  ],
+  "feynman": {
+    "title": "Duas oficinas, uma decisão autorizada",
+    "explanation": "Cada execução tem sua árvore de nós e seu estado em memória. O cliente pode pedir um movimento ou tiro; o servidor identifica quem enviou, verifica as regras e altera o estado autorizado. A outra execução recebe uma réplica desse resultado depois. “Quem controla o teclado” e “quem tem autoridade sobre o nó” não precisam ser o mesmo peer: nesta prática, cada participante envia ações de seu jogador, mas o servidor mantém a autoridade de todos os jogadores. Em uma extensão separada, @tool permite desenhar uma prévia no editor; ele não resolve nenhum problema de rede.",
+    "analogies": [
+      {
+        "term": "Pedido e estado",
+        "analogy": "Pedir para mover uma peça não é anunciar que ela já se moveu. O servidor recebe intenção, não confia em uma posição final fornecida pelo cliente."
+      },
+      {
+        "term": "Criação e propriedades",
+        "analogy": "Spawner cuida das instâncias configuradas; Synchronizer replica as propriedades escolhidas. Um não substitui o outro nem descobre automaticamente o que o jogo precisa enviar."
+      },
+      {
+        "term": "Estado recebido e apresentação",
+        "analogy": "A réplica pode mudar em saltos. Um efeito visual de suavização pode acompanhar o alvo recebido, mas é outra camada e não muda a decisão do servidor."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "ENetMultiplayerPeer prepara servidor ou cliente; verifique Error antes de atribuir o peer ao MultiplayerAPI. create_client retornar OK inicia a tentativa: espere connected_to_server, connection_failed ou server_disconnected. No projeto, a RPC de pedido usa any_peer, call_remote e reliable, direcionada ao ID 1. No receptor, get_remote_sender_id fornece a identidade do remetente; um dicionário do servidor associa esse ID ao jogador permitido. Sequência, ação, direção e cooldown são conferidos antes de mudar posição ou contador. O host passa pela mesma função de validação diretamente, evitando depender de um remetente remoto em chamada local.",
+    "anatomy": [
+      {
+        "prop": "Autoridade por nó e identidade do participante",
+        "desc": "O servidor tem ID 1; IDs de clientes reais não são necessariamente 2. A autoridade de um nó é 1 por padrão e pode ser alterada. owner_peer nesta prática é uma propriedade própria para indicar quem envia intenções; não transfere autoridade. set_multiplayer_authority não se replica automaticamente."
+      },
+      {
+        "prop": "@rpc: quem chama, onde executa e como transmite",
+        "desc": "any_peer permite chamadas remotas; não valida uma regra de jogo. call_remote evita execução local por essa chamada de RPC; call_local permite a participação local conforme a invocação. reliable tenta reenviar e preservar ordem enquanto há conexão, sem garantir uma ação após desconexão nem autorizar o conteúdo."
+      },
+      {
+        "prop": "Caminho, spawn e replicação configurados",
+        "desc": "Os nós de RPC precisam do mesmo NodePath e declaração compatível nas execuções. O Spawner usa ../Jogadores e uma spawn_function que retorna o jogador fora da árvore; o Spawner o adiciona. O Synchronizer de jogador.tscn tem root_path=.. e configuração explícita de owner_peer, position e tiros. Não envia Resources, RIDs ou IDs de instância locais como estado portátil."
+      },
+      {
+        "prop": "@tool: desenho de editor e lógica de jogo",
+        "desc": "previa.gd desenha o raio apenas quando Engine.is_editor_hint é true. O setter pede redraw e atualiza avisos; _get_configuration_warnings explica raio zero. O _process retorna no editor e anima só durante Play. A prévia não remove nós, não grava arquivos e não implementa detecção física."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Prática principal: oficina.gd na raiz da cena e jogador.gd em jogador.tscn. A cena do jogador já inclui Synchronizer e SceneReplicationConfig. Extensão separada: previa.gd em previa.tscn; não é um script de rede nem deve substituir o controlador principal.",
+    "duration": "90–120 min, incluindo duas execuções e falhas (estimativa)",
+    "prerequisite": "Aulas 1, 3, 7, 15 e 16: árvore, entrada, sinais, estado e ciclo de vida. Referência Godot 4.5, GDScript, Compatibility, duas execuções desktop do mesmo projeto. Projeto revisado documentalmente; ainda não executado no motor neste ambiente. ENet desta prática usa apenas 127.0.0.1 e não é um projeto Web.",
+    "objectives": [
+      "Conectar e encerrar duas execuções locais tratando tentativa, sucesso, falha e reconexão.",
+      "Enviar intenções para o servidor, validar remetente/contrato e distinguir criação de jogadores, replicação de propriedades e apresentação visual.",
+      "Criar uma prévia @tool com redraw e avisos sem executar a lógica de jogo durante edição."
+    ],
+    "practice": {
+      "title": "Prática guiada: uma sessão local e uma prévia de alcance",
+      "intro": "A rede começa pequena: um host e um cliente na mesma máquina. Cada jogador é um marcador visual sem colisão, com movimento por passos e um contador de tiros autorizados. Não há projétil real, dano, previsão local, rollback ou sistema de autenticação de produção. A extensão de editor é feita depois, em outra cena.",
+      "tree": "oficina.tscn — Oficina (Node2D / oficina.gd)\n├── Jogadores (Node2D criado por código)\n│   └── jogador.tscn, nomeado pelo peer ID, criado pelo Spawner\n│       ├── Leitura (Label)\n│       └── MultiplayerSynchronizer\n│           └── SceneReplicationConfig: owner_peer, position, tiros\n├── Spawner (MultiplayerSpawner criado por código)\n│   ├── spawn_path: ../Jogadores\n│   └── spawn_function: criar_jogador\n└── CanvasLayer / interface (criada por código)\n\nprevia.tscn — Previa (Node2D / previa.gd, @tool)\n└── Arte (Polygon2D)\n\nA raiz Oficina e as RPCs têm o mesmo caminho nas duas execuções.",
+      "download": {
+        "url": "assets/aula-17-multiplayer-ferramentas.zip",
+        "label": "Baixar projeto de apoio: rede local e @tool"
+      },
+      "downloadNote": "Inclui projeto, três cenas, três scripts e roteiro de teste com duas execuções. Referência Godot 4.5; execução real da rede e do editor ainda pendente.",
+      "steps": [
+        {
+          "title": "Abra duas execuções do mesmo projeto",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn. Execute uma instância desktop; abra uma segunda execução pelo recurso de múltiplas instâncias do editor, ou execute o mesmo projeto em outro processo Godot. Ambas precisam usar os mesmos arquivos e a raiz Oficina. Se estiver usando o editor embutido, destaque as janelas para poder dar foco e identificar qual é host/cliente.",
+          "expect": "As duas começam offline, sem jogadores. O projeto não abre conexão sozinho. Os botões de hospedar/conectar são ações distintas; não tente hospedar duas vezes na mesma porta."
+        },
+        {
+          "title": "Hospede e confirme a conexão",
+          "text": "Na primeira execução, use Hospedar localmente. O código limita o bind a 127.0.0.1, porta 7000, e aceita um cliente além do host. Na segunda, use Conectar ao host local. Confira a mudança de conectando para cliente e o ID local mostrado. O servidor registra cada participante e chama spawner.spawn(id); criar_jogador retorna o nó, sem chamar add_child nesse callback.",
+          "expect": "O host tem ID 1. O cliente recebe um ID positivo que não deve ser presumido como 2. Duas instâncias de jogador aparecem em ambas as árvores Remote; seus nomes/caminhos correspondem entre execuções. owner_peer indica controle, mas a autoridade de ambos continua 1."
+        },
+        {
+          "title": "Peça um passo, em vez de impor uma posição",
+          "text": "Dê foco à janela do cliente. Use WASD ou setas: cada toque pede um passo de 40 unidades em um eixo; a repetição automática da tecla é ignorada. Há botões equivalentes. O servidor descobre o remetente pela RPC, procura seu jogador, exige sequência nova, direção cardinal e intervalo mínimo de 0,1 s entre movimentos, e limita x a 80–560 e y a 100–260. Toques muito rápidos podem ser recusados.",
+          "expect": "Só o jogador associado ao remetente muda. O cliente não escreve a posição final por RPC nem recebe autoridade sobre o nó. A posição é replicada pelo Synchronizer; no projeto ela pode aparecer em saltos, pois não foi implementada interpolação visual."
+        },
+        {
+          "title": "Valide tiros e rejeite entradas inválidas",
+          "text": "Pressione Espaço ou Pedir tiro: o servidor aumenta apenas o contador do jogador do remetente, com cooldown de 0,5 s. Clique duas vezes rapidamente para observar recusa por cooldown. Use P para reenviar a mesma sequência e conferir sua recusa. Use V ou Direção inválida: envia dx=9, fora do contrato, com sequência nova. Confira o feedback na janela de origem e os totais de aceitos/recusados na janela do host.",
+          "expect": "Direção inválida não muda posição nem contador. O host também passa por validar, usando sua identidade local. O protocolo consome uma sequência nova mesmo quando o pedido depois falha em direção/cooldown. Sequência não é senha nem autenticação; é parte do contrato desta sessão."
+        },
+        {
+          "title": "Inspecione o que realmente está sendo replicado",
+          "text": "Pare a execução e abra jogador.tscn. Selecione MultiplayerSynchronizer: root_path é .. e SceneReplicationConfig lista .:owner_peer, .:position e .:tiros, com spawn ativo. owner_peer e tiros usam ON_CHANGE; position usa ALWAYS, com replication_interval=0.1 s. O controlador configura o Spawner, não uma criação arbitrária em qualquer lugar da árvore.",
+          "expect": "ALWAYS usa atualizações não confiáveis; ON_CHANGE usa envio confiável quando há mudança. Replicação não faz colisão, IA ou interpolação por conta própria. reliable das RPCs de pedido é outra configuração. Ao reexecutar as mesmas versões nas duas janelas, caminhos e declarações continuam compatíveis."
+        },
+        {
+          "title": "Desconecte, falhe e recomece",
+          "text": "Use Desconectar no cliente: o servidor remove o jogador e o Spawner replica o despawn. Reconecte: confira o novo jogador e o estado inicial. Depois desconecte o host e observe a limpeza no cliente. Para testar falha, tente conectar sem host e aguarde connection_failed. Para erro imediato de hospedagem, tente abrir outro host na mesma porta. Desconectar / limpar permite iniciar outra sessão sem recarregar o projeto.",
+          "expect": "Sem nós duplicados ou sessão antiga ainda ativa. create_client retornar OK não equivale a estar conectado. Mensagens reliable não garantem completar ações de uma sessão encerrada. O projeto não é lobby de internet, NAT traversal, criptografia ou proteção completa contra abuso."
+        },
+        {
+          "title": "Faça a extensão de editor separadamente",
+          "text": "Pare as execuções, abra previa.tscn no editor e selecione Previa. Ajuste raio no Inspector: o círculo deve redesenhar sem Play. Use zero para ver o aviso de configuração; restaure 140. Execute essa cena com F6: o círculo de editor não é desenhado e Arte recebe uma pequena animação em runtime. Leia o retorno de Engine.is_editor_hint no _process e a condição inversa no _draw.",
+          "expect": "Apenas as partes previstas rodam no editor. @tool não significa “só no editor”. O raio é auxílio visual, sem Area2D ou detecção. A extensão evita mudanças destrutivas na árvore editada; adicionar geração/remoção de nós exigiria também tratar owner, persistência e desfazer/refazer."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "O cliente controla o teclado do próprio jogador. Ele precisa ser a autoridade do nó?",
+        "answer": "Não. Na prática, owner_peer identifica quem envia intenção e a autoridade continua no servidor. Transferir autoridade seria outra arquitetura e não tornaria o cliente confiável por si só."
+      },
+      {
+        "question": "Por que any_peer e reliable não bastam para autorizar um tiro?",
+        "answer": "any_peer permite a chamada remota e reliable define transmissão; nenhum verifica jogador, ação, sequência ou cooldown. A decisão de jogo acontece na validação do servidor."
+      },
+      {
+        "question": "O Synchronizer já suaviza o movimento e escolhe todas as propriedades?",
+        "answer": "Não. A prática configura explicitamente posição, dono de controle e tiros. A apresentação pode usar suavização própria, mas ela não é automática nem equivale à previsão local ou rollback."
+      },
+      {
+        "question": "@tool roda exclusivamente no editor?",
+        "answer": "Não. As partes sem condição podem rodar no editor e no jogo. Engine.is_editor_hint permite escolher; setters/redraw/avisos cuidam da prévia e o _process retorna durante edição."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "Cliente parece conectado antes de terminar",
+        "text": "Diferencie o Error da criação do peer dos sinais de conexão. Trate falha e saída do servidor, feche o peer e limpe o estado antes de outra sessão."
+      },
+      {
+        "title": "RPC ausente ou personagem duplicado",
+        "text": "Confira mesmos arquivos, declaração e NodePath nas execuções. A spawn_function retorna um nó fora da árvore; não o adicione manualmente. Só o servidor registra/cria jogadores nesta prática."
+      },
+      {
+        "title": "Estado crítico confiado ao cliente",
+        "text": "Use o remetente fornecido pela RPC e a associação mantida pelo servidor. Não receba um ID arbitrário para escolher outra vítima, posição final ou quantidade de ouro. A demonstração ainda não substitui autenticação e controles de produção."
+      },
+      {
+        "title": "Ferramenta altera a cena enquanto você edita",
+        "text": "@tool tem acesso à cena editada. Limite a prévia ao desenho neste exercício e não use queue_free para limpar nós indiscriminadamente. O comportamento de editor também precisa de teste no motor."
+      }
+    ],
+    "summary": "O cliente pede, o servidor decide e a réplica recebe estado configurado. Autoridade, identidade, spawn, sincronização e apresentação são responsabilidades distintas. @tool pertence a outro contexto: declare o que pode rodar na edição e mantenha a lógica de jogo fora desse caminho.",
+    "next": "Você chegou ao fim da trilha 2D. No menu superior 3D, abra a aula 1 sobre espaço, eixos, unidades e Node3D; as ressalvas de execução e a avaliação final de lacunas do curso continuam registradas.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — Multiplayer de alto nível",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/networking/high_level_multiplayer.html"
+      },
+      {
+        "label": "Godot 4.5 — ENetMultiplayerPeer",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_enetmultiplayerpeer.html"
+      },
+      {
+        "label": "Godot 4.5 — MultiplayerAPI",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_multiplayerapi.html"
+      },
+      {
+        "label": "Godot 4.5 — MultiplayerSpawner",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_multiplayerspawner.html"
+      },
+      {
+        "label": "Godot 4.5 — MultiplayerSynchronizer",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_multiplayersynchronizer.html"
+      },
+      {
+        "label": "Godot 4.5 — SceneReplicationConfig",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_scenereplicationconfig.html"
+      },
+      {
+        "label": "Godot 4.5 — Código no editor",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/plugins/running_code_in_the_editor.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Sessão, pedidos e validação no servidor",
+      "whenToUse": "No controlador da prática local com um host e um cliente.",
+      "description": "Salve oficina.gd na raiz Oficina de oficina.tscn. jogador.tscn do exemplo 2 é uma dependência. A RPC só encaminha para validar; o host chama essa função diretamente. Bind em loopback e limites desta demonstração estão explícitos; não é código de infraestrutura para publicar uma partida na internet.",
+      "code": "extends Node2D\n\nconst PLAYER = preload(\"res://jogador.tscn\")\nconst PORTA: int = 7000\nvar modo: String = \"offline\"\nvar sequencia_local: int = 0\nvar ultimo_pedido: Array = []\nvar regras: Dictionary = {}\nvar aceitos: int = 0\nvar recusados: int = 0\nvar jogadores: Node2D\nvar spawner: MultiplayerSpawner\nvar leitura: Label\nvar mensagem: Label\n\nfunc _ready() -> void:\n    jogadores = Node2D.new()\n    jogadores.name = \"Jogadores\"\n    add_child(jogadores)\n    spawner = MultiplayerSpawner.new()\n    spawner.name = \"Spawner\"\n    spawner.spawn_path = NodePath(\"../Jogadores\")\n    spawner.spawn_function = criar_jogador\n    add_child(spawner)\n    multiplayer.peer_connected.connect(peer_entrou)\n    multiplayer.peer_disconnected.connect(peer_saiu)\n    multiplayer.connected_to_server.connect(conectou)\n    multiplayer.connection_failed.connect(falhou)\n    multiplayer.server_disconnected.connect(servidor_saiu)\n    criar_interface()\n\nfunc criar_interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 330)\n    box.custom_minimum_size.x = 608\n    layer.add_child(box)\n    botao(box, \"Hospedar localmente (127.0.0.1:7000)\", hospedar)\n    botao(box, \"Conectar ao host local\", entrar)\n    botao(box, \"Desconectar / limpar\", desconectar)\n    var row := HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"← / A\", func(): solicitar(\"mover\", -1, 0))\n    botao(row, \"↑ / W\", func(): solicitar(\"mover\", 0, -1))\n    botao(row, \"↓ / S\", func(): solicitar(\"mover\", 0, 1))\n    botao(row, \"→ / D\", func(): solicitar(\"mover\", 1, 0))\n    botao(box, \"Espaço · Pedir tiro (contador visual)\", func(): solicitar(\"atirar\"))\n    botao(box, \"V · Enviar direção inválida\", func(): solicitar(\"mover\", 9, 0))\n    botao(box, \"P · Reenviar mesmo pedido\", reenviar)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(leitura)\n    mensagem = Label.new()\n    mensagem.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    mensagem.text = \"Abra duas execuções: hospede em uma, conecte na outra.\"\n    box.add_child(mensagem)\n\nfunc botao(parent: Node, text: String, action: Callable) -> void:\n    var button := Button.new()\n    button.text = text\n    button.pressed.connect(action)\n    parent.add_child(button)\n\nfunc hospedar() -> void:\n    if modo != \"offline\":\n        mensagem.text = \"Desconecte antes de iniciar outra sessão.\"\n        return\n    var peer := ENetMultiplayerPeer.new()\n    peer.set_bind_ip(\"127.0.0.1\") # Exercício só nesta máquina.\n    var error := peer.create_server(PORTA, 1) # Um cliente, além do host.\n    if error != OK:\n        mensagem.text = \"Falha ao hospedar: \" + error_string(error)\n        return\n    multiplayer.multiplayer_peer = peer\n    modo = \"host\"\n    registrar(1)\n    mensagem.text = \"Host ID 1 pronto. Conecte a segunda execução.\"\n\nfunc entrar() -> void:\n    if modo != \"offline\":\n        return\n    var peer := ENetMultiplayerPeer.new()\n    var error := peer.create_client(\"127.0.0.1\", PORTA)\n    if error != OK:\n        mensagem.text = \"Pedido de conexão recusado: \" + error_string(error)\n        return\n    multiplayer.multiplayer_peer = peer\n    modo = \"conectando\"\n    mensagem.text = \"Conectando... OK no pedido ainda não confirma a conexão.\"\n\nfunc conectou() -> void:\n    modo = \"cliente\"\n    mensagem.text = \"Conectado. Seu ID real é %d; aguarde seu jogador aparecer.\" % multiplayer.get_unique_id()\n\nfunc falhou() -> void:\n    desconectar()\n    mensagem.text = \"Conexão falhou. Confira host, porta e segunda execução.\"\n\nfunc servidor_saiu() -> void:\n    desconectar()\n    mensagem.text = \"Host desconectou. Estado local limpo; conecte novamente.\"\n\nfunc desconectar() -> void:\n    modo = \"offline\"\n    if multiplayer.multiplayer_peer != null:\n        multiplayer.multiplayer_peer.close()\n    multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()\n    for child in jogadores.get_children():\n        jogadores.remove_child(child)\n        child.queue_free()\n    regras.clear()\n    sequencia_local = 0\n    ultimo_pedido.clear()\n    aceitos = 0\n    recusados = 0\n    mensagem.text = \"Sessão encerrada; pode hospedar ou conectar novamente.\"\n\nfunc registrar(id: int) -> void:\n    if regras.has(id):\n        return\n    regras[id] = {\"seq\": 0, \"mover\": -1000000.0, \"atirar\": -1000000.0}\n    spawner.spawn(id) # A função retorna o nó fora da árvore; Spawner o adiciona.\n\nfunc peer_entrou(id: int) -> void:\n    if modo == \"host\":\n        registrar(id)\n\nfunc peer_saiu(id: int) -> void:\n    if modo != \"host\":\n        return\n    regras.erase(id)\n    var actor := jogadores.get_node_or_null(str(id))\n    if actor != null:\n        actor.queue_free() # A autoridade remove; Spawner replica o despawn.\n\nfunc criar_jogador(data: Variant) -> Node:\n    var actor := PLAYER.instantiate() as JogadorRede\n    actor.owner_peer = int(data)\n    actor.name = str(actor.owner_peer)\n    actor.position = Vector2(320, 130 if actor.owner_peer == 1 else 230)\n    # Autoridade continua ID 1 em todos os pares. owner_peer é outra função.\n    return actor\n\nfunc solicitar(acao: String, dx: int = 0, dy: int = 0) -> void:\n    if modo != \"host\" and modo != \"cliente\":\n        mensagem.text = \"Conecte antes de enviar ações.\"\n        return\n    sequencia_local += 1\n    ultimo_pedido = [sequencia_local, acao, dx, dy]\n    if modo == \"host\":\n        validar(1, sequencia_local, acao, dx, dy) # Host usa a mesma validação.\n    else:\n        receber_pedido.rpc_id(1, sequencia_local, acao, dx, dy)\n\nfunc reenviar() -> void:\n    if ultimo_pedido.is_empty() or (modo != \"host\" and modo != \"cliente\"):\n        return\n    var seq := int(ultimo_pedido[0])\n    var acao := str(ultimo_pedido[1])\n    var dx := int(ultimo_pedido[2])\n    var dy := int(ultimo_pedido[3])\n    if modo == \"host\":\n        validar(1, seq, acao, dx, dy)\n    else:\n        receber_pedido.rpc_id(1, seq, acao, dx, dy)\n\n@rpc(\"any_peer\", \"call_remote\", \"reliable\", 0)\nfunc receber_pedido(seq: int, acao: String, dx: int, dy: int) -> void:\n    if modo != \"host\" or not multiplayer.is_server():\n        return\n    var remetente := multiplayer.get_remote_sender_id()\n    validar(remetente, seq, acao, dx, dy)\n\nfunc validar(id: int, seq: int, acao: String, dx: int, dy: int) -> void:\n    if not regras.has(id):\n        return\n    var actor := jogadores.get_node_or_null(str(id)) as JogadorRede\n    if actor == null:\n        responder(id, seq, false, \"Jogador ainda não disponível.\")\n        return\n    if seq <= int(regras[id][\"seq\"]) or seq > 1000000000:\n        responder(id, seq, false, \"Sequência repetida ou fora do contrato.\")\n        return\n    regras[id][\"seq\"] = seq # Mesmo um pedido inválido novo consome a sequência.\n    if acao != \"mover\" and acao != \"atirar\":\n        responder(id, seq, false, \"Ação desconhecida.\")\n        return\n    if acao == \"mover\" and not (((dx == -1 or dx == 1) and dy == 0) or ((dy == -1 or dy == 1) and dx == 0)):\n        responder(id, seq, false, \"Direção inválida: use um eixo por pedido.\")\n        return\n    var agora := Time.get_ticks_msec() / 1000.0\n    var espera: float = 0.1 if acao == \"mover\" else 0.5\n    if agora - float(regras[id][acao]) < espera:\n        responder(id, seq, false, \"Ação em cooldown no servidor.\")\n        return\n    regras[id][acao] = agora\n    if acao == \"mover\":\n        actor.position += Vector2(dx, dy) * 40\n        actor.position.x = clampf(actor.position.x, 80, 560)\n        actor.position.y = clampf(actor.position.y, 100, 260)\n    else:\n        actor.tiros += 1 # Contador, não um projétil/dano de jogo completo.\n    responder(id, seq, true, \"Estado autorizado; Synchronizer replica as propriedades configuradas.\")\n\nfunc responder(id: int, seq: int, ok: bool, text: String) -> void:\n    if ok:\n        aceitos += 1\n    else:\n        recusados += 1\n    if id == 1:\n        exibir_resultado(seq, ok, text)\n    elif id in multiplayer.get_peers():\n        resultado.rpc_id(id, seq, ok, text)\n\n@rpc(\"authority\", \"call_remote\", \"reliable\", 0)\nfunc resultado(seq: int, ok: bool, text: String) -> void:\n    exibir_resultado(seq, ok, text)\n\nfunc exibir_resultado(seq: int, ok: bool, text: String) -> void:\n    mensagem.text = \"Pedido %d: %s. %s\" % [seq, \"aceito\" if ok else \"recusado\", text]\n\nfunc _process(_delta: float) -> void:\n    leitura.text = \"Modo: %s | ID local: %d | jogadores: %d\\nNo host: aceitos %d / recusados %d\" % [\n        modo, multiplayer.get_unique_id(), jogadores.get_child_count(), aceitos, recusados]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_A, KEY_LEFT: solicitar(\"mover\", -1, 0)\n        KEY_D, KEY_RIGHT: solicitar(\"mover\", 1, 0)\n        KEY_W, KEY_UP: solicitar(\"mover\", 0, -1)\n        KEY_S, KEY_DOWN: solicitar(\"mover\", 0, 1)\n        KEY_SPACE: solicitar(\"atirar\")\n        KEY_V: solicitar(\"mover\", 9, 0)\n        KEY_P: reenviar()\n",
+      "pros": "Trata conexão, falha, saída, reconexão, identidade, contrato e cooldown no mesmo fluxo observável.",
+      "cons": "Movimento por passos sem colisão ou previsão; sem autenticação de produção ou proteção completa contra sobrecarga. Reliable não elimina latência."
+    },
+    {
+      "title": "2. Jogador e propriedades do Synchronizer",
+      "whenToUse": "Na cena replicada pelo Spawner; a configuração já vem instalada no ZIP.",
+      "description": "jogador.gd deve ficar na raiz Node2D de jogador.tscn. O script só desenha e apresenta valores; a configuração na cena replica owner_peer, position e tiros. owner_peer não é a autoridade. Confira no passo 5 os paths e modos exatos; não basta adicionar um Synchronizer vazio.",
+      "code": "class_name JogadorRede\nextends Node2D\n\n@export var owner_peer: int = 0\n@export var tiros: int = 0\n\nfunc _process(_delta: float) -> void:\n    $Leitura.global_position = Vector2(clampf(global_position.x - 150, 8, 328), global_position.y + 24)\n    $Leitura.text = \"Controle: peer %d | autoridade: %d | tiros: %d\" % [\n        owner_peer, get_multiplayer_authority(), tiros]\n\nfunc _draw() -> void:\n    draw_circle(Vector2.ZERO, 16, Color(\"5ce1e6\"))\n    draw_line(Vector2.ZERO, Vector2(24, 0), Color(\"d4a359\"), 6)\n\n# A posição e o contador são alterados pelo servidor, não por este _process.\n# O Synchronizer da cena replica as propriedades configuradas; não interpola.\n",
+      "pros": "Separa estado autorizado de leitura visual e evita Resources/RIDs no contrato de replicação.",
+      "cons": "Não interpola por padrão. As propriedades precisam de configuração explícita e compatível nas duas execuções."
+    },
+    {
+      "title": "3. @tool: raio, redraw e avisos",
+      "whenToUse": "Na cena independente previa.tscn, durante a preparação do cenário.",
+      "description": "Salve previa.gd na raiz Previa; Arte é um Polygon2D filho. O setter limita o raio e atualiza desenho/avisos. O editor mostra o círculo; o jogo executa apenas a animação prevista. Nenhum nó é removido e nenhum arquivo é gravado por esta extensão.",
+      "code": "@tool\nextends Node2D\n\n@export_range(0, 300, 1) var raio: float = 140.0:\n    set(value):\n        raio = clampf(value, 0, 300)\n        queue_redraw()\n        if is_inside_tree():\n            update_configuration_warnings()\n\nvar tempo: float = 0.0\n\nfunc _ready() -> void:\n    update_configuration_warnings()\n    queue_redraw()\n\nfunc _get_configuration_warnings() -> PackedStringArray:\n    if raio <= 0:\n        return PackedStringArray([\"Defina raio maior que zero para enxergar o alcance.\"])\n    return PackedStringArray()\n\nfunc _draw() -> void:\n    if Engine.is_editor_hint() and raio > 0:\n        draw_circle(Vector2.ZERO, raio, Color(0.36, 0.88, 0.90, 0.12))\n        draw_arc(Vector2.ZERO, raio, 0, TAU, 64, Color(\"5ce1e6\"), 2)\n\nfunc _process(delta: float) -> void:\n    if Engine.is_editor_hint():\n        return\n    tempo += delta\n    $Arte.rotation = sin(tempo) * 0.1\n\n# Prévia só desenha: não remove nós nem grava arquivos da cena editada.\n# O círculo é um auxílio visual, não uma Area2D ou detecção de inimigos.\n",
+      "pros": "Prévia legível sem iniciar o jogo e aviso de configuração para raio zero.",
+      "cons": "É auxílio visual, sem detecção física. Ferramentas que alteram nós ou arquivos exigem outro projeto de persistência e desfazer/refazer."
+    }
+  ],
+  "simulator": {
+    "type": "multiplayer_rpc_sim",
+    "title": "Laboratório: intenção → validação → réplica",
+    "description": "Modelo determinístico em Canvas/JavaScript, com cliente didático ID 2 e servidor ID 1. Não abre rede, executa ENet, Synchronizer ou @tool. RTT é sintético: cada trecho tem atraso base RTT/2, preservando a ordem dos pedidos; não há perdas, retransmissões ou jitter. A posição só muda após um pedido aceito no servidor; a réplica recebe depois. Suavização visual é uma camada própria, sem previsão local. A configuração de snapshots deste modelo não reproduz os modos ALWAYS/ON_CHANGE do projeto real.",
+    "guide": [
+      {
+        "title": "Siga um pedido",
+        "text": "Pause com RTT=200 ms. Com foco na cena, D pede um passo à direita. Avance 0,10 s: o servidor vai de x=320 para 360, a réplica fica em 320. Mais 0,10 s: ela recebe x=360. O boneco fica parado sem comandos; cada toque é um pedido."
+      },
+      {
+        "title": "Teste regras e falhas",
+        "text": "WASD/setas pedem passos; Espaço pede tiro; P reenvia a mesma sequência de aplicação; V envia direção inválida; C desconecta/reconecta; R restaura. Há botões equivalentes. Reenviar P é outro pedido de aplicação deliberado, não uma simulação de duplicatas internas do ENet. Tiro tem cooldown de 0,5 s; mover, 0,1 s."
+      },
+      {
+        "title": "Compare estado e apresentação",
+        "text": "Mude para Suavização visual própria e observe alvo recebido versus posição desenhada. Desconectar descarta a fila; reconectar cria nova sessão e jogador inicial. Alterar RTT muda o atraso base de novas mensagens; pedidos preservam ordem e podem esperar os anteriores. Mensagens já enfileiradas mantêm seu prazo. Use pausa e passos para inspecionar; isso não comprova a rede real."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Um cliente chama uma RPC any_peer e reliable pedindo um tiro. Qual decisão corresponde à arquitetura desta aula?",
+    "options": [
+      "O servidor identifica o remetente e valida o pedido antes de alterar o estado; depois as propriedades configuradas são replicadas.",
+      "A confiabilidade do transporte já comprova que o pedido é permitido e dispensa verificar cooldown ou jogador.",
+      "O cliente deve informar a posição final e o ID de qualquer jogador que deseja controlar, e o servidor apenas os copia.",
+      "Adicionar um MultiplayerSynchronizer vazio basta para criar jogadores, escolher propriedades e interpolar o movimento."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Transporte e permissão de invocação não substituem a regra de jogo.",
+      "Reliable trata transmissão; não autoriza o conteúdo da ação.",
+      "A associação entre remetente e jogador vem do servidor; a prática recebe intenção, não estado final arbitrário.",
+      "Spawner e Synchronizer têm configurações e funções distintas; interpolação visual também precisa ser projetada."
+    ],
+    "explanation": "O servidor usa a identidade do remetente e o contrato da sessão, verifica sequência, ação, direção e cooldown, altera o estado autorizado e permite a replicação configurada. O host passa pela mesma validação; o cliente não ganha autoridade sobre o nó só por controlar a entrada."
+  }
+}
 ];
 
 

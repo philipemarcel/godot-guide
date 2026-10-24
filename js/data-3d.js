@@ -8,265 +8,481 @@ window.GODOT_LESSONS_3D = [
   // ==========================================================================
   // NÍVEL I — INTRODUÇÃO (Aprendiz de Caldeira)
   // ==========================================================================
-  {
-    id: "3d-intro-space-axes",
-    area: "3d",
-    level: "introducao",
-    levelLabel: "Introdução",
-    title: "1. O Espaço 3D (Node3D, Eixos X/Y/Z, Regra da Mão Direita e Metros)",
-    subtitle: "Como funciona a gravidade, por que no 3D o eixo Y finalmente aponta para cima e por que a frente do personagem é o -Z.",
-    nodesUsed: ["Node3D", "Vector3", "Marker3D"],
-    feynman: {
-      title: "Explicação Feynman: O Quarto Real, a Mão Direita e a Fita Métrica",
-      explanation: "Lembra que no 2D tudo era desenhado numa folha de caderno onde descer aumentava o Y? Quando entramos na **Forja 3D**, saímos do papel e entramos num quarto real! Aqui, cada `1.0` unidade na Godot equivale exatamente a **1 METRO** da vida real (se um humano tem `1.8` de altura, uma porta deve ter `2.1`!). No 3D, o eixo **Y (Verde)** finalmente aponta para o CÉU (`+Y` sobe, `-Y` cai). O eixo **X (Vermelho)** aponta para os lados. E surge o terceiro irmão: o eixo **Z (Azul)**, que é a PROFUNDIDADE! Faça um ' L ' com o polegar e o indicador da mão direita e aponte o dedo médio para você: o dedo médio é o `+Z` (vindo para trás/para a tela), então olhar para a **FRENTE** lá no fundo da cena é olhar para o **`-Z`** (`Vector3.FORWARD = Vector3(0, 0, -1)`)!",
-      analogies: [
+{
+  "id": "3d-intro-space-axes",
+  "area": "3d",
+  "level": "introducao",
+  "levelLabel": "Introdução",
+  "title": "1. Espaço 3D: eixos, unidades e coordenadas de Node3D",
+  "subtitle": "Localize uma peça no mundo, compare sua posição no pai e descubra por que girar a câmera não muda suas coordenadas.",
+  "nodesUsed": [
+    "Node3D",
+    "Vector3",
+    "Marker3D",
+    "MeshInstance3D"
+  ],
+  "feynman": {
+    "title": "Uma peça, três coordenadas e um ponto de referência",
+    "explanation": "No plano 2D usamos duas coordenadas; no espaço 3D precisamos de três. Neste curso, X representa um eixo horizontal, Y a altura e Z o outro eixo do chão. Os sinais indicam sentidos em relação a uma referência, não posições fixas na tela. Uma peça pode estar dois passos à frente de sua base e, ao mesmo tempo, ocupar outra posição em relação à origem do mundo. Girar a vista muda o desenho que você vê; mover ou girar a base muda a transformação da peça. Node3D guarda essa transformação, mas sozinho não cria uma forma visível nem aplica gravidade.",
+    "analogies": [
+      {
+        "term": "Mundo e pai",
+        "analogy": "O endereço de uma peça pode ser descrito a partir da entrada da oficina ou da bancada que a sustenta. position usa o sistema do pai; global_position usa o mundo."
+      },
+      {
+        "term": "Unidades",
+        "analogy": "Escolher 1 unidade como 1 metro é uma convenção de escala útil para montar o projeto e usar parâmetros físicos coerentes. A coordenada numérica não mede um objeto real nem representa pixels."
+      },
+      {
+        "term": "Frente escolhida",
+        "analogy": "Um sinal pintado na peça marca qual lado chamaremos de frente. Nesta prática ele aponta para o −Z da peça; modelos importados podem adotar outra convenção."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Godot usa um sistema 3D de mão direita: X × Y aponta para Z. No mundo convencional do editor, +Y aponta para cima; o chão costuma ser XZ. Vector3.FORWARD vale (0, 0, −1) e Vector3.UP vale (0, 1, 0). Câmeras e várias APIs usam −Z como frente, mas assets 3D podem usar +Z como frente de modelo, representada por Vector3.MODEL_FRONT. Não conclua a direção apenas pela aparência de uma malha. Nesta aula limitamos as transformações a rotações em Y e escala uniforme positiva; a próxima amplia o estudo de Basis e Transform3D.",
+    "anatomy": [
+      {
+        "prop": "Node3D, MeshInstance3D e Marker3D",
+        "desc": "Node3D organiza posição, rotação e escala. MeshInstance3D desenha uma malha, como um cubo. Marker3D marca uma referência com gizmo no editor; não é, por si só, uma peça visível durante o jogo."
+      },
+      {
+        "prop": "position, global_position e top_level",
+        "desc": "Com um pai Node3D, top_level=false e as condições desta prática, position é expresso no sistema do pai. A transformação do pai leva esse ponto ao mundo. Mudar a rotação da própria peça não muda sua origem; girar o pai pode mover a origem do filho em torno dele."
+      },
+      {
+        "prop": "Eixos do pai versus frente da própria peça",
+        "desc": "Somar (0, 0, −0,5) em position muda a coordenada Z no pai. Isso não significa necessariamente avançar no sentido do nariz da peça. A frente da peça expressa no mundo depende da orientação herdada e da rotação da própria peça."
+      },
+      {
+        "prop": "Escala, unidade e distância",
+        "desc": "Na bancada adotamos 1 unidade = 1 metro. O cubo de tamanho (1,1,1) tem aresta de 1 unidade com escala global 1. Escalar o pai em 2 também escala a distância do filho ao pai. Isso não faz um Node3D cair; física e colisão serão assuntos posteriores."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": false,
+    "codeIntro": "A prática principal pode ser feita pelo Inspector, usando a cena pronta. Os exemplos abaixo são consulta opcional: leitura de coordenadas, controlador dos botões da bancada e cálculo do passo de uma unidade. Não é necessário dominar matrizes nesta aula.",
+    "duration": "45–70 min, incluindo previsões e variações (estimativa)",
+    "prerequisite": "Saber selecionar nós, editar Transform no Inspector e distinguir pai/filho; aulas 2D 1–3 ajudam, sem exigir completar as 17 aulas 2D. Referência: Godot 4.5, desktop, Compatibility. Projeto de apoio revisado documentalmente; ainda não executado no motor neste ambiente.",
+    "objectives": [
+      "Identificar os sentidos de X/Y/Z e distinguir coordenadas do mundo, do pai e orientação da própria peça.",
+      "Prever e conferir posições globais em exemplos simples com translação, rotação Y e escala uniforme do pai.",
+      "Comparar um passo em −Z do mundo com um passo na frente da peça, mantendo distância global de uma unidade."
+    ],
+    "practice": {
+      "title": "Prática guiada: a peça sobre uma base",
+      "intro": "Use uma cena com cubo, nariz ciano, piso, eixos nomeados, câmera e luz já instalados. Primeiro observe e altere Transform no editor, sem código. Depois execute os botões para comparar os passos. O projeto não contém corpo físico ou colisão.",
+      "tree": "Oficina (Node3D) — oficina.gd, controlador opcional da bancada em runtime\n├── Piso (MeshInstance3D / PlaneMesh)\n├── Eixos (Node3D / formas e rótulos +X, +Y, +Z)\n├── Base (Node3D) — position=(2,0,1)\n│   └── Peca (Node3D) — position=(0,0.5,−2)\n│       ├── Corpo (MeshInstance3D / BoxMesh de 1×1×1)\n│       ├── Nariz (MeshInstance3D) — aponta para −Z da peça\n│       └── Frente (Marker3D) — referência em (0,0,−1)\n├── Camera3D — ortográfica, current\n└── DirectionalLight3D\n\nCanvasLayer / botões / leituras são criados ao executar oficina.gd.\nconsulta.gd é opcional: adicionar a um Node extra e atribuir Peca.\npasso.gd é usado pelo controlador para obter um deslocamento unitário.",
+      "download": {
+        "url": "assets/aula-3d-01-espaco-eixos.zip",
+        "label": "Baixar projeto de apoio: espaço e eixos 3D"
+      },
+      "downloadNote": "Godot 4.5. Inclui cena completa, malhas primitivas, câmera/luz e scripts opcionais. Ainda não executado no motor; os resultados previstos precisam ser confirmados na Godot.",
+      "steps": [
         {
-          term: "1 Unidade 3D = 1 Metro Real",
-          analogy: "A física, a luz e o som 3D da Godot são calibrados em metros: nunca faça um personagem com 200 metros de altura achando que são pixels, senão ele parecerá cair em câmera lenta igual a um prédio gigante!"
+          "title": "Reconheça os eixos e a escala",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn no editor 3D. Selecione Base/Peca/Corpo: o BoxMesh tem Size=(1,1,1). A escala da peça e da base começa em (1,1,1). Identifique +X, +Y e +Z pelos rótulos e pelo gizmo, não apenas pelas cores. O projeto adota uma unidade como um metro; isso faz a aresta inicial do cubo representar 1 m.",
+          "expect": "Node3D organiza a peça; Corpo fornece o desenho. O gizmo de Frente é referência de editor. O nariz ciano é uma malha visível, criada para mostrar a frente escolhida como −Z."
         },
         {
-          term: "Eixo Y (Verde — Vertical)",
-          analogy: "`Vector3.UP` é `(0, 1, 0)` (céu) e `Vector3.DOWN` é `(0, -1, 0)` (chão)."
+          "title": "Leia a posição no pai e no mundo",
+          "text": "Selecione Base e confira position=(2,0,1), rotação zero e escala 1. Selecione Peca e confira position=(0,0.5,−2). Preveja a soma neste caso sem rotação/escala: (2,0,1)+(0,0.5,−2)=(2,0.5,−1). Execute a cena com F6 e compare a leitura de global_position. R ou Restaurar repõe a bancada inicial.",
+          "expect": "A posição local não é (2,0.5,−1): esse é o resultado no mundo. Só se pode fazer essa soma simples porque o pai está sem rotação e com escala 1. Sem um pai transformado, os números poderiam coincidir, mas os conceitos continuariam distintos."
         },
         {
-          term: "Eixo Z (Azul — Profundidade)",
-          analogy: "Pela Regra da Mão Direita (OpenGL/Godot), a frente padrão dos modelos e câmeras aponta para `-Z`: `Vector3.FORWARD = (0, 0, -1)`."
+          "title": "Mude uma coordenada sem confundir com a tela",
+          "text": "No editor, varie um componente de position de Peca por vez e desfaça/restaure antes do próximo teste. Em runtime há botões: A/D mudam X no pai; W/S mudam Z; Q/E mudam Y, em passos de 0,5 unidade. As setas também controlam X/Z. Use C para girar a câmera da bancada e confira novamente as leituras.",
+          "expect": "Y global aumenta para cima no mundo, mas pode se projetar em outra direção na tela se a câmera mudar. A câmera não muda position/global_position da peça. X/Z não significam obrigatoriamente “direita/baixo da tela”. O laboratório do navegador também permite variar o azimute da vista."
         },
         {
-          term: "Node3D (Nós Vermelhos/Rosados)",
-          analogy: "Enquanto o 2D usa nós azuis (`Node2D`), toda a família espacial 3D tem ícones avermelhados e herda de `Node3D`."
+          "title": "Gire o pai e faça uma previsão",
+          "text": "Restaure a bancada. No editor, deixe Peca em (0,0.5,−2) e altere Rotation Y de Base para +90°; no Inspector o valor é mostrado em graus. Em runtime, P instala esse mesmo exemplo. A contribuição (0,0,−2) do filho passa a apontar para −X global. Somando a posição do pai, preveja (0,0.5,1).",
+          "expect": "position de Peca continua (0,0.5,−2), mas global_position passa a (0,0.5,1), salvo arredondamento. Girar o pai move o filho ao redor do pai. Girar só a peça com O muda seu nariz, mas mantém a posição de sua origem."
+        },
+        {
+          "title": "Compare frente da peça e −Z global",
+          "text": "Partindo do exemplo P, selecione Frente −Z da peça e use F: a peça avança uma unidade no mundo na direção (−1,0,0), chegando a (−1,0.5,1). Restaure o exemplo P, escolha −Z fixo do mundo e use F novamente: o destino é (0,0.5,0). O selector afeta F, não os botões que mudam coordenadas nos eixos do pai.",
+          "expect": "A frente da peça é expressa no mundo antes do deslocamento. A câmera não decide essa direção. O objeto fica parado sem comando e cada toque aplica apenas um passo; não há movimento automático nem colisão neste exercício."
+        },
+        {
+          "title": "Altere a escala e confira a distância",
+          "text": "Use P e depois T para alternar a escala da base para (2,2,2). A posição local do filho não muda: a distância ao pai e a altura são multiplicadas por 2. O resultado global previsto é (−2,1,1). A aresta do Corpo agora mede 2 unidades no mundo. Use F e confira Último delta/distância: o controlador normaliza a direção global e converte o destino de volta para o pai.",
+          "expect": "F ainda desloca exatamente 1 unidade global quando o passo cabe nos limites. A mudança local correspondente pode ser 0,5 unidade sob escala 2. Usar a coluna da Basis com escala sem normalizar pode multiplicar o deslocamento. Escala zero, negativa e não uniforme ficam fora desta prática."
+        },
+        {
+          "title": "Explique as referências e restaure",
+          "text": "Use R; no navegador, ajuste a câmera e os valores sem iniciar animação. Explique com suas palavras por que position é uma coordenada no pai e não uma ordem para mover na frente da própria peça. Compare as vistas ortográfica e de planta. O projeto limita coordenadas locais a X/Z entre −4 e 4 e Y entre 0,5 e 3; se um passo exceder esse espaço didático, ele é recusado inteiro. Restaure e tente novamente.",
+          "expect": "As duas vistas representam os mesmos números; a planta omite altura no desenho e mostra Y na leitura. Não trate o desenho da câmera como prova da física. Para consultar os valores por código, use os exemplos opcionais depois de fazer a previsão no Inspector."
         }
       ]
     },
-    howItWorks: {
-      overview: "Todo `Node3D` possui posição (`position: Vector3`), rotação (`rotation` em radianos ou `rotation_degrees` em graus) e escala (`scale: Vector3`). Como a física 3D assume 1 unidade = 1 metro e gravidade padrão de `9.8 m/s²`, modelar em escala real garante que luzes, sombras, áudio espacial e colisões funcionem de primeira.",
-      anatomy: [
-        {
-          prop: "Vector3.FORWARD -> Vector3(0, 0, -1)",
-          desc: "Direção frontal padrão no espaço global 3D da Godot."
-        },
-        {
-          prop: "Vector3.UP -> Vector3(0, 1, 0)",
-          desc: "Aponta para o alto (oposto à gravidade no 3D)."
-        },
-        {
-          prop: "position vs global_position (Vector3)",
-          desc: "Coordenada em metros relativa ao nó pai (`position`) ou relativa ao centro `(0, 0, 0)` do mundo (`global_position`)."
-        },
-        {
-          prop: "look_at(alvo_pos, Vector3.UP)",
-          desc: "Gira o nó 3D para que sua frente (`-Z`) aponte diretamente para `alvo_pos` mantendo a cabeça em pé (`Vector3.UP`)."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Movendo no Espaço Global vs Espaço Local do Personagem",
-        whenToUse: "Para entender a diferença entre mover para o Norte do mapa vs mover para a Frente do nariz do personagem.",
-        description: "Somar em `global_position` move nos eixos do mundo; usar `-global_transform.basis.z` move na direção para onde o próprio objeto está virado!",
-        code: `extends Node3D
-
-@export var velocidade: float = 5.0 # 5 metros por segundo!
-
-func _process(delta: float) -> void:
-    # A) Movimento no eixo Z do MUNDO (sempre para o Norte, mesmo se girar o corpo):
-    # global_position += Vector3.FORWARD * velocidade * delta
-    
-    # B) Movimento para a FRENTE LOCAL do próprio autômato (-basis.z):
-    var frente_local: Vector3 = -global_transform.basis.z
-    global_position += frente_local * velocidade * delta`,
-        pros: "Usar `-global_transform.basis.z` garante que carros, aviões, projéteis e personagens avancem exatamente para onde estão olhando.",
-        cons: "Lembre-se do sinal negativo (`-basis.z`), pois a frente na Godot 3D é o Z negativo."
+        "question": "Com pai em (2,0,1), sem rotação/escala, e filho em (0,0.5,−2), qual é a posição global?",
+        "answer": "(2,0.5,−1). É a soma neste caso específico. Com rotação ou escala do pai, é preciso aplicar a transformação antes da translação."
       },
       {
-        title: "Forma 2: Fazendo uma Torreta 3D Olhar Suavemente para o Alvo",
-        whenToUse: "Torretas mecânicas, câmeras de vigilância ou cabeças de NPCs que acompanham o jogador.",
-        description: "`look_at()` vira instantaneamente; para girar com peso mecânico suave, calculamos o ângulo no eixo Y (`atan2`) e interpolamos com `lerp_angle()`!",
-        code: `extends Node3D
-
-@export var alvo: Node3D
-@export var velocidade_giro: float = 3.0
-
-func _process(delta: float) -> void:
-    if not alvo:
-        return
-    # Direção horizontal (ignorando diferença de altura Y)
-    var dir := global_position.direction_to(alvo.global_position)
-    # Calcula o ângulo para onde o eixo -Z deve apontar
-    var angulo_alvo := atan2(-dir.x, -dir.z)
-    # Gira suavemente pelo menor caminho angular (sem dar pirueta de 360 graus!)
-    rotation.y = lerp_angle(rotation.y, angulo_alvo, velocidade_giro * delta)`,
-        pros: "`lerp_angle` resolve automaticamente a passagem de -180° para +180° sem girar pelo lado errado.",
-        cons: "Gira apenas no eixo horizontal Y (Yaw), o que é ideal para personagens no chão e bases de torreta."
+        "question": "Girar a câmera muda os números de position da peça?",
+        "answer": "Não. Muda a projeção e a aparência na tela. Mover ou transformar o pai é que muda a relação entre as coordenadas locais e o mundo."
       },
       {
-        title: "Forma 3: Convertendo Input 2D do Teclado/Controle para Direção 3D no Chão",
-        whenToUse: "Qualquer jogo 3D onde o teclado (WASD / Analógico) move o personagem pelo plano do chão (X e Z).",
-        description: "Lemos um `Vector2` com `Input.get_vector()` e mapeamos o `x` para o eixo X 3D e o `y` do controle para o eixo Z 3D (deixando o Y 3D reservado para o pulo e gravidade!).",
-        code: `extends Node3D
-
-@export var velocidade: float = 6.0
-
-func _process(delta: float) -> void:
-    # 1. Lê o controle 2D (x = esquerda/direita, y = frente/trás)
-    var input_2d := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-    
-    # 2. Converte para o plano do chão 3D (X lateral, 0 altura, Z profundidade)
-    var direcao_chao := Vector3(input_2d.x, 0.0, input_2d.y)
-    
-    global_position += direcao_chao * velocidade * delta`,
-        pros: "Padrão universal para traduzir controles de 2 eixos para movimentação no piso 3D.",
-        cons: "Se a câmera girar, multiplique a direção pela `Basis` da câmera (veremos na aula de Câmera 3D!)."
+        "question": "position += Vector3.FORWARD sempre avança no nariz da peça?",
+        "answer": "Não. position está no espaço do pai. A frente própria pode ter outra orientação; para avançar nela e escrever uma posição global, use a direção da peça expressa no mundo, com o comprimento definido pelo seu contrato."
+      },
+      {
+        "question": "Um Node3D com y=3 cai automaticamente e toda malha importada aponta para −Z?",
+        "answer": "Não. Node3D não aplica física sozinho; a aula de corpos físicos tratará gravidade/colisão. −Z é frente de câmeras/várias APIs; assets podem seguir +Z como frente de modelo ou ter sido preparados de outro modo."
       }
     ],
-    simulator: {
-      type: "space_3d_axes",
-      title: "Laboratório de Eixos 3D (X, Y, Z), Escala em Metros & Frente Local (-Z)",
-      description: "Gire a câmara isométrica 3D, rotacione o Autômato no eixo Y (Yaw) e teste a diferença entre avançar no `Vector3.FORWARD` global vs `-transform.basis.z` local!"
-    },
-    quiz: {
-      question: "Na Godot 3D, qual é o valor da constante `Vector3.FORWARD` e qual é a unidade de medida padrão do espaço?",
-      options: [
-        "Vector3(0, 0, 1) e a unidade é 1 pixel.",
-        "Vector3(0, 0, -1) e 1.0 unidade equivale a 1 metro real.",
-        "Vector3(0, -1, 0) e a unidade é 1 quilômetro.",
-        "Vector3(1, 1, 1) sem unidade definida."
-      ],
-      correctIndex: 1,
-      explanation: "Correto! Pela regra da mão direita usada na Godot 3D, a frente aponta para `-Z` (`Vector3(0, 0, -1)`) e cada `1.0` unidade no espaço equivale a 1 metro para a física e iluminação!"
-    }
-  },
-
-  {
-    id: "3d-intro-transforms-basis",
-    area: "3d",
-    level: "introducao",
-    levelLabel: "Introdução",
-    title: "2. Transform3D, Basis, Rotações Euler e Quaternions sem Mistério",
-    subtitle: "Como funcionam a matriz Transform3D e a Basis, o que é Gimbal Lock e como girar qualquer objeto 3D com perfeição.",
-    nodesUsed: ["Transform3D", "Basis", "Quaternion", "Node3D"],
-    feynman: {
-      title: "Explicação Feynman: A Caixa com 3 Varetas Coloridas e o Globo Terrestre",
-      explanation: "Quando você ouve palavras como 'Matriz `Transform3D`', '`Basis`' e '`Quaternion`', parece matemática espacial da NASA! Mas pense assim: todo objeto 3D carrega um pacotinho de carteira de identidade chamado **`Transform3D`**. Dentro desse pacote existem apenas DUAS coisas: 1) **`origin`** (um `Vector3` que diz ONDE o objeto está na sala) e 2) **`basis`** (três varetas coladas no objeto: uma vermelha `x` apontando para a orelha direita dele, uma verde `y` apontando para o chapéu dele, e uma azul `z` apontando para as costas dele). Quando você gira ou estica o objeto, você só está girando essas 3 varetas (`basis`)! E o **`Quaternion`**? Quando você gira um avião usando 3 anéis separados (X, Y, Z), às vezes dois anéis se alinham e travam (*Gimbal Lock*). O Quaternion gira direto de uma pose para outra como se você rodasse uma bola de cristal com a palma da mão, sem nunca travar!",
-      analogies: [
-        {
-          term: "Transform3D (transform / global_transform)",
-          analogy: "O pacote completo do objeto 3D: junta a Posição (`origin`) + a Orientação/Escala (`basis`) numa única variável."
-        },
-        {
-          term: "Basis (basis.x, basis.y, basis.z)",
-          analogy: "As 3 setas de direção locais presas ao corpo do objeto (Direita = `+basis.x`, Cima = `+basis.y`, Frente = `-basis.z`)."
-        },
-        {
-          term: "Rotações Euler (Pitch, Yaw, Roll)",
-          analogy: "Simples de entender em graus: Pitch (X = dizer 'sim' com a cabeça), Yaw (Y = dizer 'não'), Roll (Z = tombar a cabeça de lado)."
-        },
-        {
-          term: "Quaternion & slerp()",
-          analogy: "Uma bússola esférica à prova de nós: `basis.slerp()` interpola qualquer rotação 3D pelo caminho mais curto e suave!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Na prática, para rotações simples de personagens em pé (que só giram para a esquerda/direita no eixo Y), usar `rotation.y` é perfeito. Já para naves espaciais, câmeras livres 3D ou braços robóticos que giram nos 3 eixos ao mesmo tempo, usar `transform.basis` ou `Quaternion` com `.slerp()` evita qualquer distorção ou *Gimbal Lock*.",
-      anatomy: [
-        {
-          prop: "global_transform.origin",
-          desc: "Exatamente a mesma coisa que `global_position` (o ponto X, Y, Z onde o nó está)."
-        },
-        {
-          prop: "global_transform.basis",
-          desc: "Matriz 3x3 contendo os eixos locais X, Y e Z rotacionados e escalados do objeto."
-        },
-        {
-          prop: "basis_a.slerp(basis_b, peso)",
-          desc: "Interpolação Esférica Linear: gira suavemente da orientação A para a orientação B."
-        },
-        {
-          prop: "transform.orthonormalized()",
-          desc: "Limpa pequenos erros de arredondamento acumulados e garante que os 3 eixos continuem em 90 graus perfeitos."
-        }
-      ]
-    },
-    approaches: [
+    "pitfalls": [
       {
-        title: "Forma 1: Rotação Local vs Global com rotate_object_local e rotate_y",
-        whenToUse: "Engrenagens girando, portas abrindo em dobradiças ou aviões inclinando as asas.",
-        description: "Usamos métodos prontos do `Node3D` para girar ao redor do próprio eixo da peça sem complicação.",
-        code: `extends Node3D
-
-@export var rpm_engrenagem: float = 2.5 # Radianos por segundo
-
-func _process(delta: float) -> void:
-    # Gira ao redor do eixo Z local da própria engrenagem
-    rotate_object_local(Vector3.BACK, rpm_engrenagem * delta)`,
-        pros: "Uma única linha de código e funciona mesmo que a engrenagem esteja inclinada na parede.",
-        cons: "Se acumular milhares de giros em múltiplos eixos compostos, chame `orthonormalize()` ocasionalmente."
+        "title": "O cubo não aparece ao executar",
+        "text": "Confira MeshInstance3D, malha, câmera current, posição e luz/material. O gizmo de Marker3D do editor não substitui uma malha visível no jogo. O projeto já fornece esses elementos."
       },
       {
-        title: "Forma 2: Alinhamento Suave em 3 Eixos com Basis.looking_at + slerp()",
-        whenToUse: "Drones a vapor, submarinos, mísseis 3D ou câmeras cinematográficas que olham em qualquer ângulo 3D.",
-        description: "Calculamos a `Basis` ideal que olha para o alvo (`Basis.looking_at`) e usamos `.slerp()` para girar suavemente nos 3 eixos ao mesmo tempo sem Gimbal Lock!",
-        code: `extends Node3D
-
-@export var alvo: Node3D
-@export var suavidade_giro: float = 5.0
-
-func _process(delta: float) -> void:
-    if not alvo:
-        return
-    var direcao := global_position.direction_to(alvo.global_position)
-    if direcao.length_squared() < 0.001:
-        return
-        
-    # 1. Descobre qual seria a Basis perfeita olhando para o alvo
-    var basis_alvo := Basis.looking_at(direcao, Vector3.UP)
-    
-    # 2. Interpola esfericamente (Quaternion por baixo dos panos!) até ela
-    global_transform.basis = global_transform.basis.orthonormalized().slerp(
-        basis_alvo,
-        suavidade_giro * delta
-    )`,
-        pros: "Rotação 3D cinematográfica, imune a Gimbal Lock e sem precisar manipular Quaternions manualmente.",
-        cons: "`orthonormalized()` reseta a escala para `(1, 1, 1)`, então aplique em nós com escala unitária."
+        "title": "Local e global parecem iguais",
+        "text": "Confira se existe um pai Node3D transformado e top_level está false. Igualdade numérica em um caso não torna os dois espaços equivalentes."
       },
       {
-        title: "Forma 3: Alinhando o Personagem ou Carro à Inclinação da Rampa (Normal do Chão)",
-        whenToUse: "Veículos a vapor, tanques ou aranhas mecânicas que precisam inclinar o chassi acompanhando o ângulo da ladeira.",
-        description: "Reconstruímos o eixo `basis.y` do veículo para apontar na direção da `normal` do chão e recalculamos `x` e `z` com produto vetorial (`cross`).",
-        code: `extends Node3D
-
-func alinhar_com_rampa(normal_do_chao: Vector3, delta: float) -> void:
-    var nova_basis: Basis = global_transform.basis
-    # O novo "Cima" (Y) do carro passa a ser a inclinação da rampa
-    nova_basis.y = normal_do_chao
-    # Recalcula a Direita (X) perpendicular à frente atual e ao novo Cima
-    nova_basis.x = -nova_basis.z.cross(normal_do_chao).normalized()
-    # Garante que Z fique 90 graus perfeito
-    nova_basis.z = nova_basis.x.cross(nova_basis.y).normalized()
-    
-    global_transform.basis = global_transform.basis.slerp(nova_basis.orthonormalized(), 10.0 * delta)`,
-        pros: "Faz veículos e criaturas quadrúpedes aderirem perfeitamente a terrenos irregulares.",
-        cons: "Use suavização (`slerp`) para o veículo não dar solavancos secos nas quinas."
+        "title": "A direção mudou quando girei o pai",
+        "text": "A posição do filho usa o sistema do pai. Diferencie esse sistema da orientação da própria peça e da vista da câmera. Na bancada, os botões de coordenada e F têm funções diferentes."
+      },
+      {
+        "title": "Escala alterou a velocidade ou a distância",
+        "text": "Uma coluna da Basis pode carregar escala. O passo global desta prática usa uma direção normalizada. Não generalize o exemplo para escala não uniforme/negativa ou corpo físico sem estudar as condições."
       }
     ],
-    simulator: {
-      type: "transform_basis_3d",
-      title: "Laboratório de Transform3D, Basis (X, Y, Z) & Rotação Slerp",
-      description: "Ajuste Pitch (X), Yaw (Y) e Roll (Z) de um giroscópio Steampunk 3D e visualize ao vivo os 3 vetores da `Basis` (`basis.x`, `basis.y`, `-basis.z`) e a matriz `Transform3D`!"
-    },
-    quiz: {
-      question: "O que a propriedade `global_transform.basis` de um `Node3D` armazena?",
-      options: [
-        "Apenas a cor e a textura do objeto.",
-        "Três vetores 3D (`x`, `y`, `z`) que representam a orientação (rotação) e a escala dos eixos locais daquele objeto no espaço.",
-        "O arquivo de som do objeto.",
-        "A quantidade de vida do jogador."
-      ],
-      correctIndex: 1,
-      explanation: "Exato! A `Basis` guarda os 3 eixos direcionais do objeto (`x` direita, `y` cima, `z` trás/frente `-z`), permitindo saber para onde ele aponta e rotacioná-lo no espaço 3D!"
-    }
+    "summary": "Uma posição só faz sentido com sua referência. O mundo, o sistema do pai, a orientação da peça e a câmera têm papéis distintos. A convenção de unidades dá coerência à escala do projeto, mas não cria física nem garante o funcionamento de luz, áudio ou colisão.",
+    "next": "Na aula 3D 2, aprofunde Transform3D e Basis para representar orientação e escala; as rotações usadas aqui ficaram limitadas ao eixo Y.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — Introdução ao 3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/introduction_to_3d.html"
+      },
+      {
+        "label": "Godot 4.5 — Node3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
+      },
+      {
+        "label": "Godot 4.5 — Vector3 e convenções de frente",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_vector3.html"
+      },
+      {
+        "label": "Godot 4.5 — Transformações 3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/using_transforms.html"
+      },
+      {
+        "label": "Godot 4.5 — Camera3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_camera3d.html"
+      },
+      {
+        "label": "Godot 4.5 — Marker3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_marker3d.html"
+      }
+    ]
   },
+  "approaches": [
+    {
+      "title": "1. Consulta opcional: ler e converter um ponto",
+      "whenToUse": "Depois de prever e conferir local/global no Inspector e na bancada.",
+      "description": "consulta.gd é uma extensão: crie um Node adicional sob Oficina, anexe esse script e arraste Base/Peca para o campo peca no Inspector. O exemplo escreve no Output ao executar. Não substitua oficina.gd por ele. pai.to_global recebe a posição do filho no sistema do pai; peca.to_global(peca.position) misturaria referências.",
+      "code": "extends Node\n\n@export var peca: Node3D\n\nfunc _ready() -> void:\n    if not is_instance_valid(peca):\n        push_warning(\"Arraste Base/Peca para o campo peca deste exemplo opcional.\")\n        return\n    var pai := peca.get_parent_node_3d()\n    if pai == null:\n        push_warning(\"Esta consulta pressupõe um pai Node3D.\")\n        return\n    print(\"No pai: \", peca.position)\n    print(\"No mundo: \", peca.global_position)\n    print(\"Convertido pelo pai: \", pai.to_global(peca.position))\n    print(\"Retorno ao pai: \", pai.to_local(peca.global_position))\n\n# Node3D guarda transformação; MeshInstance3D fornece a forma visível.\n",
+      "pros": "Relaciona as leituras visuais à conversão de um ponto e à operação inversa.",
+      "cons": "Pressupõe pai Node3D e cena instalada; leitura no Output não faz movimento nem aplica física."
+    },
+    {
+      "title": "2. Controlador opcional da bancada pronta",
+      "whenToUse": "Para estudar os botões e atalhos já instalados no projeto de apoio.",
+      "description": "oficina.gd fica na raiz Oficina e usa os caminhos da cena fornecida e passo.gd. As alterações pelo Inspector no editor são a prática principal; este controlador cria a interface de runtime e facilita repetir os exemplos. A câmera ortográfica é reposicionada sem alterar a peça.",
+      "code": "extends Node3D\n\nconst PASSO = preload(\"res://passo.gd\")\n@onready var base: Node3D = $Base\n@onready var peca: Node3D = $Base/Peca\n@onready var camera: Camera3D = $Camera3D\nvar modo: OptionButton\nvar leitura: Label\nvar mensagem: Label\nvar ultimo_delta := Vector3.ZERO\nvar azimute: float = 45.0\n\nfunc _ready() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 405)\n    box.custom_minimum_size.x = 928\n    layer.add_child(box)\n    var row := HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"A · X −0,5\", func(): coordenada(Vector3(-0.5, 0, 0)))\n    botao(row, \"D · X +0,5\", func(): coordenada(Vector3(0.5, 0, 0)))\n    botao(row, \"E · Y +0,5\", func(): coordenada(Vector3(0, 0.5, 0)))\n    botao(row, \"Q · Y −0,5\", func(): coordenada(Vector3(0, -0.5, 0)))\n    botao(row, \"W · Z −0,5\", func(): coordenada(Vector3(0, 0, -0.5)))\n    botao(row, \"S · Z +0,5\", func(): coordenada(Vector3(0, 0, 0.5)))\n    modo = OptionButton.new()\n    modo.add_item(\"F: frente −Z da peça, 1 unidade global\")\n    modo.add_item(\"F: −Z fixo do mundo, 1 unidade global\")\n    box.add_child(modo)\n    row = HBoxContainer.new()\n    box.add_child(row)\n    botao(row, \"F · Avançar\", avancar)\n    botao(row, \"P · Exemplo pai 90°\", exemplo)\n    botao(row, \"O · Peça +45°\", girar_peca)\n    botao(row, \"T · Escala 1/2\", escalar_pai)\n    botao(row, \"C · Girar vista\", girar_camera)\n    botao(row, \"R · Restaurar\", restaurar)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(leitura)\n    mensagem = Label.new()\n    mensagem.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(mensagem)\n    atualizar_camera()\n    mensagem.text = \"Valores da cena preservados. R restaura a bancada de referência.\"\n\nfunc botao(parent: Node, text: String, action: Callable) -> void:\n    var button := Button.new()\n    button.text = text\n    button.pressed.connect(action)\n    parent.add_child(button)\n\nfunc restaurar() -> void:\n    base.position = Vector3(2, 0, 1)\n    base.rotation_degrees = Vector3.ZERO\n    base.scale = Vector3.ONE\n    peca.position = Vector3(0, 0.5, -2)\n    peca.rotation_degrees = Vector3.ZERO\n    peca.scale = Vector3.ONE\n    ultimo_delta = Vector3.ZERO\n    azimute = 45\n    modo.select(0)\n    atualizar_camera()\n    mensagem.text = \"Coordenadas nos eixos do pai; frente da peça é outra direção. Sem física ou colisão.\"\n\nfunc aplicar(no_pai: Vector3) -> void:\n    if absf(no_pai.x) > 4.000001 or absf(no_pai.z) > 4.000001 or no_pai.y < 0.499999 or no_pai.y > 3.000001:\n        ultimo_delta = Vector3.ZERO\n        mensagem.text = \"Limite didático local: X/Z entre −4 e 4; Y entre 0,5 e 3. R restaura.\"\n        return\n    var antes := peca.global_position\n    peca.position = no_pai\n    ultimo_delta = peca.global_position - antes\n    mensagem.text = \"Passo aplicado. Compare posição no pai, no mundo e distância percorrida.\"\n\nfunc coordenada(offset: Vector3) -> void:\n    aplicar(peca.position + offset)\n\nfunc avancar() -> void:\n    var delta_global: Vector3 = PASSO.deslocamento(peca, modo.selected == 0)\n    var destino := peca.global_position + delta_global\n    aplicar(base.to_local(destino))\n\nfunc exemplo() -> void:\n    restaurar()\n    base.rotation_degrees.y = 90\n    mensagem.text = \"Pai Y=90°: local (0, 0.5, −2) → global (0, 0.5, 1).\"\n\nfunc girar_peca() -> void:\n    peca.rotation_degrees.y = wrapf(peca.rotation_degrees.y + 45, -180, 180)\n    ultimo_delta = Vector3.ZERO\n\nfunc escalar_pai() -> void:\n    base.scale = Vector3.ONE * (2.0 if base.scale.x < 1.5 else 1.0)\n    ultimo_delta = Vector3.ZERO\n\nfunc girar_camera() -> void:\n    azimute = fmod(azimute + 90.0, 360.0)\n    atualizar_camera()\n\nfunc atualizar_camera() -> void:\n    var a := deg_to_rad(azimute)\n    var b := deg_to_rad(35)\n    var centro := Vector3(0, -3, 0)\n    camera.position = centro + Vector3(sin(a) * cos(b), sin(b), cos(a) * cos(b)) * 18\n    camera.look_at(centro, Vector3.UP)\n    camera.make_current()\n\nfunc _process(_delta: float) -> void:\n    if leitura == null:\n        return\n    var frente := (-peca.global_transform.basis.z).normalized()\n    leitura.text = (\"Position (no pai): %s | global_position: %s\\n\" +\n        \"Pai: %s | Y do pai: %.0f° | Y da peça: %.0f° | escala do pai: %.1f\\n\" +\n        \"Frente da peça no mundo: %s\\n\" +\n        \"Último delta global: %s | distância: %.3f u\\n\" +\n        \"Convenção do projeto: 1 u = 1 m. Node3D não aplica gravidade.\") % [\n        str(peca.position), str(peca.global_position), str(base.position),\n        base.rotation_degrees.y, peca.rotation_degrees.y, base.scale.x,\n        str(frente), str(ultimo_delta), ultimo_delta.length()]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_A, KEY_LEFT: coordenada(Vector3(-0.5, 0, 0))\n        KEY_D, KEY_RIGHT: coordenada(Vector3(0.5, 0, 0))\n        KEY_W, KEY_UP: coordenada(Vector3(0, 0, -0.5))\n        KEY_S, KEY_DOWN: coordenada(Vector3(0, 0, 0.5))\n        KEY_Q: coordenada(Vector3(0, -0.5, 0))\n        KEY_E: coordenada(Vector3(0, 0.5, 0))\n        KEY_F: avancar()\n        KEY_P: exemplo()\n        KEY_O: girar_peca()\n        KEY_T: escalar_pai()\n        KEY_C: girar_camera()\n        KEY_R: restaurar()\n",
+      "pros": "Restaura valores conhecidos, compara direção e mostra deslocamento medido em unidades globais.",
+      "cons": "É manipulação de Node3D sem colisão. Limites são didáticos; não é um controlador de CharacterBody3D."
+    },
+    {
+      "title": "3. Um deslocamento global de uma unidade",
+      "whenToUse": "Como função usada por F no controlador, após distinguir orientação de escala.",
+      "description": "passo.gd é um RefCounted com função estática; o controlador fornece uma peça válida na árvore e escala uniforme positiva. Para a frente da peça, usa −global_transform.basis.z normalizado; para o mundo, Vector3.FORWARD. O controlador depois converte o destino com base.to_local e aplica os limites. A aula seguinte detalha a Basis.",
+      "code": "extends RefCounted\n\n# Pré-condição da bancada: peça válida na árvore, escala uniforme positiva.\nstatic func deslocamento(peca: Node3D, pela_frente: bool) -> Vector3:\n    if pela_frente:\n        # A coluna contém escala; normalize para o passo medir 1 unidade global.\n        return (-peca.global_transform.basis.z).normalized()\n    return Vector3.FORWARD\n",
+      "pros": "Define explicitamente o comprimento do passo e evita multiplicá-lo pela escala herdada.",
+      "cons": "Não recebe input, não mede tempo e não resolve colisão. Normalizar um vetor não corrige toda transformação arbitrária ou escala singular."
+    }
+  ],
+  "simulator": {
+    "type": "space_3d_axes",
+    "title": "Laboratório: onde a peça está e para onde avança",
+    "description": "Diagrama estático Canvas/JavaScript com uma vista ortográfica matemática e uma planta XZ. Não executa Godot, WebGL ou física. Pai em (2,0,1); rotação só em Y e escala uniforme positiva. Grade de 1 unidade, com enquadramento automático para caber nos limites do painel. A planta ignora Y visualmente, mas mostra a altura numérica. Ajustes funcionam também com a simulação pausada.",
+    "guide": [
+      {
+        "title": "Preveja antes de girar",
+        "text": "Restaure: local (0,0.5,−2), global (2,0.5,−1). P aplica pai Y=90°: global (0,0.5,1). Mude azimute da câmera: as coordenadas e os vetores não devem mudar."
+      },
+      {
+        "title": "Mova por comando",
+        "text": "Com foco na cena: WASD/setas alteram X/Z no pai por 0,5; Q/E alteram Y; F dá 1 unidade global na direção escolhida; P instala exemplo; R restaura. Há botões equivalentes. F pode produzir coordenadas locais fracionárias; as leituras são arredondadas para três casas."
+      },
+      {
+        "title": "Compare escala e direção",
+        "text": "Com P e escala 2, o global é (−2,1,1). F pela frente da peça desloca (−1,0,0) no mundo, com comprimento 1. Não confunda os passos nos eixos do pai com a frente própria. Não há gravidade nem promessa de perspectiva/oclusão idêntica ao renderizador da Godot."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "A base está em (2,0,1), gira +90° em Y e tem escala 1. A peça mantém position=(0,0.5,−2). Qual previsão está correta?",
+    "options": [
+      "A peça fica em global_position=(0,0.5,1); girar apenas a câmera depois não muda esse valor.",
+      "A peça continua em global_position=(2,0.5,−1), porque rotação do pai nunca afeta a origem de um filho.",
+      "position passa automaticamente a ser (0,0.5,1), pois sempre guarda coordenadas globais.",
+      "A peça cai automaticamente em −Y, porque todo Node3D já tem gravidade."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. O deslocamento local em −Z é girado para −X global antes de somar a posição da base.",
+      "A rotação do pai transforma o deslocamento do filho em torno do pai.",
+      "position continua no sistema do pai; global_position expressa o resultado no mundo.",
+      "Node3D guarda transformação, sem simular gravidade sozinho."
+    ],
+    "explanation": "A contribuição horizontal (0,0,−2) vira (−2,0,0) com Y=+90°. Somando (2,0,1) e a altura 0,5, o resultado é (0,0.5,1). A câmera só muda a projeção desse estado na tela."
+  }
+},
+
+{
+  "id": "3d-intro-transforms-basis",
+  "area": "3d",
+  "level": "introducao",
+  "levelLabel": "Introdução",
+  "title": "2. Transform3D e Basis: posição, eixos e interpolação",
+  "subtitle": "Leia uma transformação, compare ordens de rotação e interpole orientações preservando a escala à parte.",
+  "nodesUsed": [
+    "Node3D",
+    "Transform3D",
+    "Basis",
+    "Quaternion"
+  ],
+  "feynman": {
+    "title": "Uma origem e três eixos que acompanham a peça",
+    "explanation": "Imagine uma pequena régua em cada direção da peça. Transform3D reúne a origem desse sistema e uma Basis com três vetores: x, y e z. Eles descrevem como coordenadas da peça se transformam na referência de destino. No transform do nó, o destino é o pai; em global_transform, é o mundo. As réguas podem girar e mudar de comprimento. A câmera apenas muda como você enxerga o resultado. Para interpolar uma orientação, podemos usar um quaternion unitário; ele representa rotação, sem carregar posição ou escala.",
+    "analogies": [
+      {
+        "term": "Ponto e vetor",
+        "analogy": "Um ponto tem endereço: recebe a contribuição da origem. Um vetor de deslocamento não tem endereço: a Basis o gira e escala, sem translação."
+      },
+      {
+        "term": "Colunas da Basis",
+        "analogy": "As colunas x/y/z são as imagens dos vetores unitários locais. A posição da origem não fica nessas colunas; é a quarta coluna do Transform3D."
+      },
+      {
+        "term": "Orientação e ângulos",
+        "analogy": "Uma mesma orientação pode ter diferentes descrições em Euler. Os ângulos são uma forma de controlar ou ler a pose; não são três rotações independentes do contexto."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Um ponto local p chega ao pai por transform × p = basis × p + origin. Com top_level=false, global_transform compõe as transformações dos ancestrais. Basis é uma matriz 3×3: pode representar rotação, escala e cisalhamento. Nossa prática usa apenas rotações próprias e escala uniforme positiva. O Inspector mostra graus; funções de rotação normalmente recebem radianos. Não é preciso decorar a álgebra: acompanhe primeiro as colunas e as previsões numéricas.",
+    "anatomy": [
+      {
+        "prop": "transform.origin e transform.basis",
+        "desc": "origin coincide com position e usa o pai. As colunas basis.x/y/z também estão no pai. Em global_transform, origem e colunas são expressas no mundo. +basis.z é a imagem de +Z; só use −z como frente quando essa for a convenção escolhida."
+      },
+      {
+        "prop": "Comprimento, perpendicularidade e escala",
+        "desc": "Eixos perpendiculares formam uma base ortogonal; com comprimento 1, ela é ortonormal. A escala 2 desta prática deixa cada eixo com comprimento 2. orthonormalized() devolve outra base, removendo escala/cisalhamento; não é uma limpeza que preserve qualquer Transform. Trabalhamos com determinante positivo; reflexões e escalas singulares ficam fora."
+      },
+      {
+        "prop": "Euler YXZ, XYZ e singularidade",
+        "desc": "A ordem padrão é YXZ. Aqui explicitamos a construção RY × RX × RZ; aplicada a um vetor-coluna, a matriz mais à direita age primeiro. Em XYZ usamos RX × RY × RZ. Trocar a ordem pode mudar a pose. Em YXZ com pitch ±90°, duas liberdades dos parâmetros se tornam dependentes: é gimbal lock da representação, não bloqueio físico do objeto."
+      },
+      {
+        "prop": "Quaternion unitário e SLERP",
+        "desc": "Quaternion guarda só rotação e deve ser normalizado. SLERP interpola entre orientações; o peso 0 escolhe a inicial e 1 a final. Não interpolamos Euler componente a componente. Nesta prática a final é a identidade no pai, e escala/origem são recompostas separadamente. Retornar a Euler para comandar tudo de novo pode reintroduzir singularidades."
+      },
+      {
+        "prop": "rotate_y versus rotate_object_local",
+        "desc": "rotate_y gira a Basis em torno do eixo Y do pai. rotate_object_local(Vector3.UP, ângulo) usa Y da própria peça. Ambos mantêm a origem. Pai e mundo só coincidem sob condições apropriadas. Já transform.rotated() também pode girar origin em torno da origem da referência: não confunda essas operações."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": false,
+    "codeIntro": "Use primeiro a bancada pronta e faça as previsões. Os scripts são consultas opcionais: leitura de um ponto, cálculo da transformação e controlador da interface. Nesta introdução não é necessário implementar quaternions manualmente.",
+    "duration": "60–85 min com previsões e comparações (estimativa)",
+    "prerequisite": "Aula 3D 1: eixos, convenção de frente, position/global_position e escala herdada. Referência Godot 4.5, GDScript, Compatibility, desktop. Projeto revisado documentalmente; execução no motor ainda pendente.",
+    "objectives": [
+      "Ler origin e as colunas da Basis, distinguindo transformar um ponto de transformar um vetor.",
+      "Comparar referências, ordem de rotação e exemplos de uma mesma orientação descrita por ângulos diferentes.",
+      "Interpolar rotação com peso explícito, mantendo escala e origem separadas."
+    ],
+    "practice": {
+      "title": "Prática guiada: a bancada de transformações",
+      "intro": "A cena pronta tem cubo, nariz em −Z, ponto ciano p=(1,0,0), eixos mundiais, câmera e luz. A bancada cria controles em runtime. Ela inicia pelos parâmetros da interface, substituindo o Transform salvo de Base/Peca; para restaurar, use R. Não há física, movimento automático nem alvo de perseguição.",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── Eixos (malhas e rótulos mundiais +X/+Y/+Z)\n├── Piso (MeshInstance3D, abaixo da bancada)\n├── Base (Node3D) — origem zero, escala 1, rotação Y controlada\n│   └── Peca (Node3D)\n│       ├── Corpo (BoxMesh de 1×1×1)\n│       ├── Nariz (malha ciana em −Z)\n│       └── Frente (Marker3D, gizmo de editor)\n├── Camera3D (ortográfica, atual)\n└── DirectionalLight3D\n\nRuntime: CanvasLayer/controles e uma esfera ciana no ponto transformado.\ncalculo.gd é RefCounted, chamado pelo controlador; não anexar a Node3D.\nconsulta.gd: opcional, em Node extra, com Peca atribuída.",
+      "download": {
+        "url": "assets/aula-3d-02-transform-basis.zip",
+        "label": "Baixar projeto de apoio: Transform3D e Basis"
+      },
+      "downloadNote": "Sete arquivos locais, sem plugins ou arte externa. Referência Godot 4.5; importar/compilar e executar no motor continua pendente.",
+      "steps": [
+        {
+          "title": "Reconheça o que é posição e o que é eixo",
+          "text": "Extraia o ZIP, importe project.godot e abra oficina.tscn. Os rótulos da cena marcam eixos do mundo, não os eixos rotacionados da peça. Execute F6: a interface cria a pose inicial (20°,40°,−10°), YXZ, escala 1 e origin=(2,0,1). Leia as colunas numéricas. No navegador as setas x/y/z mostram as colunas globais.",
+          "expect": "A origem é a posição do sistema da peça, não a ponta de uma seta. A esfera ciana é um ponto local transformado; o nariz é outra malha e não representa esse ponto."
+        },
+        {
+          "title": "Faça uma transformação que cabe na conta",
+          "text": "Use P ou Exemplo Y=90°. Com peso 0, escala 1 e pai Y=0, preveja: x=(0,0,−1), y=(0,1,0), z=(1,0,0). O ponto p=(1,0,0) recebe basis×p=(0,0,−1). Somando origin=(2,0,1), chega ao pai em (2,0,0).",
+          "expect": "Ponto no pai e no mundo coincidem porque Base tem transformação identidade. O vetor transformado não inclui origin. Não some posição duas vezes."
+        },
+        {
+          "title": "Varie escala, origem e pai separadamente",
+          "text": "Partindo de P, mude escala para 2: p no pai vira (2,0,−1), e os comprimentos das três colunas viram 2. Mude só origin.x: as colunas permanecem iguais, mas o ponto muda. Restaure P e ajuste pai Y=90°: p no pai continua (2,0,0), enquanto no mundo vira (0,0,−2).",
+          "expect": "A transformação do pai altera a expressão mundial. Os rótulos da matriz do laboratório dizem “no pai”; não compare seus números diretamente com a orientação mundial das setas sem considerar Base."
+        },
+        {
+          "title": "Compare a ordem de composição",
+          "text": "Clique Comparar ordens / X=Y=90°. Mantenha peso 0, escala 1 e roll 0. Em YXZ, o +Z local vira −Y: z=(0,−1,0). Troque para XYZ, sem mudar os ângulos: +Z vira +X, z=(1,0,0). Volte para YXZ antes da comparação seguinte.",
+          "expect": "Os ângulos iguais não garantem orientação igual se a ordem mudar. RY×RX e RX×RY são operações diferentes; os exemplos não simulam anéis físicos de um giroscópio."
+        },
+        {
+          "title": "Observe a singularidade sem tentar travar o objeto",
+          "text": "Selecione Singular A: YXZ, pitch=90°, yaw=30°, roll=0°. Anote as colunas. Selecione Singular B: pitch=90°, yaw=60°, roll=30°. As colunas e o ponto são os mesmos, salvo arredondamento. Ambos os presets restauram o restante dos parâmetros, inclusive peso 0.",
+          "expect": "Nesse pitch, yaw e roll deixam de descrever graus de liberdade independentes; manter yaw−roll preserva a orientação neste exemplo. O objeto ainda pode ser orientado usando outra representação. Quaternions não corrigem automaticamente código que volta a integrar ângulos Euler."
+        },
+        {
+          "title": "Interpole somente a rotação",
+          "text": "Use P e ajuste peso para 0,5. A pose aplicada fica em Y=45°; a inicial continua Y=90°. Para escala 1, x≈(0.707,0,−0.707) e p no pai≈(2.707,0,0.293). Em peso 1, Basis de rotação é identidade e p=(3,0,1). Repita com escala 2: em peso 1 o ponto é (4,0,1), e os eixos continuam medindo 2.",
+          "expect": "Peso não é tempo decorrido. Você pode voltar a qualquer valor e repetir sem recarregar. Identidade é relativa ao pai: se o pai girar, o objeto ainda gira no mundo. Escala e origem não são carregadas pelo quaternion."
+        },
+        {
+          "title": "Explique os limites e restaure",
+          "text": "Use R. Compare um ponto (Transform3D×p) com um vetor (Basis×v). No navegador, A/D ou setas horizontais alteram yaw; Q/E ou setas verticais, pitch; Z/C, roll; cada toque vale 5°. P instala o exemplo e R restaura. No projeto, use A/D/Q/E/Z/C/P/R ou os controles; teclas são tratadas quando a interface não as consome.",
+          "expect": "A peça fica parada sem ajuste. A bancada não demonstra cisalhamento, reflexões, colisão, look_at ou alinhamento a terrenos. Para movimento contínuo futuro, um peso como 1−exp(−taxa×delta) descreve aproximação exponencial, não duração fixa nem velocidade angular constante."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Por que Transform3D×p e Basis×p podem dar resultados diferentes?",
+        "answer": "Transform3D soma origin após aplicar a Basis. Uma Basis sozinha transforma o vetor sem translação. Um ponto local usado com global_transform chega ao mundo."
+      },
+      {
+        "question": "Escala 2 mantém uma Basis ortonormal? orthonormalized() preserva essa escala?",
+        "answer": "Não. Nesta prática os eixos continuam perpendiculares, mas medem 2. Ortonormalizar devolve eixos unitários e perde a escala; o método retorna uma cópia, que precisa ser atribuída se quiser aplicá-la."
+      },
+      {
+        "question": "Os exemplos YXZ singulares A e B mostram que o objeto ficou fisicamente bloqueado?",
+        "answer": "Não. Mostram a dependência de parâmetros Euler em pitch=90°. Ângulos diferentes podem representar a mesma orientação; um quaternion unitário representa rotação sem usar esses três parâmetros."
+      },
+      {
+        "question": "Peso 1 no SLERP desta bancada significa identidade mundial?",
+        "answer": "A identidade alvo é no pai. A escala é recomposta à parte e o pai ainda influencia global_transform. Peso 1 não zera origin nem remove a rotação do pai."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "A orientação não bate com os ângulos anotados",
+        "text": "Confira ordem YXZ/XYZ e peso. Os ângulos descrevem a pose inicial, enquanto o desenho mostra a pose interpolada aplicada. R restaura parâmetros e ordem."
+      },
+      {
+        "title": "O ponto está deslocado ou parece receber posição duas vezes",
+        "text": "Use transform×p para pai ou global_transform×p para mundo; não some global_position novamente. Confira se está olhando a esfera do ponto ou o nariz da peça."
+      },
+      {
+        "title": "A escala desapareceu ao suavizar",
+        "text": "Não passe Basis com escala/cisalhamento diretamente para interpolar rotação. Separe uma rotação própria e recomponha a escala em nó visual ou operação explícita; orthonormalized não conserva a escala."
+      },
+      {
+        "title": "Meu código de look_at ou rampa ainda falha",
+        "text": "Esses algoritmos exigem direções válidas, tratamento de vetores paralelos e referências coerentes. Não são implementados aqui; não copie os antigos exemplos como solução universal."
+      }
+    ],
+    "summary": "Transform3D leva pontos entre referências usando Basis e origin. As colunas mostram eixos transformados; sua direção e comprimento ajudam a ler orientação e escala. Euler depende da ordem e tem singularidades. Quaternion unitário representa apenas rotação; interpolá-lo não dispensa definir referência, escala e peso.",
+    "next": "Na aula 3D 3, compare MeshInstance3D e CSG para construir formas. Guarde a distinção entre a geometria desenhada e a transformação que a posiciona.",
+    "sources": [
+      {
+        "label": "Transform3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_transform3d.html"
+      },
+      {
+        "label": "Basis 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_basis.html"
+      },
+      {
+        "label": "Quaternion 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_quaternion.html"
+      },
+      {
+        "label": "Node3D 4.5",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
+      },
+      {
+        "label": "Usando transformações 3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/using_transforms.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Ler e transformar um ponto",
+      "whenToUse": "Depois da previsão numérica do exemplo Y=90°.",
+      "description": "Adicione um Node extra sob Oficina, anexe consulta.gd e atribua Base/Peca ao campo peca. Não substitua oficina.gd. O Output mostra colunas, origem, ponto no pai/mundo e vetor sem translação.",
+      "code": "extends Node\n\n@export var peca: Node3D\n\nfunc _ready() -> void:\n    # O controlador da raiz instala a pose em _ready depois dos filhos.\n    mostrar.call_deferred()\n\nfunc mostrar() -> void:\n    if not is_instance_valid(peca):\n        push_warning(\"Atribua Base/Peca no campo peca do Node extra.\")\n        return\n    var ponto := Vector3(1, 0, 0)\n    print(\"Coluna x no pai: \", peca.transform.basis.x)\n    print(\"Coluna y no pai: \", peca.transform.basis.y)\n    print(\"Coluna z no pai: \", peca.transform.basis.z)\n    print(\"Origem no pai: \", peca.transform.origin)\n    print(\"Ponto no pai: \", peca.transform * ponto)\n    print(\"Ponto no mundo: \", peca.global_transform * ponto)\n    print(\"Apenas vetor, sem translação: \", peca.transform.basis * ponto)\n    print(\"Comprimentos: \", peca.basis.x.length(), \", \", peca.basis.y.length(), \", \", peca.basis.z.length())\n",
+      "pros": "Relaciona a leitura visual ao operador de transformação.",
+      "cons": "A consulta imprime ao iniciar; a bancada aplica sua pose inicial em _ready. Para outro exemplo, imprima novamente após o ajuste."
+    },
+    {
+      "title": "2. Calcular rotação, escala e origem separadas",
+      "whenToUse": "Para estudar o cálculo chamado pela interface.",
+      "description": "calculo.gd é RefCounted, usado com preload pelo controlador. transformar recebe graus, converte para radianos e usa ordem explícita. O segundo método é uma consulta independente para comparar eixo do pai/objeto em uma peça com escala unitária; não é um botão desta bancada.",
+      "code": "extends RefCounted\n\n# Escala uniforme positiva; somente rotações próprias, sem cisalhamento.\nstatic func transformar(pitch: float, yaw: float, roll: float,\n        ordem: EulerOrder, peso: float, escala: float, origem: Vector3) -> Transform3D:\n    var angulos := Vector3(deg_to_rad(pitch), deg_to_rad(yaw), deg_to_rad(roll))\n    var inicial := Basis.from_euler(angulos, ordem)\n    var q_inicial := inicial.get_rotation_quaternion().normalized()\n    var q_final := q_inicial.slerp(Quaternion.IDENTITY, clampf(peso, 0.0, 1.0)).normalized()\n    # Interpolamos apenas rotação; escala e origem são recompostas à parte.\n    var base := Basis(q_final).scaled_local(Vector3.ONE * escala)\n    return Transform3D(base, origem)\n\nstatic func girar_no_referencial(peca: Node3D, no_objeto: bool) -> void:\n    # Usar numa peça válida da árvore com escala unitária e pai sem escala.\n    # Ambos preservam a origem; rotate_y usa o eixo Y do PAI, não necessariamente mundial.\n    if no_objeto:\n        peca.rotate_object_local(Vector3.UP, deg_to_rad(30.0))\n    else:\n        peca.rotate_y(deg_to_rad(30.0))\n",
+      "pros": "Interpola quaternions normalizados e recompõe escala/origem de forma explícita.",
+      "cons": "Somente escala uniforme positiva e rotações próprias. Não extrai rotação arbitrária de bases singulares, com cisalhamento ou reflexão."
+    },
+    {
+      "title": "3. Controlador da bancada pronta",
+      "whenToUse": "Para consultar como controles e leituras do projeto se conectam.",
+      "description": "oficina.gd fica em Oficina; usa Base/Peca, Camera3D e calculo.gd. Cria a interface e a esfera do ponto. Não exige InputMap. Ao iniciar e restaurar, instala os valores da interface; alterações de Transform salvas na peça não são os parâmetros de entrada desta bancada.",
+      "code": "extends Node3D\n\nconst CALCULO = preload(\"res://calculo.gd\")\n@onready var base: Node3D = $Base\n@onready var peca: Node3D = $Base/Peca\nvar valores := {\"rx\": 20.0, \"ry\": 40.0, \"rz\": -10.0, \"escala\": 1.0, \"ox\": 2.0, \"pai\": 0.0, \"peso\": 0.0}\nvar sliders: Dictionary = {}\nvar rotulos: Dictionary = {}\nvar ordem: OptionButton\nvar leitura: Label\nvar ponto_visual: MeshInstance3D\n\nfunc _ready() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var box := VBoxContainer.new()\n    box.position = Vector2(16, 395)\n    box.custom_minimum_size.x = 928\n    layer.add_child(box)\n    var grid := GridContainer.new()\n    grid.columns = 4\n    box.add_child(grid)\n    criar_slider(grid, \"rx\", \"Pitch X\", -90, 90, 5)\n    criar_slider(grid, \"ry\", \"Yaw Y\", -180, 180, 5)\n    criar_slider(grid, \"rz\", \"Roll Z\", -180, 180, 5)\n    criar_slider(grid, \"escala\", \"Escala uniforme\", 0.5, 2, 0.5)\n    criar_slider(grid, \"ox\", \"origin.x no pai\", -2, 3, 0.5)\n    criar_slider(grid, \"pai\", \"Pai Y\", 0, 90, 15)\n    criar_slider(grid, \"peso\", \"Peso SLERP\", 0, 1, 0.05)\n    ordem = OptionButton.new()\n    ordem.add_item(\"YXZ: Ry * Rx * Rz\")\n    ordem.add_item(\"XYZ: Rx * Ry * Rz\")\n    ordem.item_selected.connect(func(_index: int): aplicar())\n    grid.add_child(ordem)\n    var row := HBoxContainer.new()\n    box.add_child(row)\n    for i in range(5):\n        var button := Button.new()\n        button.text = [\"R: restaurar\", \"P: Y=90\", \"X=Y=90\", \"Singular A\", \"Singular B\"][i]\n        button.pressed.connect(exemplo.bind(i))\n        row.add_child(button)\n    leitura = Label.new()\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(leitura)\n    var ajuda := Label.new()\n    ajuda.text = \"A/D yaw, Q/E pitch, Z/C roll: 5 graus por toque; P exemplo; R restaura. Sem movimento automatico.\"\n    ajuda.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    box.add_child(ajuda)\n    ponto_visual = MeshInstance3D.new()\n    var esfera := SphereMesh.new()\n    esfera.radius = 0.09\n    esfera.height = 0.18\n    var material := StandardMaterial3D.new()\n    material.albedo_color = Color.CYAN\n    esfera.material = material\n    ponto_visual.mesh = esfera\n    add_child(ponto_visual)\n    $Camera3D.position = Vector3(10, 8, 10)\n    $Camera3D.look_at(Vector3(0, -3, 0), Vector3.UP)\n    # Esta bancada usa os parâmetros da interface ao iniciar, não Transform salvo da peça.\n    exemplo(0)\n\nfunc criar_slider(parent: Node, chave: String, texto: String, minimo: float, maximo: float, passo: float) -> void:\n    var box := VBoxContainer.new()\n    box.custom_minimum_size.x = 220\n    parent.add_child(box)\n    var label := Label.new()\n    box.add_child(label)\n    rotulos[chave] = label\n    var slider := HSlider.new()\n    slider.min_value = minimo\n    slider.max_value = maximo\n    slider.step = passo\n    slider.value = valores[chave]\n    slider.set_meta(\"titulo\", texto)\n    box.add_child(slider)\n    sliders[chave] = slider\n    slider.value_changed.connect(ajustar.bind(chave))\n\nfunc ajustar(valor: float, chave: String) -> void:\n    valores[chave] = valor\n    aplicar()\n\nfunc exemplo(tipo: int) -> void:\n    valores = {\"rx\": 20.0, \"ry\": 40.0, \"rz\": -10.0, \"escala\": 1.0, \"ox\": 2.0, \"pai\": 0.0, \"peso\": 0.0}\n    ordem.select(0)\n    if tipo == 1:\n        valores.rx = 0.0\n        valores.ry = 90.0\n        valores.rz = 0.0\n    elif tipo == 2:\n        valores.rx = 90.0\n        valores.ry = 90.0\n        valores.rz = 0.0\n    elif tipo == 3 or tipo == 4:\n        valores.rx = 90.0\n        valores.ry = 30.0 if tipo == 3 else 60.0\n        valores.rz = 0.0 if tipo == 3 else 30.0\n    aplicar()\n\nfunc aplicar() -> void:\n    for chave in sliders:\n        sliders[chave].set_value_no_signal(valores[chave])\n        rotulos[chave].text = \"%s: %.2f\" % [sliders[chave].get_meta(\"titulo\"), valores[chave]]\n    base.transform = Transform3D(Basis(Vector3.UP, deg_to_rad(valores.pai)), Vector3.ZERO)\n    var ordem_euler := EULER_ORDER_YXZ if ordem.selected == 0 else EULER_ORDER_XYZ\n    peca.transform = CALCULO.transformar(valores.rx, valores.ry, valores.rz, ordem_euler, valores.peso, valores.escala, Vector3(valores.ox, 0, 1))\n    ponto_visual.global_position = peca.global_transform * Vector3(1, 0, 0)\n    var b := peca.basis\n    leitura.text = \"Basis no pai: x=%s | y=%s | z=%s\\norigin=%s | p=(1,0,0) no pai=%s | no mundo=%s\\nComprimentos=(%.2f, %.2f, %.2f); peso=%.2f. Escala e origem fora do SLERP.\" % [b.x, b.y, b.z, peca.position, peca.transform * Vector3(1,0,0), ponto_visual.global_position, b.x.length(), b.y.length(), b.z.length(), valores.peso]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    var teclas := {KEY_A: [\"ry\", -5], KEY_D: [\"ry\", 5], KEY_Q: [\"rx\", -5], KEY_E: [\"rx\", 5], KEY_Z: [\"rz\", -5], KEY_C: [\"rz\", 5]}\n    if event.keycode == KEY_R:\n        exemplo(0)\n    elif event.keycode == KEY_P:\n        exemplo(1)\n    elif teclas.has(event.keycode):\n        var acao: Array = teclas[event.keycode]\n        var chave: String = acao[0]\n        valores[chave] = clampf(valores[chave] + acao[1], sliders[chave].min_value, sliders[chave].max_value)\n        aplicar()\n    else:\n        return\n    get_viewport().set_input_as_handled()\n",
+      "pros": "Reproduz as comparações sem movimento automático e sem recarregar.",
+      "cons": "Interface e enquadramento precisam de conferência real no motor. Não representa física, giroscópio mecânico ou alinhamento a terrenos."
+    }
+  ],
+  "simulator": {
+    "type": "transform_basis_3d",
+    "title": "Laboratório: colunas, ponto e orientação interpolada",
+    "description": "Modelo estático Canvas/JavaScript. Exibe Transform3D no pai, eixos no mundo e o ponto p=(1,0,0). A pose inicial usa Euler YXZ ou XYZ; um quaternion unitário interpola até a identidade NO PAI pelo peso manual. Escala uniforme positiva e origin são recompostas fora do SLERP. Sem Godot/WebGL/física, cisalhamento ou movimento automático.",
+    "guide": [
+      {
+        "title": "Comece por uma conta",
+        "text": "P: Y=90°, escala 1, peso 0, origin=(2,0,1). x=(0,0,−1), p no pai=(2,0,0). Escala 2 dá p=(2,0,−1). Com pai Y=90°, o ponto mundial muda, mas a matriz local não."
+      },
+      {
+        "title": "Compare ordem e singularidade",
+        "text": "Preset X=Y=90°, peso 0: troque YXZ/XYZ e observe a coluna z. Singular A/B usam YXZ com pitch=90° e mostram a mesma orientação para ângulos diferentes. Não são anéis mecânicos nem uma trava física."
+      },
+      {
+        "title": "Repita a interpolação",
+        "text": "P e peso 0,5 dão Y=45°. Peso 1 chega à identidade no pai, preservando escala e origem. Com foco no desenho: A/D ou setas yaw; Q/E ou setas pitch; Z/C roll; P exemplo; R restaura. Pausa não impede ajustes deste modelo estático."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "No exemplo Y=90°, escala 2, origin=(2,0,1) e pai identidade, o que ocorre ao levar o peso SLERP a 1?",
+    "options": [
+      "O ponto local (1,0,0) chega a (4,0,1) no pai; rotação vira identidade, mas escala 2 e origem permanecem.",
+      "O ponto chega a (1,0,0), pois Quaternion também zera posição e escala.",
+      "A escala desaparece porque toda interpolação exige modificar a peça para escala 1.",
+      "Nada muda: SLERP só interpola os três ângulos Euler separadamente."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Rotação identidade com escala 2 leva o vetor a (2,0,0), e a origem soma (2,0,1).",
+      "Quaternion só representa rotação; origem e escala são recompostas fora dele.",
+      "As rotações interpoladas são unitárias; a escala desejada é recomposta explicitamente no resultado.",
+      "SLERP usa quaternions de orientação, não lerp componente a componente dos ângulos."
+    ],
+    "explanation": "O resultado é Basis.IDENTITY com escala uniforme 2 e origin=(2,0,1). Para o ponto (1,0,0), o resultado é (2,0,0)+(2,0,1)=(4,0,1). Esta conclusão usa o pai identidade do enunciado."
+  }
+},
 
   {
     id: "3d-intro-meshes-csg",
