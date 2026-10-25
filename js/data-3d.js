@@ -2044,763 +2044,1669 @@ window.GODOT_LESSONS_3D = [
   }
 },
 
-  {
-    id: "3d-inter-gridmap-decals",
-    area: "3d",
-    level: "intermediario",
-    levelLabel: "Intermediário",
-    title: "9. Cenários Modulares com GridMap (MeshLibrary) e Adesivos 3D (Decal)",
-    subtitle: "Como montar masmorras e cidades 3D inteiras como blocos de LEGO em grade e projetar manchas, ferrugem e miras sobre superfícies.",
-    nodesUsed: ["GridMap", "MeshLibrary", "Decal"],
-    feynman: {
-      title: "Explicação Feynman: O LEGO 3D em Grade e o Projetor de Adesivos",
-      explanation: "Lembra do `TileMapLayer` que carimbava pisos no 2D? O **`GridMap`** é o irmão gêmeo dele em 3D! Você cria uma caixa de peças 3D chamada **`MeshLibrary`** (com um bloco de Piso de Ferro, um de Parede de Tijolo, uma Escada e um Cano Curvo) e sai pintando nos 3 andares da grade como no Minecraft ou num conjunto de LEGO! Mas se você repetir a mesma parede 50 vezes, o jogador percebe que é tudo igual... É aí que entra o **`Decal` (Decalque 3D)**: ele funciona como um projetor de cinema pequenininho que 'carimba' uma textura de ferrugem, mancha de óleo, grafite ou poça d'água por cima de qualquer parede ou chão curvo, quebrando toda a repetição visual!",
-      analogies: [
-        {
-          term: "MeshLibrary",
-          analogy: "O catálogo de peças 3D (com suas malhas, materiais e colisões) exportado a partir de uma cena com vários `MeshInstance3D`."
-        },
-        {
-          term: "GridMap",
-          analogy: "Uma grade espacial 3D (X, Y, Z) que desenha milhares de peças modulares com altíssima performance."
-        },
-        {
-          term: "Decal",
-          analogy: "Uma caixa projetora invisível: tudo que estiver dentro do volume da caixa recebe a imagem projetada (rachaduras, sangue, óleo, mira de magia no chão irregular!)."
-        },
-        {
-          term: "Decal.cull_mask",
-          analogy: "Permite que um adesivo de sujeira na parede NÃO seja projetado na roupa do jogador quando ele passa encostado na parede!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "No `GridMap`, cada célula é identificada por um `Vector3i(x, y, z)`. Ele agrupa automaticamente as malhas em octrees para reduzir Draw Calls. Já o `Decal` projeta texturas completas (Albedo, Normal, ORM e até Emission!) sobre qualquer geometria 3D sem precisar modificar a malha original.",
-      anatomy: [
-        {
-          prop: "gridmap.local_to_map(pos_3d) -> Vector3i",
-          desc: "Converte uma posição em metros `(x, y, z)` para a coordenada inteira da célula no GridMap."
-        },
-        {
-          prop: "gridmap.set_cell_item(coords: Vector3i, item_id: int, orientacao: int)",
-          desc: "Coloca, gira ou remove (`item_id = -1`) um bloco 3D da grade em tempo real."
-        },
-        {
-          prop: "Decal.texture_albedo / texture_normal",
-          desc: "Texturas projetadas sobre as malhas que cruzam a caixa do Decal."
-        },
-        {
-          prop: "Decal.upper_fade / lower_fade",
-          desc: "Suaviza a projeção nas bordas da caixa para a mancha não cortar dura."
-        }
-      ]
-    },
-    approaches: [
+{
+  "id": "3d-inter-gridmap-decals",
+  "area": "3d",
+  "level": "intermediario",
+  "levelLabel": "Intermediário",
+  "title": "9. GridMap e Decal: módulos, células e projeção",
+  "subtitle": "Monte uma biblioteca pequena, edite células em referenciais explícitos e limite onde uma marca pode aparecer.",
+  "nodesUsed": [
+    "GridMap",
+    "MeshLibrary",
+    "BoxMesh",
+    "BoxShape3D",
+    "Decal"
+  ],
+  "feynman": {
+    "title": "O catálogo escolhe a peça; a grade escolhe o lugar",
+    "explanation": "Imagine uma oficina com dois módulos: um bloco inteiro e um estreito. A MeshLibrary é o catálogo dessas peças. O GridMap guarda qual item ocupa cada endereço inteiro X/Y/Z e sua orientação. Trocar o endereço muda onde a peça está; trocar o ID muda qual peça será usada. Um Decal é outra operação: projeta uma textura sobre superfícies elegíveis dentro de um volume, sem criar geometria ou colisão. Organize primeiro os módulos e depois compare a marca, para não confundir construção e aparência.",
+    "analogies": [
       {
-        title: "Forma 1: Construindo ou Destruindo Blocos 3D em Tempo Real no GridMap",
-        whenToUse: "Jogos estilo Voxel/Minecraft, construtores de fábricas Steampunk ou pisos que desabam.",
-        description: "Convertemos a posição do impacto 3D para `Vector3i` com `local_to_map()` e alteramos a célula com `set_cell_item()`.",
-        code: `extends GridMap
-
-const ITEM_VAZIO: int = -1
-const ID_BLOCO_BRONZE: int = 0
-
-func colocar_bloco_em(ponto_global: Vector3) -> void:
-    var celula: Vector3i = local_to_map(to_local(ponto_global))
-    set_cell_item(celula, ID_BLOCO_BRONZE, 0)
-
-func destruir_bloco_em(ponto_global: Vector3) -> void:
-    var celula: Vector3i = local_to_map(to_local(ponto_global))
-    if get_cell_item(celula) != ITEM_VAZIO:
-        set_cell_item(celula, ITEM_VAZIO)`,
-        pros: "Atualiza malha visual e colisão física 3D instantaneamente com pouquíssima memória.",
-        cons: "Quando mirar com RayCast3D para quebrar um bloco, subtraia `normal * 0.1` do ponto de impacto para entrar dentro do bloco atingido!"
+        "term": "Endereço e catálogo",
+        "analogy": "A célula (0,0,0) pode conter o item 7, o item 0 ou estar vazia. O número do catálogo não é a coordenada da célula, nem uma layer. No apoio, os IDs são deliberadamente não sequenciais."
       },
       {
-        title: "Forma 2: Indicador de Área de Magia / Mira no Chão Irregular com Decal",
-        whenToUse: "Círculos de seleção de unidades (RTS), miras de granada/morteiro que se moldam a escadas e rampas.",
-        description: "Se você usar um plano 2D reto no chão, ele entra dentro de rampas e degraus. Usando um `Decal`, o círculo brilhante se curva perfeitamente sobre degraus, pedras e ladeiras!",
-        code: `extends Decal
-
-func atualizar_mira_no_chao(ponto_impacto: Vector3) -> void:
-    global_position = ponto_impacto
-    # Gira o círculo lentamente para dar charme mecânico
-    rotate_y(1.5 * get_process_delta_time())`,
-        pros: "Zero 'Z-fighting' (não fica piscando colado no chão) e acompanha qualquer relevo de escada ou rampa!",
-        cons: "Desmarque a Visual Layer do Jogador no `cull_mask` do Decal se não quiser que a mira pinte o chapéu do personagem."
+        "term": "Módulo e corpo físico",
+        "analogy": "Uma peça desenhada não é automaticamente sólida. A biblioteca precisa de formas físicas se a prática exigir colisão. Da mesma forma, navegação precisa de recursos/configuração próprios; não nasce só de pintar blocos."
       },
       {
-        title: "Forma 3: Marcas de Impacto / Vazamento de Óleo com Fade-Out Automático",
-        whenToUse: "Buracos de bala, marcas de queimadura de vapor ou pegadas na lama que somem depois de alguns segundos.",
-        description: "Instanciamos o `Decal` alinhado à parede e usamos um `Tween` na propriedade `modulate.a` para fazê-lo desaparecer suavemente.",
-        code: `extends Decal
-
-func _ready() -> void:
-    # Espera 8 segundos e depois apaga suavemente em 2 segundos
-    var tween := create_tween()
-    tween.tween_interval(8.0)
-    tween.tween_property(self, "modulate:a", 0.0, 2.0)
-    tween.tween_callback(queue_free)`,
-        pros: "Mantém a batalha visualmente intensa sem acumular milhares de nós infinitamente na memória.",
-        cons: "Para rajadas muito rápidas, combine com Object Pooling."
+        "term": "Marca projetada",
+        "analogy": "Pense num volume que aplica uma imagem aos receptores permitidos. Dentro da caixa ainda pode haver texels transparentes. A projeção não precisa parar no primeiro objeto, nem é garantida em qualquer superfície ou renderizador."
       }
-    ],
-    simulator: {
-      type: "gridmap_decal_3d",
-      title: "Laboratório de GridMap Voxel 3D (`set_cell_item`) & Projeção de Decal",
-      description: "Construa e remova blocos modulares 3D na grade (`Vector3i`) e projete Decals de engrenagem/vapor sobre os degraus!"
-    },
-    quiz: {
-      question: "Por que usar um nó `Decal` é muito melhor do que usar um plano achatado (`PlaneMesh`) para desenhar um círculo de mira no chão ou uma mancha de óleo?",
-      options: [
-        "Porque o Decal tem gravidade própria.",
-        "Porque o `Decal` projeta a textura sobre qualquer relevo 3D (acompanhando degraus, rampas e quinas perfeitamente) e nunca sofre de 'Z-fighting' (piscar colado na superfície).",
-        "Porque o Decal substitui o CharacterBody3D.",
-        "Porque o Decal só funciona em 2D."
-      ],
-      correctIndex: 1,
-      explanation: "Perfeito! Um plano reto atravessa rampas ou flutua sobre degraus; já o volume do `Decal` veste a geometria 3D como uma pintura projetada!"
-    }
+    ]
   },
-
-  // ==========================================================================
-  // NÍVEL IV — AVANÇADO (Mestre Relojoeiro)
-  // ==========================================================================
-  {
-    id: "3d-adv-animationtree-skeleton",
-    area: "3d",
-    level: "avancado",
-    levelLabel: "Avançado",
-    title: "10. Esqueletos (Skeleton3D), AnimationTree (BlendSpace2D) e Anexos de Osso",
-    subtitle: "Como misturar animações 3D suavemente (andar, correr, mirar ao mesmo tempo) e prender espadas ou lanternas na mão do personagem.",
-    nodesUsed: ["Skeleton3D", "AnimationTree", "AnimationNodeStateMachine", "BlendSpace2D", "BoneAttachment3D"],
-    feynman: {
-      title: "Explicação Feynman: O Boneco Articulado, o DJ de Animações e o Coldre na Mão",
-      explanation: "Em 2D, animar era trocar desenhos. Em 3D, nosso personagem é uma escultura com um **Esqueleto de Ossos (`Skeleton3D`)** por dentro! Mas o que acontece se o boneco está 'Correndo' e de repente você manda tocar 'Parado' a seco? As pernas dão um teletransporte robótico feio! Pior: e se ele estiver andando na diagonal com o analógico meio inclinado? É aí que entra a **`AnimationTree`**: ela é uma **Mesa de DJ de Animações**! Com um **`BlendSpace2D`**, você coloca 'Parado' no centro, 'Andar' no meio e 'Correr' na ponta: se o jogador empurrar o analógico 40%, a `AnimationTree` mistura 60% de Parado com 40% de Andar sozinha! E para colocar uma espada ou chave inglesa na mão do boneco para ela balançar junto com o braço? Usamos o **`BoneAttachment3D`** — uma luva presa diretamente no osso da mão!",
-      analogies: [
-        {
-          term: "Skeleton3D",
-          analogy: "A estrutura de ossos (`Hips`, `Spine`, `Hand_R`, `Head`) que deforma a malha 3D do personagem."
-        },
-        {
-          term: "BoneAttachment3D",
-          analogy: "Um suporte colado em um osso específico (ex: mão direita ou cabeça): tudo que for filho dele acompanha o movimento daquele osso perfeitamente!"
-        },
-        {
-          term: "AnimationTree + BlendSpace1D/2D",
-          analogy: "Um misturador contínuo: interpola poses entre andar para frente, andar de lado (strafe) e correr conforme um vetor `(x, y)`."
-        },
-        {
-          term: "OneShot + Filter (Máscara de Ossos)",
-          analogy: "Permite que as pernas continuem tocando a animação de 'Correr' enquanto só da cintura para cima toca a animação de 'Atirar ou Acenar'!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "O `AnimationPlayer` guarda a biblioteca bruta de clipes de animação importados do `.glb`. O `AnimationTree` se conecta a esse `AnimationPlayer` e assume o comando, oferecendo Máquinas de Estado Visuais com transições suaves (`xfade_time`), `BlendSpace2D` e `OneShot` com filtros de ossos.",
-      anatomy: [
-        {
-          prop: "anim_tree.set('parameters/locomocao/blend_position', vetor_2d)",
-          desc: "Atualiza o ponto no gráfico BlendSpace2D para misturar andar/correr/strafe em tempo real."
-        },
-        {
-          prop: "anim_tree.get('parameters/playback').travel('Pulo')",
-          desc: "Pede para a StateMachine da AnimationTree viajar pelo caminho de transição configurado até o estado 'Pulo'."
-        },
-        {
-          prop: "BoneAttachment3D.bone_name = 'Hand.R'",
-          desc: "Vincula a posição e rotação deste nó diretamente ao osso escolhido do `Skeleton3D`."
-        },
-        {
-          prop: "Skeleton3D.set_bone_pose_rotation(id, quat)",
-          desc: "Permite girar um osso via código (ex: fazer a cabeça ou o tronco olhar para cima onde o jogador mira!)."
-        }
-      ]
-    },
-    approaches: [
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. O projeto usa GridMap com células de 2 × 2 × 2 unidades, centros XYZ ligados, escala 1 e biblioteca procedural com itens 0 e 7. Decal requer Forward+ ou Mobile; Compatibility permite a parte da grade, mas não esse efeito. A cena é fixa, sem personagens ou navegação. Não há promessa de quantidade de draw calls ou ganho de desempenho sem medição.",
+    "anatomy": [
       {
-        title: "Forma 1: Locomoção Fluida em 8 Direções com AnimationTree + BlendSpace2D",
-        whenToUse: "Personagens 3D em 3ª ou 1ª pessoa que andam, correm e dão passos laterais (Strafe).",
-        description: "Convertemos a velocidade horizontal do personagem para o espaço local dele e alimentamos o `blend_position` do `BlendSpace2D`.",
-        code: `extends CharacterBody3D
-
-@onready var anim_tree: AnimationTree = $AnimationTree
-@export var vel_maxima: float = 6.0
-var blend_atual := Vector2.ZERO
-
-func _physics_process(delta: float) -> void:
-    # Converte a velocidade global para a direção local do corpo (X = lado, -Z = frente)
-    var vel_local := global_transform.basis.inverse() * velocity
-    var alvo_blend := Vector2(vel_local.x, -vel_local.z) / vel_maxima
-    
-    # Suaviza a transição do blend para as pernas acelerarem com peso natural
-    blend_atual = blend_atual.lerp(alvo_blend, 10.0 * delta)
-    anim_tree.set("parameters/Locomocao/blend_position", blend_atual)`,
-        pros: "Transição 100% contínua entre parado, caminhada lenta, corrida e passos laterais sem cortes secos.",
-        cons: "Certifique-se de que as animações de andar e correr estejam com Loop ativado na importação."
+        "prop": "MeshLibrary: malha, ID e formas",
+        "desc": "Cada item tem ID, malha/material e, opcionalmente, colisão e navegação. O apoio coloca material no recurso BoxMesh e adiciona BoxShape3D explicitamente. Na alternativa de exportação pelo editor, respeite a estrutura suportada; materiais só no override do nó não substituem o material da malha exportada."
       },
       {
-        title: "Forma 2: Atacando da Cintura para Cima enquanto Corre (AnimationNodeOneShot + Filter)",
-        whenToUse: "Quando o personagem precisa atacar, recarregar ou beber uma poção sem parar de mexer as pernas se estiver andando.",
-        description: "Na `AnimationTree`, adicionamos um nó `OneShot` com `Filter` habilitado apenas nos ossos do tronco, braços e cabeça, e disparamos via código!",
-        code: `extends Node3D
-
-@onready var anim_tree: AnimationTree = $AnimationTree
-
-func disparar_golpe_braco() -> void:
-    # Dispara o OneShot (que afeta apenas os ossos filtrados da cintura para cima!)
-    anim_tree.set(
-        "parameters/AtaqueTronco/request",
-        AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE
-    )`,
-        pros: "Evita ter que criar animações duplicadas de 'Atacar Parado', 'Atacar Andando', 'Atacar Pulando'.",
-        cons: "Lembre-se de marcar os ossos desejados na janela 'Edit Filters' do nó OneShot."
+        "prop": "Coordenada local, célula e centro",
+        "desc": "local_to_map recebe posição local da grade; para ponto global, use to_local antes. map_to_local devolve a posição local da célula, convertida ao mundo com to_global. Com centros ligados, célula (0,0,0) tem centro (1,1,1). Coordenadas negativas exigem atenção: ponto local −0,01 no eixo X pertence à célula −1, não à 0."
       },
       {
-        title: "Forma 3: Trocando Armas na Mão do Esqueleto com BoneAttachment3D",
-        whenToUse: "Sistemas de equipamento (espadas, chaves de grifo, escudos, chapéus, mochilas a vapor).",
-        description: "Adicionamos um `BoneAttachment3D` filho do `Skeleton3D`, escolhemos o osso da mão no Inspector e instanciamos a arma dentro dele!",
-        code: `extends BoneAttachment3D
-
-var arma_atual: Node3D = null
-
-func equipar_arma(cena_nova_arma: PackedScene) -> void:
-    if arma_atual:
-        arma_atual.queue_free()
-    arma_atual = cena_nova_arma.instantiate() as Node3D
-    add_child(arma_atual)
-    # Posição (0,0,0) local já cai exatamente na palma da mão!
-    arma_atual.position = Vector3.ZERO`,
-        pros: "A arma segue cada milímetro da animação da mão em qualquer golpe ou cutscene.",
-        cons: "No Blender, posicione a origem (Pivot) do modelo da arma exatamente no cabo onde a mão segura."
+        "prop": "Item e orientação ortogonal",
+        "desc": "set_cell_item usa coordenada Vector3i, ID e índice de orientação; um ID negativo limpa a célula. O índice não é um ângulo em graus: crie uma Basis e use `get_orthogonal_index_from_basis`. A biblioteca é compartilhada entre usos dos itens; alterar a malha/recurso pode afetar várias células. GridMap agrupa células em octantes, sem garantir custo zero ou atualização física instantânea."
+      },
+      {
+        "prop": "Volume, textura e receptor",
+        "desc": "Decal projeta por −Y local. size define o volume completo; o anel RGBA do apoio possui centro transparente. cull_mask filtra layers visuais do receptor, não camadas físicas. GridMap não herda VisualInstance3D e não oferece layers visuais por célula; o objeto de layer 2 é um MeshInstance3D separado. A textura não cria relevo físico nem resolve oclusão como um raycast."
+      },
+      {
+        "prop": "Fade e limites do efeito",
+        "desc": "upper_fade/lower_fade controlam atenuação ao longo da profundidade; normal_fade trata ângulo e o alfa da textura trata seu desenho. Não são todos um fade de borda X/Z. modulate.a afeta albedo, mas não emissão. A prática anima só albedo, cancela Tween anterior e reutiliza a marca. Decal não é sempre superior a um plano e não garante projeção perfeita ou desempenho gratuito."
       }
-    ],
-    simulator: {
-      type: "blendspace_2d_3d",
-      title: "Laboratório de AnimationTree: BlendSpace2D (Mistura de Poses 3D)",
-      description: "Arraste o ponto no gráfico `BlendSpace2D` (`X = Strafe Lateral`, `Y = Frente/Trás`) e veja como a AnimationTree calcula os pesos de cada clipe de animação 3D em tempo real!"
-    },
-    quiz: {
-      question: "Qual nó da Godot 3D deve ser usado para prender uma espada ou lanterna diretamente ao osso da mão de um `Skeleton3D` para que ela acompanhe todas as animações do braço?",
-      options: [
-        "BoneAttachment3D",
-        "SpringArm3D",
-        "CanvasLayer",
-        "WorldEnvironment"
-      ],
-      correctIndex: 0,
-      explanation: "Exato! O `BoneAttachment3D` copia em tempo real a transformação de um osso específico do `Skeleton3D`, mantendo qualquer objeto filho preso perfeitamente àquela parte do corpo."
-    }
+    ]
   },
-
-  {
-    id: "3d-adv-navmesh-ai",
-    area: "3d",
-    level: "avancado",
-    levelLabel: "Avançado",
-    title: "11. Navegação 3D (NavigationRegion3D, NavMesh Baking) e Saltos (NavigationLink3D)",
-    subtitle: "Como assar (Bake) malhas de navegação 3D sobre terrenos e escadas, e ensinar inimigos a pular abismos ou usar elevadores.",
-    nodesUsed: ["NavigationRegion3D", "NavigationMesh", "NavigationAgent3D", "NavigationLink3D"],
-    feynman: {
-      title: "Explicação Feynman: O Tapete Azul Assado no Forno e as Pontes de Salto",
-      explanation: "Num cenário 3D cheio de mesas, rampas, escadas e buracos, como o computador descobre onde um robô de `0.5m` de largura e `1.8m` de altura consegue passar sem bater a cabeça nem entalar? Você não precisa desenhar esse mapa na mão! Na Godot 3D, você coloca o cenário dentro de uma **`NavigationRegion3D`**, informa a altura e a grossura do seu robô no recurso **`NavigationMesh`** e clica no botão **'Bake NavMesh' (Assar Malha)**: a Godot escaneia toda a geometria 3D e estende automaticamente um tapete azul apenas nos chãos e rampas onde o robô cabe em pé! E se houver um buraco entre dois telhados que o robô pode pular? Você coloca um **`NavigationLink3D`** ligando as duas pontas para avisar o GPS que ali existe um atalho de pulo!",
-      analogies: [
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "A biblioteca e as operações de grade são RefCounted chamadas por oficina.gd. marca.gd estende Decal; o controlador instancia esse script e monta a interface. O apoio não requer InputMap nem arte externa. A função editar_impacto é extensão opcional: recebe um resultado físico válido, mas não instala uma ferramenta de clique pronta.",
+    "duration": "70–95 min com comparação e repetição (estimativa)",
+    "prerequisite": "Aulas 3D 1–8: transformações, malhas, física/consultas, materiais e luzes. Godot 4.5, GDScript, desktop. Forward+ ou Mobile para Decal. Scripts/cena revisados documentalmente; execução real no motor ainda pendente.",
+    "objectives": [
+      "Distinguir endereço de célula, ID do item, centro local/global e orientação ao editar um GridMap.",
+      "Preparar biblioteca com material e forma física explícitos e verificar o resultado sem assumir sincronização imediata.",
+      "Controlar projeção por volume/máscara/textura e repetir o fade, respeitando limites do renderizador e do alfa."
+    ],
+    "practice": {
+      "title": "Prática guiada: módulos e anel de marcação",
+      "intro": "Extraia o apoio completo e importe project.godot. A cena monta biblioteca, grade transformada, objeto cinza separado, marca e câmera. A base tem 25 células em Y=0 e um módulo em Y=1. As malhas são caixas simples. Comece com a marca estável, sem fade automático. A esfera amarela é indicação da seleção, sem colisão.",
+      "tree": "Oficina (Node3D / oficina.gd; montagem em runtime)\n├── Grade (GridMap; posição 10,0,−4; yaw +90°)\n│   ├── MeshLibrary procedural: IDs 0 e 7\n│   │   └── BoxMesh/material + BoxShape3D por item\n│   └── Marca (Decal / marca.gd; projeção local −Y)\n├── ObjetoLayer2 (MeshInstance3D; sem corpo físico)\n├── SelecaoSemColisao (MeshInstance3D; layer visual 3)\n├── Camera3D atual, DirectionalLight3D e WorldEnvironment\n└── CanvasLayer / ScrollContainer / Interface\n\nbiblioteca.gd e grade.gd: bibliotecas RefCounted.\nCélulas 2×2×2; centros XYZ ligados; escala 1.\nA base ocupa Y=0; módulo extra em (0,1,0).",
+      "download": {
+        "url": "assets/aula-3d-09-gridmap-decal.zip",
+        "label": "Baixar projeto de apoio: GridMap e Decal"
+      },
+      "downloadNote": "Nove arquivos, incluindo quatro scripts e roteiro. Forward+ como base; Decal indisponível em Compatibility. Execução no motor pendente.",
+      "steps": [
         {
-          term: "Bake NavigationMesh",
-          analogy: "Escanear automaticamente o cenário 3D para gerar o tapete caminhável descontando paredes, móveis e tetos baixos."
+          "title": "Inspecione a biblioteca antes de pintar",
+          "text": "Execute oficina.tscn e confira a árvore Remota. Abra mesh_library da Grade e inspecione os IDs 0 e 7: cubo de tamanho (2,2,2) e módulo (2,2,1), material na malha e forma BoxShape3D correspondente. O painel mostra o renderizador atual.",
+          "expect": "Há peças distintas, com IDs explícitos e colisão configurada separadamente. Em Compatibility a grade permanece, mas a marca fica indisponível; não exigir Decal como prova de funcionamento nesse método."
         },
         {
-          term: "agent_radius & agent_height",
-          analogy: "A 'barriga' e a 'altura' do inimigo: o NavMesh deixa uma margem de segurança das paredes igual ao `agent_radius` para o ombro do robô nunca raspar no muro!"
+          "title": "Preveja centro e endereço",
+          "text": "Selecione célula (0,0,0), sem mover a grade, e compare local (1,1,1) com global (11,1,−5). A transformação tem translação (10,0,−4) e yaw +90°. Confira a volta com to_local e local_to_map. Teste também ponto local X=−0,01 e as fronteiras em múltiplos de 2.",
+          "expect": "Uma posição global não entra diretamente em local_to_map. O centro não é necessariamente a origem inteira da célula. O exemplo negativo cai em X=−1. O laboratório desenha no referencial local; sua telemetria mostra a conversão global separadamente."
         },
         {
-          term: "NavigationLink3D",
-          analogy: "Uma ponte virtual que conecta duas ilhas separadas de NavMesh (usada para pulos sobre buracos, escadas de mão, teletransportadores ou portas)."
+          "title": "Edite uma célula e uma camada por vez",
+          "text": "Escolha item 7, célula (1,0,0), yaw 0 e Colocar. Repita a mesma operação; depois use yaw 90°, 180° e 270°. Remova a célula, visite Y=1 e volte. No Canvas, clique apenas seleciona; P coloca, X remove e Q/E trocam camada. Botões/sliders oferecem as mesmas ações essenciais.",
+          "expect": "Recolocar substitui a célula, sem acumular novas instâncias nesse endereço. Remover não apaga outras camadas. A forma estreita torna o giro visível. O apoio converte Basis em índice ortogonal; o modelo web mostra quartos de volta, sem fingir calcular o índice nativo."
         },
         {
-          term: "NavigationObstacle3D",
-          analogy: "Um cilindro de desvio colocado em barris ou carros dinâmicos para os agentes contornarem objetos que se mexem."
+          "title": "Verifique a colisão como resultado separado",
+          "text": "Após editar e aguardar atualização da grade, pressione Consultar física após edição. A consulta roda no callback físico e lança um raio de cima para baixo na coluna selecionada. Na coluna (0,*,0), remova primeiro o módulo superior, consulte novamente e depois remova o bloco da base.",
+          "expect": "O primeiro hit pode pertencer a uma peça acima da camada selecionada. Após remover toda a coluna deve haver ausência de hit, quando a atualização estiver aplicada. O objeto cinza é só visual. Não declarar colisão atualizada instantaneamente por causa do retorno de set_cell_item ou de uma mensagem do painel."
+        },
+        {
+          "title": "Isole volume, máscara e texel",
+          "text": "Restaure e mantenha o projetor em centro local (1,2,1), tamanho (4,2,4). Compare máscara 1, 2, 3 e zero sobre grade e objeto separado. Depois mude centro Y e profundidade Y, sem alterar máscara. Desloque X para que o anel passe pela superfície em vez de seu centro transparente.",
+          "expect": "Um receptor precisa estar no volume e passar pela máscara visual; depois o texel ainda pode ter alfa zero. Máscara 1 inclui a grade, 2 o objeto separado, 3 ambos e zero nenhum. Não é filtro físico. A projeção pode alcançar mais de uma superfície; não se apresenta como raycast que para no primeiro obstáculo."
+        },
+        {
+          "title": "Repita o fade e cancele sem corrida",
+          "text": "Pressione Repetir/F. A marca mantém albedo por 2 s e apaga em 1 s. Pressione de novo antes de terminar e também depois de desaparecer. Use Restaurar/R durante a animação e espere mais de 3 s. No Canvas, o tempo é manual: T avança 0,5 s e F volta a zero.",
+          "expect": "Um Tween antigo não deve apagar uma marca reiniciada; R cancela e restaura. O nó é reutilizado, sem queue_free ou pooling nesta prática. Como só há albedo, o alfa atende ao exemplo. Se adicionar emissão, será necessário controlar sua energia separadamente."
+        },
+        {
+          "title": "Compare com o fluxo do editor e registre limites",
+          "text": "Como alternativa separada, crie cena Node3D com MeshInstance3D filhos, material na malha e StaticBody3D/CollisionShape3D na estrutura suportada; exporte em Scene > Export As > MeshLibrary. Confira o recurso resultante antes de atribuir ao GridMap. No laboratório, teste vazio, filtros, profundidade e reset antes de julgar a figura.",
+          "expect": "A exportação de biblioteca não é um empacotador de quaisquer nós/scripts da cena. A prática entregue usa criação procedural, não comprova a execução dessa exportação. Navegação, otimização medida, normal/depth fades e projeção em relevo complexo exigem ensaios próprios."
         }
       ]
     },
-    howItWorks: {
-      overview: "Assim como no 2D, o inimigo 3D usa um nó filho `NavigationAgent3D`. A diferença crucial no 3D é manter o eixo vertical `velocity.y` controlado pela gravidade real enquanto a navegação controla o deslocamento horizontal `(velocity.x, velocity.z)`, além de escutar o sinal `link_reached` quando o agente chega num salto (`NavigationLink3D`).",
-      anatomy: [
-        {
-          prop: "NavigationMesh.agent_max_slope (45°)",
-          desc: "Inclinação máxima que o Bake considera como rampa caminhável no cenário 3D."
-        },
-        {
-          prop: "NavigationMesh.agent_max_climb (0.25m)",
-          desc: "Altura máxima de degrau que o agente consegue subir sem precisar de rampa."
-        },
-        {
-          prop: "nav_agent.get_next_path_position() -> Vector3",
-          desc: "Retorna o próximo ponto 3D da rota sobre o tapete do NavMesh."
-        },
-        {
-          prop: "signal link_reached(details: Dictionary)",
-          desc: "Dispara quando o agente pisa na entrada de um `NavigationLink3D` (hora de tocar a animação de pulo!)."
-        }
-      ]
-    },
-    approaches: [
+    "checks": [
       {
-        title: "Forma 1: Inimigo 3D Perseguidor Respeitando a Gravidade",
-        whenToUse: "Guardas mecânicos, monstros e aliados que andam e sobem escadas pelo cenário 3D.",
-        description: "Calculamos a direção horizontal para `get_next_path_position()`, mas preservamos o `velocity.y` da gravidade para o inimigo cair fisicamente de degraus.",
-        code: `extends CharacterBody3D
-
-@export var alvo: Node3D
-@export var velocidade: float = 4.5
-@onready var nav: NavigationAgent3D = $NavigationAgent3D
-
-func _physics_process(delta: float) -> void:
-    if not is_on_floor():
-        velocity += get_gravity() * delta
-        
-    if not alvo:
-        return
-    nav.target_position = alvo.global_position
-    
-    if not nav.is_navigation_finished():
-        var proximo_ponto := nav.get_next_path_position()
-        var dir := global_position.direction_to(proximo_ponto)
-        velocity.x = dir.x * velocidade
-        velocity.z = dir.z * velocidade
-        # Gira suavemente para olhar para onde está andando
-        if Vector2(dir.x, dir.z).length() > 0.1:
-            rotation.y = lerp_angle(rotation.y, atan2(-dir.x, -dir.z), 8.0 * delta)
-    else:
-        velocity.x = move_toward(velocity.x, 0.0, velocidade)
-        velocity.z = move_toward(velocity.z, 0.0, velocidade)
-        
-    move_and_slide()`,
-        pros: "Combina a precisão do NavMesh 3D com a gravidade real do `CharacterBody3D`.",
-        cons: "Aguarde o primeiro frame físico (`await get_tree().physics_frame`) antes de consultar o `NavigationServer3D` no `_ready()`."
+        "question": "A célula (0,0,0), o item 7 e yaw 90° são a mesma coisa?",
+        "answer": "Não. São endereço, chave do catálogo e orientação. set_cell_item recebe um índice ortogonal para a rotação, obtido de uma Basis; não recebe diretamente o número de graus."
       },
       {
-        title: "Forma 2: Saltando Abismos entre Plataformas com NavigationLink3D",
-        whenToUse: "Inimigos ágeis que pulam de uma passarela para outra ou descem de varandas.",
-        description: "Conectamos o sinal `link_reached` do `NavigationAgent3D` e aplicamos um impulso vertical e horizontal em direção ao `link_exit_position`!",
-        code: `extends CharacterBody3D
-
-@onready var nav: NavigationAgent3D = $NavigationAgent3D
-
-func _ready() -> void:
-    nav.link_reached.connect(_ao_chegar_em_ponte_de_salto)
-
-func _ao_chegar_em_ponte_de_salto(detalhes: Dictionary) -> void:
-    var saida: Vector3 = detalhes["link_exit_position"]
-    var dir_salto := global_position.direction_to(saida)
-    velocity.x = dir_salto.x * 7.0
-    velocity.z = dir_salto.z * 7.0
-    velocity.y = 6.5 # Impulso de pulo 3D sobre o buraco!`,
-        pros: "Permite que a IA use caminhos verticais e acrobáticos pelo mapa 3D.",
-        cons: "Marque `bidirectional = false` no `NavigationLink3D` caso o inimigo só possa pular de cima para baixo (queda única)."
+        "question": "Por que local_to_map(ponto_global) pode editar a peça errada?",
+        "answer": "A função espera um ponto no referencial local do GridMap. Transforme com to_local antes. Para levar o centro de uma célula ao mundo, combine map_to_local e to_global."
       },
       {
-        title: "Forma 3: Re-Assando o NavMesh em Tempo Real (bake_navigation_mesh)",
-        whenToUse: "Quando uma porta gigante abre, uma ponte levadiça abaixa ou o jogador constrói uma parede nova durante a partida.",
-        description: "Chamamos `bake_navigation_mesh(true)` na `NavigationRegion3D` para recalcular a malha em uma thread de segundo plano sem travar o jogo!",
-        code: `extends NavigationRegion3D
-
-func atualizar_malha_apos_abrir_portao() -> void:
-    # O argumento 'true' faz o cálculo rodar em outra thread sem dar engasgo!
-    bake_navigation_mesh(true)`,
-        pros: "A IA descobre imediatamente que o portão abriu ou que um corredor foi bloqueado.",
-        cons: "Em mapas gigantescos, divida o mundo em várias `NavigationRegion3D` menores para re-assar apenas a sala que mudou."
+        "question": "Estar no volume do Decal garante ver o anel?",
+        "answer": "Não. Renderizador, máscara visual, textura/alfa, orientação e parâmetros de fade também importam. O centro do anel é transparente. Não usar camadas físicas como se fossem layers visuais."
+      },
+      {
+        "question": "Por que uma marca com emissão pode continuar brilhando após animar modulate.a?",
+        "answer": "O alfa de modulate atua no albedo, não na emissão. O exemplo só usa albedo. Se houver textura emissiva, planeje também sua energia e teste a combinação; não generalize o fade deste apoio."
       }
     ],
-    simulator: {
-      type: "navmesh_3d_sim",
-      title: "Laboratório de NavMesh 3D (`agent_radius` Margin) & Salto com NavigationLink3D",
-      description: "Ajuste o raio do agente (`agent_radius`), ative/desative a ponte `NavigationLink3D` sobre o fosso de vapor e veja o autômato escolher entre dar a volta longa ou saltar o abismo!"
-    },
-    quiz: {
-      question: "Para que serve o nó `NavigationLink3D` dentro do sistema de navegação 3D da Godot?",
-      options: [
-        "Para tocar música 3D.",
-        "Para conectar dois pontos separados da malha de navegação (como um abismo pulável, um degrau alto, um teletransporte ou escada de mão), avisando a IA que é possível atravessar dali para lá.",
-        "Para pintar texturas no chão.",
-        "Para substituir a Camera3D."
-      ],
-      correctIndex: 1,
-      explanation: "Correto! O `NavigationLink3D` cria uma ponte lógica entre duas regiões desconectadas do NavMesh e dispara o sinal `link_reached` para você executar o pulo ou subida!"
-    }
+    "pitfalls": [
+      {
+        "title": "O ID 7 não existe no meu catálogo",
+        "text": "Confira get_item_list e o recurso atribuído; IDs não são índices sequenciais garantidos. A rotina de colocação valida a biblioteca antes de editar."
+      },
+      {
+        "title": "A marca não aparece no Compatibility",
+        "text": "Esse método não oferece Decal na Godot 4.5. Teste em Forward+ ou Mobile compatível com o hardware. Um plano/Sprite3D pode ser alternativa para superfícies quase planas, mas não oferece a mesma projeção volumétrica."
+      },
+      {
+        "title": "Quero excluir só uma célula da máscara visual",
+        "text": "GridMap não oferece layers visuais por célula. Separe o receptor em MeshInstance3D quando precisar de controle de layer como o objeto cinza desta prática. Não confundir ID do item com número da layer."
+      },
+      {
+        "title": "A consulta ainda encontra a peça removida",
+        "text": "Confira atualização da grade, ordem da consulta e se há outra peça na coluna. O apoio consulta a primeira superfície por comando no callback físico. Registre o resultado real; não suponha que a colisão já mudou no mesmo instante da edição."
+      },
+      {
+        "title": "A marca atravessa ou corta uma superfície",
+        "text": "Inspecione volume, direção local −Y, textura e filtros. A projeção pode afetar múltiplos receptores; depth/normal fades têm papéis próprios e podem precisar de ajuste. Não prometer adaptação perfeita a qualquer relevo."
+      }
+    ],
+    "summary": "Separe catálogo, endereço e orientação. Configure material, colisão e navegação conforme sua necessidade e confira os referenciais. Decal projeta aparência sobre receptores elegíveis, com volume, máscara e textura; não cria geometria nem substitui consulta física.",
+    "next": "Na aula 3D10, passe de módulos estáticos à animação de esqueletos e misturas. O cenário desta aula não implementa personagem, navegação ou bake de iluminação; esses temas não devem ser inferidos da presença de um GridMap.",
+    "sources": [
+      {
+        "label": "GridMap: células, referenciais e orientações",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_gridmap.html"
+      },
+      {
+        "label": "MeshLibrary: IDs, malhas e formas",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_meshlibrary.html"
+      },
+      {
+        "label": "Montar/exportar GridMaps no editor",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/using_gridmaps.html"
+      },
+      {
+        "label": "Decal: projeção, máscara e alfa",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_decal.html"
+      },
+      {
+        "label": "Usar Decals e seus limites",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/using_decals.html"
+      },
+      {
+        "label": "VisualInstance3D e layers",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_visualinstance3d.html"
+      },
+      {
+        "label": "Node3D e transformações",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
+      },
+      {
+        "label": "Consultas de raycast",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/physics/ray-casting.html"
+      },
+      {
+        "label": "Tween: cancelamento e ciclo de vida",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_tween.html"
+      }
+    ]
   },
-
-  {
-    id: "3d-adv-spatial-shaders-particles",
-    area: "3d",
-    level: "avancado",
-    levelLabel: "Avançado",
-    title: "12. Shaders Espaciais 3D (shader_type spatial) e Partículas 3D com Colisão",
-    subtitle: "Como deformar vértices 3D na GPU (ondas de água, pulsação mecânica), criar escudos holográficos Fresnel e faíscas que quicam no chão.",
-    nodesUsed: ["shader_type spatial", "Fresnel", "GPUParticles3D", "GPUParticlesCollisionBox3D"],
-    feynman: {
-      title: "Explicação Feynman: O Lençol Sacudido pelos Cantos e o Efeito da Bolha de Sabão",
-      explanation: "Lembra dos duendes pintores da GPU no 2D? No 3D (`shader_type spatial`), eles ganham dois poderes novos espetaculares! 1) Na função **`vertex()`**, os duendes podem levantar e abaixar os pontos reais (`VERTEX.y`) da malha 3D: é como segurar um lençol plano de 1.000 pontos e sacudir em ondas senoidais para criar um oceano 3D agitado com custo quase zero! 2) Na função **`fragment()`**, existe um fenômeno óptico da vida real chamado **Efeito Fresnel**: quando você olha para o meio de uma bolha de sabão ou de uma bola de vidro, ela é quase transparente, mas nas **BORDAS** (onde a superfície curva para longe do seu olho) ela brilha intensamente! Com uma linha de código Fresnel, você cria escudos de energia de éter, fantasmas e hologramas 3D dignos de cinema!",
-      analogies: [
-        {
-          term: "shader_type spatial;",
-          analogy: "O shader do mundo 3D: em vez de definir apenas `COLOR`, você define `ALBEDO`, `METALLIC`, `ROUGHNESS` e `EMISSION` para interagir com todas as luzes 3D!"
-        },
-        {
-          term: "VERTEX.y += sin(...) no vertex()",
-          analogy: "Move a altura física dos vértices da malha 3D na placa de vídeo (perfeito para ondas de água, bandeiras, pistões pulsando e grama ao vento)."
-        },
-        {
-          term: "Efeito Fresnel (dot(NORMAL, VIEW))",
-          analogy: "Calcula o quão de raspão a câmera está olhando para a superfície, iluminando as silhuetas e bordas do modelo 3D."
-        },
-        {
-          term: "GPUParticlesCollisionBox3D / Sphere3D",
-          analogy: "Faz com que as faíscas de solda e brasas do `GPUParticles3D` realmente batam e quiquem na mesa e no chão 3D em vez de atravessarem o piso!"
-        }
-      ]
+  "approaches": [
+    {
+      "title": "1. Criar catálogo · biblioteca.gd",
+      "whenToUse": "Preparar dois módulos com IDs, materiais e colisão explícitos.",
+      "description": "Biblioteca RefCounted chamada pelo controlador. A forma física e a malha usam as mesmas dimensões; não há navegação embutida nem cena externa necessária.",
+      "code": "extends RefCounted\n\nstatic func criar() -> MeshLibrary:\n    var biblioteca := MeshLibrary.new()\n    # Os IDs 0 e 7 são chaves, não índices sequenciais de um array.\n    for id: int in [0, 7]:\n        biblioteca.create_item(id)\n        biblioteca.set_item_name(id, \"Inteiro\" if id == 0 else \"Estreito\")\n        var mesh := BoxMesh.new()\n        mesh.size = Vector3(2, 2, 2) if id == 0 else Vector3(2, 2, 1)\n        var material := StandardMaterial3D.new()\n        material.albedo_color = Color(0.5, 0.3, 0.12) if id == 0 else Color(0.1, 0.4, 0.45)\n        material.roughness = 0.7\n        mesh.material = material # Material pertence à malha da biblioteca.\n        biblioteca.set_item_mesh(id, mesh)\n        biblioteca.set_item_mesh_transform(id, Transform3D.IDENTITY)\n        var forma := BoxShape3D.new()\n        forma.size = mesh.size\n        # Array alterna Shape3D e sua transformação local.\n        biblioteca.set_item_shapes(id, [forma, Transform3D.IDENTITY])\n    return biblioteca\n",
+      "pros": "Dados mínimos suficientes para testar peças inteiras/estreitas.",
+      "cons": "É uma biblioteca procedural; não equivale a testar exportação/importação no editor."
     },
-    howItWorks: {
-      overview: "Em um shader `spatial`, o código que você escreve em `fragment()` alimenta o motor PBR da Godot (`ALBEDO`, `ROUGHNESS`, `METALLIC`, `EMISSION`, `ALPHA`). E nas partículas 3D (`GPUParticles3D`), basta adicionar nós `GPUParticlesCollisionBox3D` no chão e ativar `Collision Mode = Rigid` no `ParticleProcessMaterial` para ter milhares de faíscas colidindo na GPU!",
-      anatomy: [
-        {
-          prop: "ALBEDO / EMISSION / ROUGHNESS / METALLIC",
-          desc: "Saídas do `fragment()` num shader `spatial` que recebem iluminação 3D completa."
-        },
-        {
-          prop: "VERTEX (vec3 na função vertex)",
-          desc: "Posição local do vértice 3D que pode ser deslocada em tempo real na GPU."
-        },
-        {
-          prop: "dot(NORMAL, VIEW)",
-          desc: "Produto escalar entre a normal da superfície e o olhar da câmera (vale `1.0` no centro e `0.0` na borda extrema)."
-        },
-        {
-          prop: "GPUParticlesAttractorSphere3D",
-          desc: "Nó 3D que puxa (vórtice/aspirador) ou empurra partículas de vapor e magia em tempo real!"
-        }
-      ]
+    {
+      "title": "2. Editar e converter · grade.gd",
+      "whenToUse": "Colocar/remover com referência local/global e orientação controladas.",
+      "description": "A interface principal edita por célula. editar_impacto é uma extensão que exige Dictionary de hit válido e collider correto. Epsilon ilustrativo para células de 2 u e escala unitária, sem garantia geral em bordas/cantos.",
+      "code": "extends RefCounted\n\nstatic func configurar(grid: GridMap, biblioteca: MeshLibrary) -> void:\n    grid.mesh_library = biblioteca\n    grid.cell_size = Vector3(2, 2, 2)\n    grid.cell_scale = 1.0\n    grid.cell_center_x = true\n    grid.cell_center_y = true\n    grid.cell_center_z = true\n    grid.collision_layer = 1\n    grid.collision_mask = 1\n    grid.bake_navigation = false\n\nstatic func colocar(grid: GridMap, celula: Vector3i, id: int, quartos: int) -> bool:\n    if grid.mesh_library == null or not grid.mesh_library.get_item_list().has(id):\n        return false\n    var basis := Basis(Vector3.UP, posmod(quartos, 4) * PI / 2.0)\n    var orientacao := grid.get_orthogonal_index_from_basis(basis)\n    grid.set_cell_item(celula, id, orientacao)\n    return true\n\nstatic func remover(grid: GridMap, celula: Vector3i) -> void:\n    grid.set_cell_item(celula, GridMap.INVALID_CELL_ITEM)\n\nstatic func centro_global(grid: GridMap, celula: Vector3i) -> Vector3:\n    return grid.to_global(grid.map_to_local(celula))\n\nstatic func celula_global(grid: GridMap, ponto: Vector3) -> Vector3i:\n    return grid.local_to_map(grid.to_local(ponto))\n\n# Extensão opcional para resultado de raycast; a interface principal edita por célula.\n# O ponto e a normal devem estar em coordenadas globais e o collider ser este GridMap.\nstatic func editar_impacto(grid: GridMap, hit: Dictionary, adicionar: bool,\n        id: int = 0, quartos: int = 0) -> bool:\n    if hit.is_empty() or hit.get(\"collider\") != grid:\n        return false\n    if not hit.has(\"position\") or not hit.has(\"normal\"):\n        return false\n    var normal: Vector3 = hit[\"normal\"]\n    if normal.is_zero_approx():\n        return false\n    # Nesta prática, escala global unitária e células de 2 u.\n    var epsilon := grid.cell_size[grid.cell_size.min_axis_index()] * 0.001\n    var ponto: Vector3 = hit[\"position\"]\n    ponto += normal.normalized() * epsilon * (1.0 if adicionar else -1.0)\n    var celula := celula_global(grid, ponto)\n    if adicionar:\n        return colocar(grid, celula, id, quartos)\n    remover(grid, celula)\n    return true\n",
+      "pros": "ID, endereço e índice de orientação separados.",
+      "cons": "Nem o retorno booleano nem a edição visual comprovam sincronização imediata da física."
     },
-    approaches: [
-      {
-        title: "Forma 1: Campo de Força / Holograma de Éter com Efeito Fresnel",
-        whenToUse: "Escudos protetores, hologramas Steampunk, itens lendários brilhando ou inimigos espectrais.",
-        description: "Calculamos o Fresnel a partir de `NORMAL` e `VIEW` para deixar o centro translúcido e as bordas brilhando em ciano elétrico!",
-        code: `// --- Arquivo: escudo_fresnel.gdshader ---
-shader_type spatial;
-render_mode blend_add, cull_disabled, unshaded;
-
-uniform vec4 cor_eter : source_color = vec4(0.36, 0.88, 0.90, 1.0);
-uniform float potencia_borda : hint_range(0.5, 8.0) = 3.0;
-
-void fragment() {
-    // 1.0 na borda da silhueta, 0.0 no centro olhando de frente
-    float fresnel = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), potencia_borda);
-    ALBEDO = cor_eter.rgb;
-    ALPHA = fresnel;
-}`,
-        pros: "Destaca perfeitamente a silhueta 3D de qualquer modelo independente do ângulo da câmera.",
-        cons: "`render_mode blend_add` soma luz (ótimo para energia brilhante)."
-      },
-      {
-        title: "Forma 2: Deslocamento de Vértices (Ondas Mecânicas / Líquido de Caldeira 3D)",
-        whenToUse: "Água 3D, tanques de óleo borbulhante, bandeiras ou terrenos que ondulam.",
-        description: "Subdividimos um `PlaneMesh` (ex: `subdivide_width = 32`, `subdivide_depth = 32`) e alteramos `VERTEX.y` na função `vertex()`.",
-        code: `// --- Arquivo: ondas_caldeira.gdshader ---
-shader_type spatial;
-
-uniform float altura_onda : hint_range(0.0, 1.0) = 0.18;
-uniform float velocidade : hint_range(0.5, 10.0) = 3.5;
-
-void vertex() {
-    // Levanta e abaixa a altura Y de cada vértice da malha 3D!
-    VERTEX.y += sin(VERTEX.x * 4.0 + TIME * velocidade) * cos(VERTEX.z * 4.0 + TIME * velocidade) * altura_onda;
-}
-
-void fragment() {
-    ALBEDO = vec3(0.12, 0.45, 0.52);
-    ROUGHNESS = 0.15;
-    METALLIC = 0.2;
-}`,
-        pros: "Deforma milhares de vértices diretamente na GPU sem gastar 1% da CPU.",
-        cons: "O `PlaneMesh` precisa ter subdivisões (`subdivide_width/depth`) para ter vértices internos que possam subir e descer!"
-      },
-      {
-        title: "Forma 3: Faíscas de Solda 3D que Quicam no Chão (GPUParticlesCollision)",
-        whenToUse: "Forjas, impactos de tiros em armaduras de metal, esmeris e explosões de caldeira.",
-        description: "Ativamos `collision_mode = COLLISION_RIGID` no `ParticleProcessMaterial` do `GPUParticles3D` e colocamos um `GPUParticlesCollisionBox3D` no piso.",
-        code: `extends GPUParticles3D
-
-func configurar_faiscas_colisiveis() -> void:
-    var mat := process_material as ParticleProcessMaterial
-    if mat:
-        # Faz cada partícula bater e quicar em nós GPUParticlesCollision3D!
-        mat.collision_mode = ParticleProcessMaterial.COLLISION_RIGID
-        mat.collision_bounce = 0.65
-        mat.collision_friction = 0.2`,
-        pros: "Milhares de faíscas quicando fisicamente nos degraus e no chão calculadas 100% na placa de vídeo.",
-        cons: "Partículas GPU colidem apenas com nós da família `GPUParticlesCollision3D` (não com `StaticBody3D` comuns)."
-      }
-    ],
-    simulator: {
-      type: "spatial_shader_3d",
-      title: "Laboratório de Shader Espacial 3D: Ondas de Vértice (`VERTEX.y`) & Brilho Fresnel",
-      description: "Ajuste a potência do Efeito Fresnel, a amplitude da onda de vértices (`vertex()`) e a velocidade temporal (`TIME`) em uma malha 3D interativa!"
+    {
+      "title": "3. Marca repetível · marca.gd",
+      "whenToUse": "Testar um Decal de albedo com anel transparente e fade reiniciável.",
+      "description": "Anexado ao Decal criado pelo controlador. Cria ImageTexture local, mantém por 2 s e apaga em 1 s somente quando solicitado. A marca persistente é reutilizada.",
+      "code": "extends Decal\nvar animacao: Tween\n\nfunc textura_anel() -> Texture2D:\n    var imagem := Image.create(128, 128, false, Image.FORMAT_RGBA8)\n    for y in range(128):\n        for x in range(128):\n            var raio := (Vector2(x, y) + Vector2(0.5, 0.5) - Vector2(64, 64)).length() / 32.0\n            var alfa := 1.0 if raio >= 1.0 and raio <= 1.5 else 0.0\n            imagem.set_pixel(x, y, Color(0.2, 0.9, 1.0, alfa))\n    return ImageTexture.create_from_image(imagem)\n\nfunc _ready() -> void:\n    texture_albedo = textura_anel()\n    # Só albedo nesta prática: alfa de modulate não apaga emissão.\n    upper_fade = 0.0\n    lower_fade = 0.0\n    normal_fade = 0.0\n    distance_fade_enabled = false\n    restaurar()\n\nfunc restaurar() -> void:\n    if animacao != null and animacao.is_valid():\n        animacao.kill()\n    animacao = null\n    modulate = Color.WHITE\n\nfunc repetir() -> void:\n    restaurar() # Cancela a animação anterior antes de iniciar outra.\n    animacao = create_tween()\n    animacao.tween_interval(2.0)\n    animacao.tween_property(self, \"modulate:a\", 0.0, 1.0)\n    # A marca é reutilizada, não liberada; F pode repetir após desaparecer.\n",
+      "pros": "Repetição cancela o Tween anterior; reset cancela e restaura.",
+      "cons": "Alfa não controla emissão; sem normal/ORM, fade angular/profundidade ou pooling apresentados como prontos."
     },
-    quiz: {
-      question: "Ao criar um shader de ondas de água 3D usando `VERTEX.y += sin(...)` num `PlaneMesh`, você nota que o plano inteiro apenas sobe e desce reto sem formar ondas. Por que isso aconteceu?",
-      options: [
-        "Porque o GDScript está desligado.",
-        "Porque um `PlaneMesh` padrão tem apenas 4 vértices nos cantos! É preciso aumentar `subdivide_width` e `subdivide_depth` no PlaneMesh para existirem vértices no meio que possam ondular.",
-        "Porque `TIME` só funciona em 2D.",
-        "Porque falta um `StaticBody3D`."
-      ],
-      correctIndex: 1,
-      explanation: "Na mosca! A função `vertex()` move os vértices existentes na malha. Se o plano só tiver os 4 cantos, não há pontos intermediários para formar a barriga da onda; basta aumentar `subdivide_width` e `subdivide_depth`!"
+    {
+      "title": "4. Montar a oficina · oficina.gd",
+      "whenToUse": "Executar cena, controles, câmera, fontes e consulta física.",
+      "description": "Anexado ao Node3D raiz. A marca acompanha o referencial da grade, o objeto cinza é separado e o raio físico é agendado por comando. Confirmar o método atual no painel.",
+      "code": "extends Node3D\nconst BIBLIOTECA = preload(\"res://biblioteca.gd\")\nconst GRADE = preload(\"res://grade.gd\")\nconst MARCA = preload(\"res://marca.gd\")\nvar grid: GridMap\nvar marca: MARCA\nvar objeto: MeshInstance3D\nvar selecao: MeshInstance3D\nvar painel: VBoxContainer\nvar leitura: Label\nvar resultado_fisico: Label\nvar sx: HSlider\nvar sy: HSlider\nvar sz: HSlider\nvar giro: HSlider\nvar dx: HSlider\nvar dy: HSlider\nvar profundidade: HSlider\nvar item: OptionButton\nvar mascara: OptionButton\nvar repetir_btn: Button\nvar consultar := false\n\nfunc celula() -> Vector3i:\n    return Vector3i(int(sx.value), int(sy.value), int(sz.value))\n\nfunc slider(titulo: String, minimo: float, maximo: float,\n        passo: float, valor: float) -> HSlider:\n    var texto := Label.new()\n    texto.text = titulo\n    painel.add_child(texto)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    s.custom_minimum_size.x = 340\n    painel.add_child(s)\n    s.value_changed.connect(func(_v: float): atualizar())\n    return s\n\nfunc botao(texto: String, acao: Callable) -> Button:\n    var b := Button.new()\n    b.text = texto\n    painel.add_child(b)\n    b.pressed.connect(acao)\n    return b\n\nfunc _ready() -> void:\n    grid = GridMap.new()\n    grid.name = \"Grade\"\n    grid.position = Vector3(10, 0, -4)\n    grid.rotation.y = PI / 2.0\n    add_child(grid)\n    GRADE.configurar(grid, BIBLIOTECA.criar())\n    marca = MARCA.new()\n    marca.name = \"Marca\"\n    grid.add_child(marca) # Transformações da grade afetam a marca também.\n    objeto = MeshInstance3D.new()\n    objeto.name = \"ObjetoLayer2\"\n    var mesh := BoxMesh.new()\n    mesh.size = Vector3.ONE\n    objeto.mesh = mesh\n    objeto.layers = 2 # Visual, independente de collision_layer.\n    objeto.position = grid.to_global(Vector3(1, 2, 1))\n    var mat := StandardMaterial3D.new()\n    mat.albedo_color = Color(0.6, 0.6, 0.6)\n    mat.roughness = 0.7\n    objeto.material_override = mat\n    add_child(objeto)\n    selecao = MeshInstance3D.new()\n    selecao.name = \"SelecaoSemColisao\"\n    var esfera := SphereMesh.new()\n    esfera.radius = 0.12\n    esfera.height = 0.24\n    selecao.mesh = esfera\n    var destaque := StandardMaterial3D.new()\n    destaque.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED\n    destaque.albedo_color = Color(1, 0.75, 0.2)\n    selecao.material_override = destaque\n    selecao.layers = 4 # Não participa das máscaras 1/2/3 do painel.\n    add_child(selecao)\n    var camera := Camera3D.new()\n    camera.position = grid.to_global(Vector3(12, 12, 16))\n    add_child(camera)\n    camera.look_at(grid.to_global(Vector3(1, 1, 1)), Vector3.UP)\n    camera.make_current()\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-50, -25, 0)\n    luz.shadow_enabled = true\n    add_child(luz)\n    var mundo := WorldEnvironment.new()\n    var e := Environment.new()\n    e.background_mode = Environment.BG_COLOR\n    e.background_color = Color(0.04, 0.03, 0.02)\n    e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    e.ambient_light_color = Color(0.7, 0.75, 0.8)\n    e.ambient_light_energy = 0.3\n    e.ambient_light_sky_contribution = 0.0\n    mundo.environment = e\n    add_child(mundo)\n    criar_interface()\n    restaurar()\n\nfunc criar_interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var scroll := ScrollContainer.new()\n    scroll.position = Vector2(16, 16)\n    scroll.size = Vector2(430, 900)\n    layer.add_child(scroll)\n    var fundo := PanelContainer.new()\n    scroll.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.add_theme_constant_override(\"separation\", 8)\n    fundo.add_child(painel)\n    leitura = Label.new()\n    leitura.custom_minimum_size.x = 370\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n    sx = slider(\"Célula X\", -2, 2, 1, 0)\n    sy = slider(\"Camada Y\", 0, 2, 1, 0)\n    sz = slider(\"Célula Z\", -2, 2, 1, 0)\n    item = OptionButton.new()\n    item.add_item(\"ID 7 — estreito\", 7)\n    item.add_item(\"ID 0 — inteiro\", 0)\n    painel.add_child(item)\n    item.item_selected.connect(func(_v: int): atualizar())\n    giro = slider(\"Yaw da peça (quartos de volta)\", 0, 3, 1, 0)\n    botao(\"Colocar — P\", colocar)\n    botao(\"Remover célula — X\", remover)\n    dx = slider(\"Centro local X do projetor\", -3, 5, 0.5, 1)\n    dy = slider(\"Centro local Y do projetor\", 1, 5, 0.5, 2)\n    profundidade = slider(\"Profundidade Y do volume\", 0.5, 6, 0.5, 2)\n    mascara = OptionButton.new()\n    mascara.add_item(\"1 — GridMap\", 1)\n    mascara.add_item(\"2 — objeto separado\", 2)\n    mascara.add_item(\"3 — ambos\", 3)\n    mascara.add_item(\"0 — nenhum\", 0)\n    painel.add_child(mascara)\n    mascara.item_selected.connect(func(_v: int): atualizar())\n    repetir_btn = botao(\"Repetir marca: 2 s + fade 1 s — F\", repetir)\n    botao(\"Consultar física após edição\", func(): consultar = true)\n    resultado_fisico = Label.new()\n    resultado_fisico.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(resultado_fisico)\n    botao(\"Restaurar cena — R\", restaurar)\n\nfunc atualizar() -> void:\n    if not is_instance_valid(repetir_btn):\n        return\n    var c := celula()\n    var local := grid.map_to_local(c)\n    var global := GRADE.centro_global(grid, c)\n    selecao.global_position = grid.to_global(local + Vector3(0, 1.2, 0))\n    marca.position = Vector3(dx.value, dy.value, 1)\n    marca.size = Vector3(4, profundidade.value, 4)\n    marca.cull_mask = mascara.get_selected_id()\n    var metodo := RenderingServer.get_current_rendering_method()\n    var suportado := metodo != \"gl_compatibility\"\n    marca.visible = suportado\n    repetir_btn.disabled = not suportado\n    leitura.text = (\"Método: %s\\nCélula %s | item %d | orientação %d\\n\"\n            + \"Centro local %s\\nCentro global %s\\nO desenho não altera colisões por si.\\n\"\n            + \"Decal: %s | máscara %d\\nCentro X %.1f Y %.1f | volume Y %.1f\\n\"\n            + \"Sem locomoção ou navegação. Restaure antes de repetir testes.\") % [\n            metodo, c, grid.get_cell_item(c), grid.get_cell_item_orientation(c),\n            local, global, \"disponível\" if suportado else \"indisponível em Compatibility\",\n            marca.cull_mask, dx.value, dy.value, profundidade.value]\n\nfunc colocar() -> void:\n    GRADE.colocar(grid, celula(), item.get_selected_id(), int(giro.value))\n    resultado_fisico.text = \"Edição solicitada. Aguarde atualização e consulte a física.\"\n    atualizar()\n\nfunc remover() -> void:\n    GRADE.remover(grid, celula())\n    resultado_fisico.text = \"Remoção solicitada. A sincronização física não é comprovada por este texto.\"\n    atualizar()\n\nfunc repetir() -> void:\n    if not repetir_btn.disabled:\n        marca.repetir()\n\nfunc restaurar() -> void:\n    consultar = false\n    grid.clear()\n    for x in range(-2, 3):\n        for z in range(-2, 3):\n            GRADE.colocar(grid, Vector3i(x, 0, z), 0, 0)\n    GRADE.colocar(grid, Vector3i(0, 1, 0), 7, 0)\n    sx.set_value_no_signal(0)\n    sy.set_value_no_signal(0)\n    sz.set_value_no_signal(0)\n    giro.set_value_no_signal(0)\n    dx.set_value_no_signal(1)\n    dy.set_value_no_signal(2)\n    profundidade.set_value_no_signal(2)\n    item.select(0)\n    mascara.select(0)\n    marca.restaurar()\n    resultado_fisico.text = \"Cena restaurada. Consulta física ainda não realizada.\"\n    atualizar()\n\nfunc _physics_process(_delta: float) -> void:\n    if not consultar:\n        return\n    consultar = false\n    var c := celula()\n    var p := grid.map_to_local(c)\n    var de := grid.to_global(Vector3(p.x, 8, p.z))\n    var ate := grid.to_global(Vector3(p.x, -2, p.z))\n    var query := PhysicsRayQueryParameters3D.create(de, ate, 1)\n    var hit := get_world_3d().direct_space_state.intersect_ray(query)\n    if hit.is_empty():\n        resultado_fisico.text = \"Raio: sem hit; apenas layer física 1.\"\n    else:\n        var pos: Vector3 = hit[\"position\"]\n        var normal: Vector3 = hit[\"normal\"]\n        var atingida := GRADE.celula_global(grid, pos - normal * 0.002)\n        resultado_fisico.text = \"Primeira superfície: célula %s, ponto %s. Pode haver peça acima da seleção.\" % [atingida, pos]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_P: colocar()\n        KEY_X: remover()\n        KEY_F: repetir()\n        KEY_R: restaurar()\n        _: return\n    get_viewport().set_input_as_handled()\n",
+      "pros": "Projeto completo com dependências e estados de reset explícitos.",
+      "cons": "Scripts e cena precisam ser compilados/executados na Godot antes de homologar."
+    },
+    {
+      "title": "5. Configuração e condições",
+      "whenToUse": "Preparar o projeto e distinguir simulação web da cena real.",
+      "description": "Leia com o roteiro de testes. Forward+/Mobile para Decal; biblioteca e grade podem ser conferidas sem esse efeito em Compatibility.",
+      "code": "Godot 4.5, GDScript, desktop. Base Forward+; Decal também funciona em Mobile.\nCompatibility permite testar a grade, mas não renderiza Decal. O painel mostra\no método atual, inclusive após fallback. Não há substituto visual fingindo Decal.\nImportar project.godot e executar oficina.tscn. Tudo é montado em runtime.\nBiblioteca procedural: itens 0/7, BoxMesh + material na malha + BoxShape3D.\nCélulas 2x2x2, centros XYZ ligados, escala 1. Grade em (10,0,-4), yaw +90 graus.\nSem navegação/bake_navigation, personagens, InputMap ou assets externos.\nGridMap não é VisualInstance3D: não tem layers visuais por peça/célula.\nDecal mask 1 alcança o GridMap; objeto MeshInstance3D separado usa layer 2.\nAs camadas físicas da grade são outro filtro e não governam o Decal.\nDecal local -Y, volume (4, profundidade, 4), centro Z=1, anel albedo RGBA.\nupper/lower/normal fade zerados para comparação geométrica; filtro de textura\ndo renderer pode suavizar o anel. Centro do anel é transparente.\nmodulate.a anima somente albedo nesta prática; sem textura de emissão.\nMarca persistente: F espera 2s e apaga em 1s; repetir cancela Tween anterior.\nR cancela animação e restaura grade/controles/marca. Não há início automático.\nBotão de consulta física agenda raycast para callback físico. Após edição,\naguardar atualização; não confundir set_cell_item com colisão imediata garantida.\nO raio vertical consulta a primeira superfície, inclusive peças acima da seleção.\nExecução no motor ainda pendente; revisão documental não é homologação.\n",
+      "language": "text",
+      "pros": "Versão, escala, filtros e limites registrados.",
+      "cons": "Não há medição de performance ou homologação do motor neste ambiente."
     }
+  ],
+  "simulator": {
+    "type": "gridmap_decal_3d",
+    "title": "Laboratório: editar células e filtrar a projeção",
+    "description": "Modelo próprio Canvas/JS de grade por camadas, orientação por quartos de volta e projeção de um anel em superfícies horizontais. A segunda vista inspeciona amostras. Sem Godot, consulta física ou relevo complexo.",
+    "guide": [
+      {
+        "title": "Edite pelo endereço",
+        "text": "Há 25 células em Y=0 e uma em (0,1,0). Clique só seleciona, setas mudam X/Z e Q/E mudam camada. P coloca e X remove. Item 7 tem metade da profundidade; o giro mostra yaw 0/90/180/270, não índices ortogonais nativos."
+      },
+      {
+        "title": "Separe receptor e texel",
+        "text": "A caixa ciano é contorno do volume, não prova de marca aplicada. GridMap usa layer visual 1; objeto separado layer 2. Sua amostra fica em (1;2,5;1), sem ocultar a grade na vista do modelo. No volume e na máscara ainda pode haver texel transparente no centro do anel. Sem sombras/oclusão nem normal/depth fades."
+      },
+      {
+        "title": "Controle o tempo manualmente",
+        "text": "A marca mantém alfa 1 até 2 s e cai linearmente a zero em 3 s. O tempo não corre sozinho: use slider/T para avançar 0,5 s e F para repetir. R restaura grade, seleção, filtros e marca. Atalhos sem repetição/modificadores, só com foco no desenho; controles visíveis equivalentes. Ajustes funcionam em pausa."
+      }
+    ]
   },
-
-  // ==========================================================================
-  // NÍVEL V — PROFISSIONAL (Arquiteto do Éter)
-  // ==========================================================================
-  {
-    id: "3d-pro-global-illumination",
-    area: "3d",
-    level: "profissional",
-    levelLabel: "Profissional",
-    title: "13. Iluminação Global Avançada (LightmapGI, VoxelGI, SDFGI e ReflectionProbe)",
-    subtitle: "Como fazer a luz rebater nas paredes coloridas (Global Illumination) escolhendo a tecnologia certa para o seu tipo de jogo.",
-    nodesUsed: ["LightmapGI", "VoxelGI", "SDFGI", "ReflectionProbe"],
-    feynman: {
-      title: "Explicação Feynman: A Luz que Quica igual Bola de Tênis e o Espelho Mágico",
-      explanation: "Na vida real, quando o sol entra pela janela e bate num tapete vermelho forte, a luz quica no tapete e pinta o teto branco com um tom rosado suave! Em computação gráfica, esse 'quique da luz' se chama **Iluminação Global (GI — *Global Illumination*)**. Sem luz indireta ou ambiente, as regiões que não recebem luz direta ficam escuras. A luz direta continua iluminando as superfícies voltadas para a fonte, inclusive os brilhos nos metais. Mas calcular milhões de raios de luz quicando em tempo real é pesado! Por isso a Godot 4 te dá **3 ferramentas de GI** para você escolher igual um engenheiro: 1) **`LightmapGI`** (assa a luz como uma pintura fixa nas paredes — pode ter baixo custo durante o jogo, dependendo da cena e do dispositivo.); 2) **`VoxelGI`** (calcula luz quicando em tempo real dentro de uma sala ou prédio fechado); e 3) **`SDFGI`** (liga com 1 clique para mundos abertos gigantescos com ciclo dia/noite!).",
-      analogies: [
-        {
-          term: "LightmapGI (Luz Assada / Baked)",
-          analogy: "Tirar uma fotografia perfeita das sombras e luzes rebatidas e colar como textura nas paredes: evita recalcular os rebatimentos durante o jogo, mas ainda há custo de memória e de renderização."
-        },
-        {
-          term: "VoxelGI (Tempo Real para Interiores/Fases Médias)",
-          analogy: "Uma caixa de sensores 3D que calcula luz e reflexos dinâmicos quando portas abrem ou luzes mudam de cor."
-        },
-        {
-          term: "SDFGI (Signed Distance Field GI — Mundo Aberto)",
-          analogy: "Iluminação global automática que segue a câmera pelo mundo aberto inteiro sem precisar posicionar caixas nem assar mapas."
-        },
-        {
-          term: "ReflectionProbe (Sonda de Reflexo)",
-          analogy: "Uma bola espelhada invisível colocada no centro da sala para que os metais (`metallic = 1.0`) reflitam as paredes reais daquela sala em vez de refletirem apenas o céu!"
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Escolher a técnica de Iluminação Global correta é uma das decisões mais importantes de um Arquiteto 3D na Godot. Além disso, um `ReflectionProbe` pode melhorar os reflexos locais em uma sala fechada, pois metais polidos refletem o ambiente e também podem mostrar brilhos da luz direta. O resultado depende das fontes de reflexão disponíveis, como céu, GI e sondas locais.",
-      anatomy: [
-        {
-          prop: "MeshInstance3D.gi_mode (Disabled / Static / Dynamic)",
-          desc: "Informa ao sistema de GI se aquela malha faz parte do cenário fixo (`Static` — rebatedor de luz) ou se move (`Dynamic`)."
-        },
-        {
-          prop: "Light3D.light_bake_mode (Disabled / Static / Dynamic)",
-          desc: "Define se a luz será assada por completo no Lightmap (`Static`) ou se apenas a luz indireta será assada (`Dynamic`)."
-        },
-        {
-          prop: "ReflectionProbe.update_mode (Once / Always)",
-          desc: "`Once` tira uma foto 360° da sala no início (super rápido!); `Always` atualiza todo frame."
-        },
-        {
-          prop: "Environment.sdfgi_enabled = true",
-          desc: "Ativa SDFGI no Forward+: iluminação em tempo parcialmente real para geometria estática e luzes dinâmicas. Oclusores e emissores móveis não são suportados como contribuintes dinâmicos."
-        }
-      ]
-    },
-    approaches: [
-      {
-        title: "Forma 1: Máxima Performance e Qualidade para Cenários Fixos (LightmapGI + ReflectionProbe)",
-        whenToUse: "Fases com geometria estática, inclusive em Mobile e Compatibility, respeitando os recursos do dispositivo.",
-        description: "Marcamos as malhas do cenário com `gi_mode = GI_MODE_STATIC`, geramos UV2 na importação e clicamos em 'Bake Lightmaps' no `LightmapGI`.",
-        code: `# Fluxo Profissional LightmapGI:
-# 1. No Import do modelo .glb do cenário, ative "Meshes -> Light Baking = Static Lightmaps"
-# 2. Adicione um nó LightmapGI na cena e clique em "Bake Lightmaps"
-# 3. Adicione um ReflectionProbe em cada salão com Update Mode = ONCE:
-
-extends ReflectionProbe
-
-func _ready() -> void:
-    update_mode = ReflectionProbe.UPDATE_ONCE
-    box_projection = true # Corrige a perspectiva do reflexo em salas retangulares!`,
-        pros: "Iluminação indireta digna de filme com o menor custo de GPU possível em tempo de execução.",
-        cons: "Não permite derrubar paredes do cenário ou girar o sol livremente durante a partida."
-      },
-      {
-        title: "Forma 2: Interiores Dinâmicos Ricos com VoxelGI",
-        whenToUse: "Cenas internas ou médias no Forward+, com luzes dinâmicas. Objetos móveis que precisam contribuir com GI devem usar GI Mode Dynamic, com custo adicional.",
-        description: "Posicionamos a caixa do `VoxelGI` cobrindo a área da fase e clicamos em 'Bake VoxelGI'. Luzes e objetos com materiais emissivos iluminam as paredes em tempo real!",
-        code: `extends VoxelGI
-
-# Dica de Ouro com VoxelGI:
-# Qualquer MeshInstance3D com StandardMaterial3D que tenha EMISSION ligada
-# passa a iluminar de verdade as paredes vizinhas sem precisar de OmniLight3D!`,
-        pros: "Materiais emissivos (tubos de éter, lava, letreiros) iluminam o cenário ao redor com reflexos coloridos reais.",
-        cons: "Exige placa de vídeo dedicada (Forward+) e funciona dentro dos limites da caixa do VoxelGI."
-      },
-      {
-        title: "Forma 3: Mundos Abertos com Ciclo Dia/Noite Dinâmico (SDFGI)",
-        whenToUse: "Cenários externos amplos no Forward+, com geometria estática e luzes dinâmicas, como ciclos solares. Não trata oclusores e superfícies emissivas móveis como VoxelGI.",
-        description: "Ativamos `sdfgi_enabled = true` no `WorldEnvironment` (com `sdfgi_use_occlusion = true` para evitar vazamento de luz em salas).",
-        code: `extends WorldEnvironment
-
-func ativar_iluminacao_global_mundo_aberto() -> void:
-    if environment:
-        environment.sdfgi_enabled = true
-        environment.sdfgi_use_occlusion = true
-        environment.sdfgi_read_sky_light = true`,
-        pros: "Dispensa bake manual prévio e acompanha regiões do mundo. Alterar geometria estática perto da câmera pode exigir regenerar os dados; malhas móveis não contribuem como oclusores dinâmicos.",
-        cons: "Tem custo fixo maior na GPU; ofereça uma chave nas opções gráficas para desligar em PCs de entrada."
-      }
+  "quiz": {
+    "question": "Na Godot 4.5, qual procedimento é coerente para editar módulos e limitar uma marca projetada?",
+    "options": [
+      "Converter ponto global para local antes de local_to_map, distinguir ID/orientação e usar volume/textura/máscara visual do Decal em Forward+ ou Mobile; GridMap não fornece layers visuais por célula.",
+      "Passar 90 como índice de orientação, usar collision_layer para filtrar Decal e esperar que ele funcione em Compatibility.",
+      "Usar o ID do item como layer visual da célula e considerar que qualquer ponto dentro da caixa terá textura opaca.",
+      "Animar modulate.a para apagar automaticamente albedo e emissão e assumir colisão instantânea após set_cell_item."
     ],
-    simulator: {
-      type: "gi_reflection_3d",
-      title: "Laboratório de Iluminação Global (Luz Direta vs GI Rebatida + ReflectionProbe)",
-      description: "Compare a mesma sala sob a mesma luz direta. Ative separadamente o rebatimento difuso da parede vermelha e o reflexo ambiente na esfera metálica. Observe a esfera fosca e o chão: a cor rebatida depende da posição, orientação e oclusão, e não de uma camada de cor sobre toda a imagem."
-    },
-    quiz: {
-      question: "Você colocou várias engrenagens de latão (`metallic = 1.0`, `roughness = 0.1`) dentro de uma sala fechada sem janelas e elas ficaram quase pretas, mesmo com uma `OmniLight3D` na sala! Qual nó você deve adicionar na sala para que o metal tenha o que refletir?",
-      options: [
-        "ReflectionProbe (com `box_projection = true`)",
-        "CharacterBody3D",
-        "AudioStreamPlayer3D",
-        "RayCast3D"
-      ],
-      correctIndex: 0,
-      explanation: "Um ReflectionProbe pode fornecer reflexos locais das paredes da sala. Ele complementa a iluminação difusa, e não substitui os rebatimentos de GI. Sem uma sonda, outras fontes de reflexão podem ser usadas, como o céu, GI ou SSR; o metal ainda pode apresentar brilhos da luz direta."
-    }
-  },
-
-  {
-    id: "3d-pro-optimization-culling-lod",
-    area: "3d",
-    level: "profissional",
-    levelLabel: "Profissional",
-    title: "14. Otimização 3D Profissional (Occlusion Culling, LOD, VisibilityRange e MultiMesh3D)",
-    subtitle: "Como manter 60+ FPS em cidades Steampunk densas escondendo o que está atrás das paredes e trocando modelos distantes automaticamente.",
-    nodesUsed: ["OccluderInstance3D", "VisibilityRange (HLOD)", "MultiMeshInstance3D", "RenderingServer"],
-    feynman: {
-      title: "Explicação Feynman: O Mágico que Não Desenha o que Está Atrás da Parede e o Binóculo de Longe",
-      explanation: "Como um jogo 3D gigante consegue mostrar uma cidade inteira com 500 prédios sem explodir o computador? Usando 3 truques de ilusionismo profissional! 1) **Frustum Culling** (já vem ligado de fábrica): a Godot não desenha o que está nas costas da câmera. 2) **Occlusion Culling (`OccluderInstance3D`)**: e se houver 50 máquinas detalhadas lá dentro de uma sala, mas a porta está fechada e há uma parede na sua frente? Com um `OccluderInstance3D` dentro da parede, a Godot percebe que a parede tapa a visão e **desliga o desenho de tudo que está atrás dela**! 3) **LOD (*Level of Detail*) e `VisibilityRange`**: quando uma estátua está a 2 metros de você, ela usa 10.000 triângulos; quando você se afasta a 80 metros, a Godot troca sozinha para uma versão de 300 triângulos — como ela está pequenininha lá longe, ninguém nota a diferença e sua GPU agradece!",
-      analogies: [
-        {
-          term: "Occlusion Culling (OccluderInstance3D)",
-          analogy: "Se você está olhando para um muro alto, não precisa desenhar os carros e lojas que estão escondidos atrás do muro!"
-        },
-        {
-          term: "Auto-LOD de Malhas (Importação Godot 4)",
-          analogy: "Na hora de importar qualquer `.glb`, a Godot 4 já cria versões mais leves da malha automaticamente e troca sozinha conforme a distância!"
-        },
-        {
-          term: "VisibilityRange (visibility_range_begin / end)",
-          analogy: "Chave de distância em metros em todo `GeometryInstance3D`: faz pequenos parafusos e detalhes sumirem suavemente (`Fade`) quando estão a mais de 25 metros!"
-        },
-        {
-          term: "MultiMeshInstance3D",
-          analogy: "Desenha 20.000 árvores, rebites, pedras ou canos repetidos em 1 único comando para a placa de vídeo (GPU Instancing)."
-        }
-      ]
-    },
-    howItWorks: {
-      overview: "Para ativar o Occlusion Culling na Godot 4: 1) Marque `Rendering -> Occlusion Culling -> Use Occlusion Culling` nas Configurações do Projeto; 2) Adicione um nó `OccluderInstance3D` na cena e clique em **'Bake Occluders'** no topo da viewport (ou use primitivas `BoxOccluder3D` dentro das paredes grandes).",
-      anatomy: [
-        {
-          prop: "OccluderInstance3D (Bake Occluders)",
-          desc: "Gera a geometria simplificada que bloqueia a visão da câmera e descarta objetos escondidos atrás de paredes."
-        },
-        {
-          prop: "visibility_range_end = 35.0 / fade_mode = FADE_SELF",
-          desc: "Faz objetos decorativos pequenos desaparecerem suavemente além de 35 metros sem dar 'pop-in' brusco."
-        },
-        {
-          prop: "MultiMeshInstance3D.multimesh",
-          desc: "Agrupa milhares de instâncias idênticas (grama, parafusos, engrenagens, destroços) em um único Draw Call."
-        },
-        {
-          prop: "Viewport -> Display Overdraw / Wireframe",
-          desc: "Modos de diagnóstico no editor 3D para enxergar onde há excesso de triângulos ou transparências empilhadas."
-        }
-      ]
-    },
-    approaches: [
-      {
-        title: "Forma 1: Configurando Visibility Range (HLOD) com Fade Suave",
-        whenToUse: "Objetos de decoração pequenos (ferramentas em cima de mesas, rebites, garrafas, grama) que não precisam ser renderizados a 100 metros.",
-        description: "Definimos `visibility_range_end` e `visibility_range_fade_mode` direto no `MeshInstance3D`.",
-        code: `extends MeshInstance3D
-
-func _ready() -> void:
-    # Esconde este detalhe mecânico quando a câmera estiver a mais de 30 metros
-    visibility_range_end = 30.0
-    visibility_range_end_margin = 5.0
-    # Faz um fade-out suave nos últimos 5 metros para não sumir no susto!
-    visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF`,
-        pros: "Corta drasticamente o número de objetos e sombras desenhados ao longe sem nenhum impacto visual perceptível.",
-        cons: "Não aplique em paredes grandes que servem de cobertura ou referência de navegação."
-      },
-      {
-        title: "Forma 2: Populando 5.000 Peças 3D em 1 Único Draw Call (MultiMeshInstance3D)",
-        whenToUse: "Florestas, campos de destroços, rebites em pontes metálicas, cardumes ou multidões no fundo.",
-        description: "Configuramos um `MultiMesh` com `transform_format = TRANSFORM_3D` e posicionamos cada instância por índice com `set_instance_transform(i, transform)`!",
-        code: `extends MultiMeshInstance3D
-
-@export var malha_peca: Mesh
-@export var quantidade: int = 2000
-
-func _ready() -> void:
-    multimesh = MultiMesh.new()
-    multimesh.transform_format = MultiMesh.TRANSFORM_3D
-    multimesh.mesh = malha_peca
-    multimesh.instance_count = quantidade
-    
-    for i in quantidade:
-        var t := Transform3D()
-        t.origin = Vector3(randf_range(-50, 50), 0.0, randf_range(-50, 50))
-        t.basis = Basis(Vector3.UP, randf() * TAU)
-        multimesh.set_instance_transform(i, t)`,
-        pros: "Renderiza 2.000 a 50.000 malhas 3D gastando apenas 1 Draw Call na placa de vídeo!",
-        cons: "As instâncias do MultiMesh não possuem física individual automática (para árvores, crie colisão apenas perto do jogador ou use blocos simples)."
-      },
-      {
-        title: "Forma 3: Monitoramento de Performance em Tempo Real (Performance Singleton)",
-        whenToUse: "Criar um painel de telemetria técnica (F3) dentro do próprio jogo para medir FPS, Draw Calls, VRAM e Física.",
-        description: "O singleton nativo `Performance` expõe todas as métricas internas do motor da Godot em tempo real.",
-        code: `extends Label
-
-func _process(_delta: float) -> void:
-    var fps := Engine.get_frames_per_second()
-    var draw_calls := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
-    var objetos := Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
-    var vram_mb := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / (1024.0 * 1024.0)
-    
-    text = "FPS: %d | Draw Calls: %d | Objetos 3D: %d | VRAM: %.1f MB" % [
-        fps, draw_calls, objetos, vram_mb
-    ]`,
-        pros: "Permite diagnosticar gargalos reais em qualquer máquina de teste mesmo fora do Editor.",
-        cons: "Atualize o texto a cada 0.25s se não precisar de leitura quadro a quadro."
-      }
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Referenciais, dados da célula e critérios da projeção são contratos separados.",
+      "Orientação usa índice ortogonal; Decal filtra layers visuais e não é suportado em Compatibility.",
+      "ID e layer são dados distintos; GridMap não oferece layers visuais por célula e o texel pode ser transparente.",
+      "Alfa de modulate não controla emissão; sincronização física precisa ser conferida no motor."
     ],
-    simulator: {
-      type: "occlusion_lod_3d",
-      title: "Laboratório de Occlusion Culling, Frustum Culling & Nível de Detalhe (LOD)",
-      description: "Gire o cone de visão da `Camera3D` pela fábrica, ligue/desligue o `OccluderInstance3D` (paredes bloqueadoras) e o `LOD` e observe quantos triângulos e Draw Calls são economizados!"
-    },
-    quiz: {
-      question: "Qual técnica faz com que a Godot deixe de enviar para a placa de vídeo objetos 3D que estão dentro do ângulo da câmera, mas totalmente escondidos atrás de uma parede sólida?",
-      options: [
-        "Occlusion Culling (usando `OccluderInstance3D`)",
-        "Normal Mapping",
-        "BlendSpace2D",
-        "Coyote Time"
-      ],
-      correctIndex: 0,
-      explanation: "Exato! O *Frustum Culling* descarta o que está fora do cone da câmera, enquanto o *Occlusion Culling* (`OccluderInstance3D`) descarta tudo que está escondido atrás de paredes e obstáculos opacos!"
-    }
+    "explanation": "Uma biblioteca visual/física bem definida não elimina a necessidade de validar o renderizador, os referenciais e os receptores da marca."
   }
+},
+
+{
+  "id": "3d-adv-animationtree-skeleton",
+  "area": "3d",
+  "level": "avancado",
+  "levelLabel": "Avançado",
+  "title": "10. Skeleton3D e AnimationTree: poses, filtros e encaixes",
+  "subtitle": "Preveja pesos num triângulo, separe a ação do braço da pose base e acompanhe um objeto preso à mão.",
+  "nodesUsed": [
+    "Skeleton3D",
+    "AnimationPlayer",
+    "AnimationLibrary",
+    "AnimationTree",
+    "AnimationNodeBlendSpace2D",
+    "AnimationNodeOneShot",
+    "BoneAttachment3D"
+  ],
+  "feynman": {
+    "title": "O esqueleto organiza a pose; o grafo decide como misturá-la",
+    "explanation": "Uma pose é uma configuração de transformações. O Skeleton3D organiza os ossos em hierarquia; o AnimationPlayer guarda os clipes e o AnimationTree avalia suas combinações. Um osso da mão herda a transformação do braço. Um objeto preso a essa mão pode acompanhar a pose sem deformar sua própria malha. Nesta oficina mecânica, começamos com peças rígidas e três poses constantes, para observar uma causa por vez antes de lidar com importação, pele deformável e ciclos de caminhada.",
+    "analogies": [
+      {
+        "term": "Hierarquia e pele",
+        "analogy": "As articulações organizam as partes, mas não dizem sozinhas como cada vértice de uma malha deve deformar. Um personagem com Skin e pesos exige uma ligação diferente das peças inteiras presas a anexos neste apoio."
+      },
+      {
+        "term": "Triângulo de mistura",
+        "analogy": "Cada vértice representa uma pose. Um ponto dentro do triângulo distribui participação entre essas três referências. O resultado depende dos vértices e da triangulação, não apenas da distância até o centro do gráfico."
+      },
+      {
+        "term": "Encaixe na mão",
+        "analogy": "O anexo fornece a transformação do osso. A ferramenta ainda precisa de um ajuste local de posição, rotação e escala conforme seu pivô. Local zero não é garantia de que qualquer modelo cairá na palma."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. O apoio cria seis ossos e peças rígidas, uma biblioteca com três poses constantes, RESET e uma ação de um segundo. Um BlendTree contém Mistura (BlendSpace2D), ClipeAcao e Acao (OneShot). A saída é avaliada manualmente. Não há personagem com Skin, locomoção, importação ou controlador de oito direções pronto.",
+    "anatomy": [
+      {
+        "prop": "Rest, pose e espaço do esqueleto",
+        "desc": "Rest é a referência inicial; pose descreve a transformação atual dos ossos. A chamada global pose do Skeleton3D ainda é relativa ao esqueleto, não necessariamente ao mundo. Skin e pesos ligam vértices aos ossos; BoneAttachment3D acompanha um osso com um nó inteiro. O rig desta prática não deforma vértices."
+      },
+      {
+        "prop": "Biblioteca, pistas e raiz",
+        "desc": "AnimationPlayer armazena AnimationLibrary/clipes; AnimationTree controla sua avaliação. Os paths Skeleton3D:osso são resolvidos a partir da raiz configurada. Não comandar as mesmas pistas por AnimationPlayer.play ou escrever pose por código ao mesmo tempo, esperando que não haja disputa. RESET explicita valores de referência."
+      },
+      {
+        "prop": "Triângulo e parâmetros",
+        "desc": "Mistura tem Parado(0,0), Passo(1,0), Lateral(0,1), com triângulo manual. O ponto (0,4;0,2) dá pesos 0,4/0,4/0,2. Nossa entrada positiva é dividida por max(1,X+Y) antes do grafo. Essa política não é a regra nativa para todos os pontos fora de triângulos. O path é `parameters/Mistura/blend_position`, com nomes exatos."
+      },
+      {
+        "prop": "OneShot e filtro de pistas",
+        "desc": "Acao recebe base em in e clipe temporário em shot; FIRE solicita reprodução, ABORT cancela e active é leitura de estado. O filtro seleciona a pista Skeleton3D:Braco_R. A mão acompanha a hierarquia, sem precisar de pista própria. Desligar filtro deixa o clipe afetar também as pernas que ele contém. Não é um toggle de animação em loop."
+      },
+      {
+        "prop": "Anexo, movimento e limites",
+        "desc": "BoneAttachment3D aponta para Mao_R com override_pose=false; EncaixeLocal desloca a ferramenta no referencial herdado. Animar a pose não desloca CharacterBody3D nem resolve colisão. Para velocidades em um eixo, BlendSpace1D pode bastar; locomoção multidirecional exige clipes e triangulação próprios. StateMachine é outro grafo, com caminhos e transições configurados; não há parameters/playback nesta raiz BlendTree."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Quatro scripts montam rig, clipes, grafo e interface em runtime. As poses constantes isolam a mistura. O tempo é manual tanto no apoio quanto no modelo: T/botão avança 0,1 s. Não há importação externa prometida como pronta, nem ataque com física/dano.",
+    "duration": "70–100 min com previsões e repetição (estimativa)",
+    "prerequisite": "Aulas 3D 1–9: transformações, malhas, referenciais e separação entre visual/física. Godot 4.5, GDScript, Compatibility, desktop. Apoio conferido documentalmente; compilação/execução no motor pendentes.",
+    "objectives": [
+      "Distinguir hierarquia de ossos, pose, malha deformável e objeto rígido preso a um anexo.",
+      "Prever pesos de três poses no triângulo e configurar paths/conexões da AnimationTree.",
+      "Comparar uma ação filtrada com corpo todo, repetir/cancelar e ajustar o encaixe local da ferramenta."
+    ],
+    "practice": {
+      "title": "Prática guiada: o manequim mecânico",
+      "intro": "Extraia o projeto e importe project.godot. A cena cria um rig simples com peças rígidas e uma ferramenta. Parado, Passo e Lateral são nomes de poses constantes, não clipes de deslocamento. A câmera é fixa; não há física, Skin ou personagens externos. Comece sem ação, em pedido X=0/Y=0.",
+      "tree": "Oficina (Node3D / oficina.gd; montagem em runtime)\n├── Skeleton3D\n│   ├── Raiz → Tronco → Braco_R → Mao_R (ossos)\n│   ├── Raiz → Perna_L / Perna_R (ossos)\n│   ├── Anexos das peças rígidas (BoneAttachment3D)\n│   └── SuporteMao (BoneAttachment3D; bone_name=Mao_R)\n│       └── EncaixeLocal → FerramentaRigida\n├── AnimationPlayer / AnimationLibrary\n│   └── Parado, Passo, Lateral, Acao e RESET\n├── AnimationTree / BlendTree\n│   ├── Mistura: triângulo Parado/Passo/Lateral\n│   └── Mistura → Acao(in); ClipeAcao → Acao(shot) → output\n├── Camera3D, luz e WorldEnvironment\n└── CanvasLayer / Interface\n\nOssos são dados no Skeleton3D, não nós filhos da SceneTree.\nSem Skin/pesos: malhas inteiras acompanham anexos.",
+      "download": {
+        "url": "assets/aula-3d-10-animacao-esqueleto.zip",
+        "label": "Baixar projeto de apoio: poses, filtro e encaixe"
+      },
+      "downloadNote": "Nove arquivos, incluindo quatro scripts e roteiro. Tudo criado localmente; execução no motor ainda pendente.",
+      "steps": [
+        {
+          "title": "Reconheça o rig e a biblioteca",
+          "text": "Execute oficina.tscn e inspecione a árvore Remota. No Skeleton3D confira seis ossos, pais e rest transforms. Abra a biblioteca do AnimationPlayer: três poses constantes, ação sem loop e RESET. O AnimationTree aponta para esse player e usa raiz BlendTree.",
+          "expect": "Peças rígidas acompanham anexos; não há Skin ou deformação de vértices. Ossos não aparecem como nós independentes na SceneTree. A biblioteca contém os dados e o grafo decide a combinação."
+        },
+        {
+          "title": "Preveja os pesos antes de olhar a pose",
+          "text": "Compare pedidos (0,0), (1,0), (0,1) e (0,4;0,2). Identifique o triângulo e seus vértices. Depois peça (1,1) e confira que o controlador envia (0,5;0,5), dividindo pela soma. No Canvas, o quadrado indica pedido e o ponto ciano indica o valor aplicado.",
+          "expect": "Pesos nos vértices são exclusivos. Em (0,4;0,2), Parado=0,4, Passo=0,4 e Lateral=0,2. Em pedido (1,1), aplicado (0,5;0,5), Parado=0. Não usar norma do vetor como se ela determinasse todos os pesos do BlendSpace2D."
+        },
+        {
+          "title": "Confira as conexões e os nomes",
+          "text": "Abra o grafo criado: Mistura entra em Acao pela porta in; ClipeAcao entra por shot; Acao entra em output. Confira o filtro da pista Skeleton3D:Braco_R e o path parameters/Mistura/blend_position. Os paths de Acao/request e Acao/active pertencem ao OneShot deste grafo.",
+          "expect": "Um nó desconectado da saída não contribui. Os nomes precisam coincidir em código e grafo. parameters/playback só faria sentido com a StateMachine e o caminho adequados; essa estrutura não existe automaticamente."
+        },
+        {
+          "title": "Dispare e avance sem perder o momento",
+          "text": "Escolha X=0,4/Y=0,2, pressione F ou Disparar e depois T cinco vezes. Não há avanço automático. Observe a leitura active da árvore e a ação em torno da metade do clipe. Continue até terminar; dispare novamente e cancele com C. Na Godot, o contador indica comandos, não tempo de parede.",
+          "expect": "A ação é temporária e repetível. Sua solicitação é consumida pela árvore, enquanto active informa o estado real. Ajustar X/Y não deve fazer o tempo correr. Os fades nativos são 0,1 s e precisam ser conferidos no motor, sem exigir igualdade com o modelo angular web."
+        },
+        {
+          "title": "Compare o filtro sem mudar a base",
+          "text": "Repita até aproximadamente 0,5 s com filtro somente braço. Compare as pernas com a pose sem ação. Desligue o filtro e repita nas mesmas entradas. O clipe Acao contém pistas zeradas nas pernas justamente para tornar a comparação observável.",
+          "expect": "Com filtro, as pistas das pernas continuam vindo da base; sem filtro, elas podem ser substituídas pelo clipe da ação. Mao_R acompanha o braço por herança, sem adicionar uma pista de mão só para fazê-la acompanhar."
+        },
+        {
+          "title": "Ajuste o encaixe no espaço local",
+          "text": "Mantenha a ação no meio e compare offsets 0, 0,2 e 0,5. Observe o nó EncaixeLocal e o pivô da ferramenta. Repita em outra pose. Reinicie com F durante uma ação e use R antes do final; depois avance novamente.",
+          "expect": "O deslocamento acompanha a orientação da mão. Zero não garante encaixe de qualquer recurso. Repetir processa ABORT antes de FIRE; R cancela a ação e restaura os parâmetros. Confirmar no motor que nenhuma ação antiga reaparece."
+        },
+        {
+          "title": "Transfira o raciocínio com limites claros",
+          "text": "Explique como substituir estas poses por clipes reais. Num personagem importado, confira malha/Skin/pesos, rest pose, nomes, trilhas, escala e loops. Para locomover, complete o gráfico e alimente o parâmetro com velocidade no referencial escolhido, mantendo deslocamento e colisão no controlador.",
+          "expect": "Esta oficina não é um sistema pronto de oito direções, importação/retarget, root motion ou troca de armas. Suavização também é outra decisão: se usar lerp dependente de delta, prefira um fator limitado ou exponencial, não 10×delta sem considerar passos grandes. Registre esses aprofundamentos antes de assumir que estão implementados."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Por que o mesmo ponto pode produzir pesos diferentes em outro BlendSpace2D?",
+        "answer": "Porque vértices, posições e triangulação definem a mistura. Os pesos apresentados pertencem ao triângulo desta prática, não a uma fórmula universal baseada na distância ao centro."
+      },
+      {
+        "question": "Uma malha no mesmo nó Skeleton3D já tem deformação de pele?",
+        "answer": "Não. A malha deformável precisa da ligação de Skin/pesos e de recursos compatíveis. As peças desta oficina são rígidas, presas a BoneAttachment3D; isso não valida importação ou skinning."
+      },
+      {
+        "question": "Por que as pernas mudam quando desligo o filtro da ação?",
+        "answer": "O clipe Acao também contém pistas de pernas. Sem o filtro, elas entram na ação e podem substituir a base. Com o filtro apenas Braco_R é afetado; Mao_R acompanha a hierarquia."
+      },
+      {
+        "question": "Por que local zero não garante que a ferramenta está na palma?",
+        "answer": "O anexo fornece a transformação do osso, mas o pivô/orientação/tamanho do asset podem exigir um Transform local de encaixe. O ajuste deve ser inspecionado em várias poses, não só em repouso."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "Alterei o parâmetro e nada aconteceu",
+        "text": "Confira root_node, anim_player, clipes, grafo conectado ao output e nome exato do path. O apoio avalia manualmente; alterar parâmetros chama advance(0), e T avança a ação. Não copiar parameters/Locomocao de outro grafo sem criar esse nó."
+      },
+      {
+        "title": "O OneShot não termina ou nunca repete",
+        "text": "Confira loop do clipe, autorestart e porta shot. O apoio tem clipe de 1 s, sem loop, e exige avanço manual. Repetição consome cancelamento antes de disparar; o comportamento real deve ser conferido na Godot."
+      },
+      {
+        "title": "O braço parece disputar com meu script",
+        "text": "Não escreva a pose do mesmo osso em paralelo à árvore sem uma política de ordem/modificação. Para ajustes procedurais avançados, estudar a etapa de modificadores é um aprofundamento separado."
+      },
+      {
+        "title": "Misturei poses, mas o personagem não anda",
+        "text": "Este exemplo não possui controlador físico. Pose visual, velocidade, deslocamento e root motion são decisões distintas. Os clipes constantes servem à comparação, não formam passos locomotores completos."
+      },
+      {
+        "title": "O acessório segue a mão, mas está deslocado",
+        "text": "Confira bone_name, esqueleto pai/externo, override_pose e Transform local de encaixe. Não corrigir um pivô inadequado presumindo que posição local zero serve para todos os modelos."
+      }
+    ],
+    "summary": "Confira referências, nomes e trilhas antes de misturar. Pesos dependem do triângulo; filtros limitam quais pistas a ação substitui. Um anexo acompanha o osso, mas o asset ainda precisa de encaixe local. A animação visual não é o controlador de movimento.",
+    "next": "A aula 3D11 passa à navegação e aos contratos de caminho/agente. Importação com Skin, retarget, ciclos completos, StateMachine, root motion e equipamento ficam como aprofundamentos a avaliar após revisar todo o currículo.",
+    "sources": [
+      {
+        "label": "Skeleton3D: rest e pose",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_skeleton3d.html"
+      },
+      {
+        "label": "Animation e pistas de rotação",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animation.html"
+      },
+      {
+        "label": "AnimationLibrary",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animationlibrary.html"
+      },
+      {
+        "label": "AnimationTree e conexões",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/animation/animation_tree.html"
+      },
+      {
+        "label": "BlendSpace2D: triângulos",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animationnodeblendspace2d.html"
+      },
+      {
+        "label": "AnimationNode: filtros",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animationnode.html"
+      },
+      {
+        "label": "OneShot: requests e estado",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animationnodeoneshot.html"
+      },
+      {
+        "label": "BoneAttachment3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_boneattachment3d.html"
+      },
+      {
+        "label": "AnimationMixer: avanço manual",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_animationmixer.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Hierarquia e anexos · rig.gd",
+      "whenToUse": "Inspecionar ossos e objetos rígidos sem depender de importação.",
+      "description": "Biblioteca RefCounted chamada pelo controlador. Rest e pais explícitos; anexos copiam pose com override_pose=false. EncaixeLocal permite ajustar a ferramenta.",
+      "code": "extends RefCounted\n\nstatic func osso(s: Skeleton3D, nome: String, pai: int, origem: Vector3) -> int:\n    var id := s.add_bone(nome)\n    if pai >= 0:\n        s.set_bone_parent(id, pai)\n    s.set_bone_rest(id, Transform3D(Basis.IDENTITY, origem))\n    return id\n\nstatic func peca(s: Skeleton3D, nome_osso: String, tamanho: Vector3,\n        offset: Vector3, cor: Color) -> BoneAttachment3D:\n    var anexo := BoneAttachment3D.new()\n    anexo.name = \"Anexo_\" + nome_osso\n    s.add_child(anexo)\n    anexo.bone_name = nome_osso\n    anexo.override_pose = false\n    var mesh := BoxMesh.new()\n    mesh.size = tamanho\n    var instancia := MeshInstance3D.new()\n    instancia.mesh = mesh\n    instancia.position = offset\n    var mat := StandardMaterial3D.new()\n    mat.albedo_color = cor\n    mat.roughness = 0.6\n    instancia.material_override = mat\n    anexo.add_child(instancia)\n    return anexo\n\nstatic func criar(pai: Node3D) -> Dictionary:\n    var s := Skeleton3D.new()\n    s.name = \"Skeleton3D\"\n    pai.add_child(s)\n    var raiz := osso(s, \"Raiz\", -1, Vector3.ZERO)\n    var tronco := osso(s, \"Tronco\", raiz, Vector3(0, 1.1, 0))\n    var braco := osso(s, \"Braco_R\", tronco, Vector3(0.35, 0.35, 0))\n    osso(s, \"Mao_R\", braco, Vector3(0.7, 0, 0))\n    osso(s, \"Perna_L\", raiz, Vector3(-0.2, 1.1, 0))\n    osso(s, \"Perna_R\", raiz, Vector3(0.2, 1.1, 0))\n    s.reset_bone_poses()\n    peca(s, \"Tronco\", Vector3(0.6, 0.75, 0.3), Vector3(0, 0.35, 0), Color(0.6, 0.4, 0.16))\n    peca(s, \"Braco_R\", Vector3(0.7, 0.12, 0.15), Vector3(0.35, 0, 0), Color(0.1, 0.7, 0.75))\n    peca(s, \"Perna_L\", Vector3(0.15, 1, 0.18), Vector3(0, -0.5, 0), Color(0.6, 0.4, 0.16))\n    peca(s, \"Perna_R\", Vector3(0.15, 1, 0.18), Vector3(0, -0.5, 0), Color(0.6, 0.4, 0.16))\n    var mao := BoneAttachment3D.new()\n    mao.name = \"SuporteMao\"\n    s.add_child(mao)\n    mao.bone_name = \"Mao_R\"\n    mao.override_pose = false\n    var encaixe := Node3D.new()\n    encaixe.name = \"EncaixeLocal\"\n    mao.add_child(encaixe)\n    var ferramenta := MeshInstance3D.new()\n    ferramenta.name = \"FerramentaRigida\"\n    var mesh := BoxMesh.new()\n    mesh.size = Vector3(0.7, 0.08, 0.12)\n    ferramenta.mesh = mesh\n    ferramenta.position.x = 0.35\n    encaixe.add_child(ferramenta)\n    # Sem Skin ou pesos: cada peça inteira acompanha um anexo.\n    return {\"skeleton\": s, \"encaixe\": encaixe}\n",
+      "pros": "Hierarquia e offset local visíveis.",
+      "cons": "Não há Skin/pesos ou deformação de malha; não valida personagem importado."
+    },
+    {
+      "title": "2. Biblioteca de poses · clipes.gd",
+      "whenToUse": "Criar referências constantes e uma ação temporária controlada.",
+      "description": "Cada pose contém pistas das pernas e braço. A ação contém as mesmas pistas para permitir comparar filtro ligado/desligado. Não são ciclos de caminhada.",
+      "code": "extends RefCounted\nconst OSSOS = [\"Perna_L\", \"Perna_R\", \"Braco_R\"]\n\nstatic func pista(a: Animation, osso: String, tempos: Array, angulos: Array) -> void:\n    var i := a.add_track(Animation.TYPE_ROTATION_3D)\n    a.track_set_path(i, NodePath(\"Skeleton3D:\" + osso))\n    for k in range(tempos.size()):\n        a.rotation_track_insert_key(i, tempos[k], Quaternion(Vector3.FORWARD, -angulos[k]))\n    # FORWARD é -Z; sinal negativo equivale a giro positivo em +Z.\n\nstatic func pose(angulos: Array) -> Animation:\n    var a := Animation.new()\n    a.length = 1.0\n    a.loop_mode = Animation.LOOP_LINEAR\n    for i in range(OSSOS.size()):\n        pista(a, OSSOS[i], [0.0, 1.0], [angulos[i], angulos[i]])\n    return a\n\nstatic func criar(player: AnimationPlayer) -> void:\n    var biblioteca := AnimationLibrary.new()\n    biblioteca.add_animation(\"Parado\", pose([0.0, 0.0, 0.0]))\n    biblioteca.add_animation(\"Passo\", pose([-0.35, 0.35, 0.1]))\n    biblioteca.add_animation(\"Lateral\", pose([0.45, 0.45, -0.25]))\n    var reset := pose([0.0, 0.0, 0.0])\n    reset.loop_mode = Animation.LOOP_NONE\n    biblioteca.add_animation(\"RESET\", reset)\n    var acao := Animation.new()\n    acao.length = 1.0\n    acao.loop_mode = Animation.LOOP_NONE\n    pista(acao, \"Braco_R\", [0.0, 0.5, 1.0], [0.0, 1.2, 0.0])\n    pista(acao, \"Perna_L\", [0.0, 1.0], [0.0, 0.0])\n    pista(acao, \"Perna_R\", [0.0, 1.0], [0.0, 0.0])\n    biblioteca.add_animation(\"Acao\", acao)\n    player.add_animation_library(\"\", biblioteca)\n    # Três POSES constantes para isolar pesos, não três ciclos de caminhada.\n",
+      "pros": "Clipes e caminhos completos; RESET explícito.",
+      "cons": "Rotações nativas usam quaternions; o Canvas usa aproximação angular separada."
+    },
+    {
+      "title": "3. Triângulo e OneShot · grafo.gd",
+      "whenToUse": "Construir o BlendTree com nomes e conexões verificáveis.",
+      "description": "Triângulo manual de três poses, portas in/shot e output. A política de limitar entrada ocorre antes da árvore; não descreve o comportamento nativo fora do triângulo.",
+      "code": "extends RefCounted\n\nstatic func animacao(nome: StringName) -> AnimationNodeAnimation:\n    var a := AnimationNodeAnimation.new()\n    a.animation = nome\n    return a\n\nstatic func criar() -> AnimationNodeBlendTree:\n    var raiz := AnimationNodeBlendTree.new()\n    var mistura := AnimationNodeBlendSpace2D.new()\n    mistura.auto_triangles = false\n    mistura.min_space = Vector2.ZERO\n    mistura.max_space = Vector2.ONE\n    mistura.blend_mode = AnimationNodeBlendSpace2D.BLEND_MODE_INTERPOLATED\n    mistura.add_blend_point(animacao(\"Parado\"), Vector2.ZERO)\n    mistura.add_blend_point(animacao(\"Passo\"), Vector2(1, 0))\n    mistura.add_blend_point(animacao(\"Lateral\"), Vector2(0, 1))\n    mistura.add_triangle(0, 1, 2)\n    var acao := AnimationNodeOneShot.new()\n    acao.autorestart = false\n    acao.fadein_time = 0.1\n    acao.fadeout_time = 0.1\n    acao.mix_mode = AnimationNodeOneShot.MIX_MODE_BLEND\n    acao.filter_enabled = true\n    acao.set_filter_path(NodePath(\"Skeleton3D:Braco_R\"), true)\n    raiz.add_node(\"Mistura\", mistura, Vector2(0, 0))\n    raiz.add_node(\"ClipeAcao\", animacao(\"Acao\"), Vector2(0, 180))\n    raiz.add_node(\"Acao\", acao, Vector2(250, 0))\n    raiz.connect_node(\"Acao\", 0, \"Mistura\")\n    raiz.connect_node(\"Acao\", 1, \"ClipeAcao\")\n    raiz.connect_node(\"output\", 0, \"Acao\")\n    return raiz\n\nstatic func limitar(pedido: Vector2) -> Vector2:\n    var p := pedido.clamp(Vector2.ZERO, Vector2.ONE)\n    return p / maxf(1.0, p.x + p.y)\n    # Política radial desta bancada, aplicada ANTES de enviar ao BlendSpace.\n",
+      "pros": "Paths e máscara de pista coerentes com os clipes.",
+      "cons": "Sem StateMachine, oito direções ou clipes importados configurados."
+    },
+    {
+      "title": "4. Comandos e avanço · oficina.gd",
+      "whenToUse": "Executar a bancada com parâmetros, repetição, cancelamento e reset.",
+      "description": "Anexado ao Node3D raiz. Avaliação manual por advance; nenhuma chamada AnimationPlayer.play disputa as pistas. O contador acompanha passos solicitados, não mede tempo de parede.",
+      "code": "extends Node3D\nconst RIG = preload(\"res://rig.gd\")\nconst CLIPES = preload(\"res://clipes.gd\")\nconst GRAFO = preload(\"res://grafo.gd\")\nvar arvore: AnimationTree\nvar encaixe: Node3D\nvar painel: VBoxContainer\nvar leitura: Label\nvar x: HSlider\nvar y: HSlider\nvar offset: HSlider\nvar filtro: CheckButton\nvar tempo := 0.0\n\nfunc slider(texto: String, minimo: float, maximo: float, passo: float, valor: float) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    painel.add_child(l)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    s.custom_minimum_size.x = 340\n    painel.add_child(s)\n    s.value_changed.connect(func(_v: float): atualizar())\n    return s\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var b := Button.new()\n    b.text = texto\n    painel.add_child(b)\n    b.pressed.connect(acao)\n\nfunc _ready() -> void:\n    var dados := RIG.criar(self)\n    encaixe = dados[\"encaixe\"]\n    var player := AnimationPlayer.new()\n    player.name = \"AnimationPlayer\"\n    player.root_node = NodePath(\"..\")\n    add_child(player)\n    CLIPES.criar(player)\n    arvore = AnimationTree.new()\n    arvore.name = \"AnimationTree\"\n    add_child(arvore)\n    arvore.anim_player = NodePath(\"../AnimationPlayer\")\n    arvore.root_node = NodePath(\"..\")\n    arvore.tree_root = GRAFO.criar()\n    arvore.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL\n    arvore.active = true\n    var camera := Camera3D.new()\n    camera.position = Vector3(3.5, 2.8, 5)\n    add_child(camera)\n    camera.look_at(Vector3(0.5, 1.3, 0), Vector3.UP)\n    camera.make_current()\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-45, -30, 0)\n    add_child(luz)\n    var mundo := WorldEnvironment.new()\n    var e := Environment.new()\n    e.background_mode = Environment.BG_COLOR\n    e.background_color = Color(0.04, 0.03, 0.02)\n    e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    e.ambient_light_color = Color.WHITE\n    e.ambient_light_energy = 0.3\n    e.ambient_light_sky_contribution = 0.0\n    mundo.environment = e\n    add_child(mundo)\n    criar_interface()\n    restaurar()\n\nfunc criar_interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(16, 16)\n    layer.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.add_theme_constant_override(\"separation\", 10)\n    fundo.add_child(painel)\n    leitura = Label.new()\n    leitura.custom_minimum_size.x = 380\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n    x = slider(\"Pedido X — pose Passo\", 0, 1, 0.05, 0)\n    y = slider(\"Pedido Y — pose Lateral\", 0, 1, 0.05, 0)\n    offset = slider(\"Offset local da ferramenta (u)\", 0, 0.5, 0.05, 0.2)\n    filtro = CheckButton.new()\n    filtro.text = \"Filtrar somente Braco_R\"\n    filtro.button_pressed = true\n    painel.add_child(filtro)\n    filtro.toggled.connect(func(_v: bool): atualizar())\n    botao(\"Disparar / repetir — F\", disparar)\n    botao(\"Avançar 0,1 s — T\", avancar)\n    botao(\"Cancelar ação — C\", cancelar)\n    botao(\"Restaurar — R\", restaurar)\n\nfunc atualizar() -> void:\n    if not is_instance_valid(filtro):\n        return\n    var p := GRAFO.limitar(Vector2(x.value, y.value))\n    arvore.set(\"parameters/Mistura/blend_position\", p)\n    var raiz := arvore.tree_root as AnimationNodeBlendTree\n    var acao := raiz.get_node(\"Acao\") as AnimationNodeOneShot\n    acao.filter_enabled = filtro.button_pressed\n    encaixe.position = Vector3(offset.value, 0, 0)\n    arvore.advance(0.0)\n    leitura.text = (\"Tempo MANUAL %.1f s\\nPedido (%.2f, %.2f) → aplicado %s\\n\"\n            + \"Pesos previstos: %.3f / %.3f / %.3f\\nOneShot ativo: %s\\n\"\n            + \"Peças rígidas, sem Skin ou locomoção.\\nX/Y não são posição no mundo.\") % [\n            tempo, x.value, y.value, p, 1.0 - p.x - p.y, p.x, p.y,\n            arvore.get(\"parameters/Acao/active\")]\n\nfunc cancelar() -> void:\n    arvore.set(\"parameters/Acao/request\", AnimationNodeOneShot.ONE_SHOT_REQUEST_ABORT)\n    arvore.advance(0.0) # Consumir o cancelamento antes de possível FIRE.\n    tempo = 0.0\n    atualizar()\n\nfunc disparar() -> void:\n    cancelar()\n    arvore.set(\"parameters/Acao/request\", AnimationNodeOneShot.ONE_SHOT_REQUEST_FIRE)\n    arvore.advance(0.0)\n    atualizar()\n\nfunc avancar() -> void:\n    tempo = snappedf(tempo + 0.1, 0.1)\n    arvore.advance(0.1)\n    atualizar()\n\nfunc restaurar() -> void:\n    x.set_value_no_signal(0)\n    y.set_value_no_signal(0)\n    offset.set_value_no_signal(0.2)\n    filtro.set_pressed_no_signal(true)\n    cancelar()\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if not event is InputEventKey or not event.pressed or event.echo:\n        return\n    if event.ctrl_pressed or event.alt_pressed or event.meta_pressed:\n        return\n    match event.keycode:\n        KEY_F: disparar()\n        KEY_T: avancar()\n        KEY_C: cancelar()\n        KEY_R: restaurar()\n        _: return\n    get_viewport().set_input_as_handled()\n",
+      "pros": "Momento da ação inspecionável e repetível.",
+      "cons": "Compilação e comportamento real das solicitações/fades ainda precisam de execução no motor."
+    },
+    {
+      "title": "5. Configuração e escopo",
+      "whenToUse": "Conferir recursos, paths e o que a prática não implementa.",
+      "description": "Leia com o roteiro de testes; projeto local sem assets externos ou InputMap.",
+      "code": "Godot 4.5, GDScript, Compatibility, desktop. Importar project.godot.\nOficina.tscn contém só a raiz; oficina.gd cria a cena em runtime.\nSem GLB, Skin, pesos de vértices, física, root motion, retarget ou InputMap.\nSeis ossos: Raiz, Tronco, Braco_R, Mao_R, Perna_L e Perna_R.\nMalhas rígidas via BoneAttachment3D, override_pose=false. Ferramenta no\nanexo da mão, com EncaixeLocal e offset próprio. Não é uma malha deformável.\nClipes Parado/Passo/Lateral são POSES constantes de um segundo em loop;\nnão formam ciclos de caminhada ou um controlador de oito direções.\nAcao é clipe de um segundo sem loop, com pistas de braço e pernas.\nRESET fornece valores de referência para as pistas usadas.\nAnimationPlayer armazena a biblioteca; AnimationTree controla a avaliação.\nBlendTree: Mistura -> Acao(in); ClipeAcao -> Acao(shot); Acao -> output.\nMistura: triângulo explícito Parado(0,0), Passo(1,0), Lateral(0,1).\nPedido limitado ao quadrante e dividido por max(1,X+Y) antes do grafo.\nCaminhos são sensíveis aos nomes: parameters/Mistura/blend_position e\nparameters/Acao/request; filtro da pista Skeleton3D:Braco_R.\nTodo o avanço é MANUAL: botão/T chama advance(0.1). Ajustar chama advance(0).\nF consome ABORT antes de FIRE; C cancela; R restaura parâmetros/ação.\nO comportamento real dessas solicitações deve ser conferido no motor.\nFiltro ligado preserva pistas das pernas da mistura. Desligado permite\nao clipe Acao substituir também as pernas. Fades nativos de 0,1 s.\nNão escrever a rotação dos mesmos ossos por código enquanto a árvore os anima.\nStateMachine não é a raiz deste grafo; parameters/playback não existe aqui.\nSe adicionar StateMachine, configurar estados/transições e conferir seu caminho.\nProjeto revisado documentalmente; compilação/execução na Godot pendentes.\n",
+      "language": "text",
+      "pros": "Dependências e limites explícitos.",
+      "cons": "Conferência documental não homologa o runtime."
+    }
+  ],
+  "simulator": {
+    "type": "blendspace_2d_3d",
+    "title": "Laboratório: pesos, ação filtrada e ferramenta",
+    "description": "Modelo próprio de três poses num triângulo e hierarquia angular em plano 2D. Tempo manual; não executa o mixer de quaternions, Skin ou AnimationTree Godot.",
+    "guide": [
+      {
+        "title": "Preveja os três pesos",
+        "text": "Parado(0,0), Passo(1,0), Lateral(0,1). A entrada é dividida por max(1,X+Y) antes de calcular (1−X−Y;X;Y). O quadrado indica pedido e o ponto ciano aplicado. Sliders ou WASD/setas ajustam parâmetros; não há arraste nem movimento no mundo."
+      },
+      {
+        "title": "Dispare e avance",
+        "text": "F inicia/reinicia, T avança 0,1 s, C cancela e R restaura. Nada avança sozinho, inclusive fora da pausa. A ação dura 1 s; aproximação própria de envelope/fades. Com filtro só braço, pernas preservam base; sem filtro podem ir à pose da ação."
+      },
+      {
+        "title": "Observe a hierarquia",
+        "text": "A mão é filha do braço e o offset da ferramenta é local. Ponta = mão + rotação do braço × (offset + comprimento). A vista é plana, com partes rígidas; não comprova skinning ou encaixe em outro asset. Atalhos somente com foco, sem repetição/modificadores; há botões equivalentes."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "No triângulo Parado(0,0), Passo(1,0), Lateral(0,1), qual interpretação de pedido (0,4;0,2) e ação filtrada é correta?",
+    "options": [
+      "Pesos 0,4/0,4/0,2; filtrar a pista do braço pode preservar a base das pernas, e a ferramenta ainda precisa de ajuste local no anexo da mão.",
+      "O peso de Parado é sempre 1 menos o comprimento do vetor; a triangulação não importa.",
+      "FIRE mantém a ação em loop até outra chamada e modifiquei a pose, então CharacterBody3D se move automaticamente.",
+      "BoneAttachment3D cria Skin/pesos e garante que qualquer ferramenta em local zero fique encaixada na palma."
+    ],
+    "correctIndex": 0,
+    "feedback": [
+      "Correto. Pesos, filtro de pistas e encaixe local são contratos distintos.",
+      "A distância ao centro não determina pesos gerais; neste triângulo os pesos são baricêntricos.",
+      "OneShot é temporário conforme clipe/configuração; pose não é deslocamento físico.",
+      "Anexo acompanha transformação; não cria skinning nem garante pivô/orientação do asset."
+    ],
+    "explanation": "A soma dos pesos é 1 no triângulo. O filtro controla pistas da ação, enquanto a hierarquia e o Transform local controlam o acessório."
+  }
+},
+
+{
+  "id": "3d-adv-navmesh-ai",
+  "area": "3d",
+  "level": "avancado",
+  "levelLabel": "Avançado",
+  "title": "11. Navegação 3D: malha, rota e travessia de links",
+  "subtitle": "Separe onde o centro pode passar, qual caminho foi encontrado e quem realmente move o corpo.",
+  "nodesUsed": [
+    "NavigationRegion3D",
+    "NavigationMesh",
+    "NavigationAgent3D",
+    "NavigationLink3D",
+    "CharacterBody3D"
+  ],
+  "feynman": {
+    "title": "Um caminho é uma orientação; atravessá-lo exige um controlador",
+    "explanation": "Na oficina, dois pisos estão separados por um fosso. O autômato precisa de três decisões: onde pode apoiar o centro do corpo, por quais pontos seguir e como atravessar a interrupção. A malha descreve a superfície permitida; o agente consulta e acompanha o caminho; o controlador aplica movimento e colisão. Um link acrescenta uma ligação lógica entre pontos. Ele não cria piso, impulso, animação ou elevador.",
+    "analogies": [
+      {
+        "term": "Malha para o centro",
+        "analogy": "Imagine riscar uma faixa no chão afastada das bordas. O centro do robô segue a faixa, enquanto seu corpo ocupa espaço ao redor. O bake aproxima essa margem conforme parâmetros e resolução: não é certificado de passagem em qualquer cenário."
+      },
+      {
+        "term": "Rota e chegada",
+        "analogy": "Uma rota pode terminar no ponto mais próximo que ainda pertence à ilha acessível. Isso significa fim de caminho, mas não chegada ao endereço pedido. Compare explicitamente os dois estados."
+      },
+      {
+        "term": "Conexão e execução",
+        "analogy": "O mapa pode dizer que uma passarela móvel conecta duas salas, mas alguém ainda precisa esperar, embarcar e desembarcar. O link declara a possibilidade; uma regra de jogo realiza a travessia."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. A prática usa dois pisos planos, uma região com duas ilhas de NavigationMesh e um link. Ao abrir, o projeto faz bake e espera sincronização; R inicia um percurso repetível. O arco de travessia é controlado pelo nosso script. Não há perseguidor contínuo, salto balístico, rampas, escadas, elevador ou avoidance implementados.",
+    "anatomy": [
+      {
+        "prop": "Fonte → bake → mapa sincronizado",
+        "desc": "NavigationRegion3D recebe um NavigationMesh. Nesta prática a fonte são StaticBody3D filhos, com máscara física 1; meshes decorativas e o personagem não entram no bake. Confira polígonos e conexões com navegação visível. bake_finished informa conclusão do bake; antes de consultar, a atualização precisa chegar ao mapa. O apoio espera mudança de map_get_iteration_id e não libera movimento com mapa vazio."
+      },
+      {
+        "prop": "Três raios com responsabilidades distintas",
+        "desc": "NavigationMesh.agent_radius influencia a margem do próximo bake. NavigationAgent3D.radius pertence ao avoidance. CapsuleShape3D.radius pertence à colisão. Alterar um não redimensiona os outros. agent_height, agent_max_slope e agent_max_climb são critérios do bake, não poderes novos de CharacterBody3D: degraus aceitos pela malha ainda exigem controlador que consiga percorrê-los."
+      },
+      {
+        "prop": "Destino global e seguidor físico",
+        "desc": "Atribua target_position em coordenadas globais por comando. Para alvo móvel, escolha limiar/cadência conforme o jogo, em vez de refazer a rota a cada frame sem necessidade. No passo físico ativo, obtenha o próximo ponto uma vez; projete a diferença no plano XZ e normalize depois. Preserve gravidade em Y e use move_and_slide também ao parar. Distâncias de avanço/chegada precisam combinar com velocidade e frequência física."
+      },
+      {
+        "prop": "Link, sentido, camadas e metadados",
+        "desc": "O link precisa alcançar polígonos pelas duas pontas, dentro do raio de conexão, e compartilhar navigation_layers com a consulta. bidirectional=false só permite start→end. link_reached depende dos metadados; o apoio usa INCLUDE_ALL e valida link_exit_position. O callback apenas guarda dados; o passo físico suspende o seguidor e executa a travessia. Concluir a navegação não garante is_target_reached."
+      },
+      {
+        "prop": "Atualização e desvio local",
+        "desc": "Bake com on_thread=true não elimina parsing na thread principal, custo nem espera por sincronização. Mudanças de geometria exigem atualizar a malha; um portão pode pedir outro desenho de regiões/links. NavigationObstacle3D pode afetar bake conforme affect_navigation_mesh e carve_navigation_mesh ou velocidades de avoidance. Mover um obstáculo não refaz automaticamente a rota. Para RVO, habilite avoidance, envie velocity e consuma velocity_computed; colisão e bordas continuam exigindo atenção. Esta prática mantém RVO desligado."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Três scripts fornecidos criam a oficina, o corpo e a interface. Leia na ordem cenário → agente → comandos. Primeiro preveja o resultado, depois execute e compare. Browser e Godot têm propósitos diferentes: o laboratório analítico avança manualmente; o apoio usa física em tempo real após o comando.",
+    "duration": "70–100 min com previsões e testes (estimativa)",
+    "prerequisite": "Aulas 3D 1–10: referenciais, CharacterBody3D, colisões e separação de animação/movimento; aula 2D12 ajuda na distinção rota/seguidor. Godot 4.5, GDScript, Compatibility, desktop. Execução no motor ainda pendente.",
+    "objectives": [
+      "Distinguir parâmetros de bake, avoidance e colisão, identificando quando a malha precisa ser atualizada.",
+      "Seguir pontos globais no plano XZ, preservando gravidade e diferenciando fim alcançável de alvo alcançado.",
+      "Configurar sentido e conexão de um link e explicar o contrato de uma travessia executada pelo controlador."
+    ],
+    "practice": {
+      "title": "Prática guiada: duas plataformas na oficina",
+      "intro": "Extraia e importe project.godot. A cena raiz monta os nós em runtime; inspecione a árvore Remote. O primeiro bake é automático, mas o movimento só começa com R/botão. Pisos coplanares com topo Y=0: esquerda X[-6,-1], direita X[1,6], Z[-2,2]. Origem(-4,0,0), alvo(4,0,0), link(-2,0,0)→(2,0,0).",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── Regiao (NavigationRegion3D / NavigationMesh)\n│   ├── PisoEsquerdo (StaticBody3D, layer 1)\n│   │   └── CollisionShape3D + MeshInstance3D\n│   └── PisoDireito (StaticBody3D, layer 1)\n│       └── CollisionShape3D + MeshInstance3D\n├── Travessia (NavigationLink3D, navigation_layers 1)\n├── Automato (CharacterBody3D / agente.gd)\n│   ├── CollisionShape3D (cápsula raio  0,3 / altura 1,6)\n│   ├── MeshInstance3D\n│   └── NavigationAgent3D (avoidance desligado)\n├── Camera3D + DirectionalLight3D + WorldEnvironment\n└── CanvasLayer / Interface\n\nCenário montado por cenario.gd; nós não são filhos salvos no .tscn.",
+      "download": {
+        "url": "assets/aula-3d-11-navegacao-links.zip",
+        "label": "Baixar projeto de apoio: navegação e travessia"
+      },
+      "downloadNote": "Oito arquivos locais, três scripts e roteiro de testes. Compilação/execução na Godot pendentes.",
+      "steps": [
+        {
+          "title": "Identifique os três contratos",
+          "text": "Antes de executar, localize o raio 0,4 do NavigationMesh, raio 0,3 de NavigationAgent3D e cápsula 0,3. Preveja qual muda a malha e qual muda o corpo. Leia fonte STATIC_COLLIDERS e máscara 1.",
+          "expect": "Bake, avoidance e colisão são independentes. A fonte inclui os dois pisos sob a região; o personagem fora dela não é assado junto. O raio do agente não muda a cápsula nem abre espaço na rota."
+        },
+        {
+          "title": "Confira bake e sincronização",
+          "text": "Execute, aguarde polígonos >0 e habilite Debug → Visible Navigation. Observe duas ilhas. Leia bake_finished e a espera pela iteração do mapa. Não iniciar consulta dentro de _ready assumindo mapa pronto.",
+          "expect": "O controlador libera comandos após dados válidos e atualização do mapa. Se não sincronizar, a mensagem conserva a pendência. Malha vazia é diagnóstico de fontes/parâmetros, não confirmação de que o alvo foi alcançado."
+        },
+        {
+          "title": "Percorra e repita a referência",
+          "text": "Com raio 0,4, link bidirecional e executor presente, use R. Observe seguir → travessia → seguir → parado. Repita após chegar e no meio do arco. Use C para restaurar posição mantendo opções.",
+          "expect": "O agente segue no plano XZ; o código especial assume o movimento na travessia e o devolve ao seguidor. R não depende de recarregar a página/cena. O arco tem 1,2s/altura 1,2 e teste de movimento; não é salto físico geral."
+        },
+        {
+          "title": "Separe fim e chegada",
+          "text": "Desligue o link, aguarde atualização e repita. Compare o último ponto alcançável com o alvo na outra ilha. Depois ligue sentido único, inverta origem/destino e repita nas duas direções.",
+          "expect": "Sem ligação, o agente pode chegar ao fim da ilha acessível sem chegar ao alvo. is_navigation_finished e is_target_reached respondem perguntas diferentes. Sentido único permite start→end, não o retorno."
+        },
+        {
+          "title": "Retire o executor sem retirar a ligação",
+          "text": "Volte ao link bidirecional e desmarque executor. R deve levar à entrada e parar. Confira flags/metadados e por que o callback só guarda dados. Reative o executor e reinicie.",
+          "expect": "A rota existe, mas o link não produz salto. O contrato evita deixar o seguidor caminhar pelo fosso. Sem link_exit_position válido, o apoio para com diagnóstico em vez de inventar uma saída."
+        },
+        {
+          "title": "Mude um raio e observe o que realmente mudou",
+          "text": "No laboratório web, mude o raio solicitado sem B: a margem aplicada deve permanecer anterior. Aplique B e compare 0,2/0,4/1,2. Na Godot faça novo bake e observe a malha real, células, polígonos e pontas do link.",
+          "expect": "O browser encolhe retângulos exatamente e compara distância da ponta com 0,15u; é modelo próprio. Recast usa voxelização e arredondamentos e pode dar limites diferentes. Raio menor que a cápsula não garante passagem segura; raio maior pode deixar pontas sem conexão."
+        },
+        {
+          "title": "Transfira com cautela para uma cena real",
+          "text": "Explique como trataria alvo móvel, degrau, porta dinâmica e vários agentes. Revise o roteiro do apoio. Se adicionar RVO, envie velocidade e use velocity_computed, sem afirmar que isso troca a rota ou garante colisão. Meça antes de prometer bake sem engasgos.",
+          "expect": "Critérios do bake precisam combinar com a capacidade física. Atualizar geometria, caminho e velocidade são etapas distintas. Rampas/escadas, avoidance completo, plataformas móveis e salto balístico precisam de implementações e testes próprios."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Aumentei NavigationAgent3D.radius. Por que o caminho ainda passa perto da borda?",
+        "answer": "Esse raio pertence ao avoidance. Para reservar espaço ao centro no pathfinding, configure a margem do NavigationMesh e refaça o bake, mantendo colisão e tamanho reais coerentes."
+      },
+      {
+        "question": "A navegação terminou, então o alvo foi alcançado?",
+        "answer": "Não necessariamente. O último ponto do caminho pode ser o mais próximo ainda alcançável. Compare is_target_reached e o alvo solicitado; não trate fim de caminho como sucesso automático."
+      },
+      {
+        "question": "O link tem caminho, mas o robô cai no fosso. O que falta?",
+        "answer": "Uma travessia executável pelo controlador. Suspenda o seguidor, valide entrada/saída e execute a ação adequada; depois retome. O nó de link não cria salto ou plataforma."
+      },
+      {
+        "question": "Por que o bake em outra thread ainda pode causar engasgos?",
+        "answer": "A coleta de fontes e sincronizações podem custar tempo na thread principal, além do trabalho de bake. O resultado também precisa atualizar o mapa. Reduza/organize fontes, meça e considere setores conforme o cenário."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "Rota vazia no início",
+        "text": "Confira fontes, máscara física, navegação visível, camadas e sincronização. Um frame arbitrário de espera não substitui confirmar que a atualização necessária chegou ao mapa."
+      },
+      {
+        "title": "Autômato anda e volta",
+        "text": "Evite redefinir o mesmo destino a cada frame. Ajuste path_desired_distance e target_desired_distance à velocidade e passo físico; avalie overshoot e tamanho dos segmentos."
+      },
+      {
+        "title": "Velocidade horizontal menor numa rampa",
+        "text": "Não normalize o vetor3D e só depois descarte Y. Projete no plano XZ e normalize, preservando gravidade separada. Isso não resolve por si só escadas/degraus."
+      },
+      {
+        "title": "Link desenhado, mas não utilizado",
+        "text": "Confira enabled, sentido, navigation_layers, distâncias ponta-polígono e raio de busca. Para receber dados, confira path_metadata_flags/owner; não faça consulta recursiva no callback."
+      },
+      {
+        "title": "Mudei o raio/obstáculo e a rota não mudou",
+        "text": "O raio do bake só vale após atualização da malha. Avoidance ajusta velocidades localmente e não é rebake automático; obstáculo de bake precisa ser configurado/incluído. Não confundir colisão visível com topologia de navegação."
+      }
+    ],
+    "summary": "A malha descreve onde o centro pode ir; o agente gerencia caminho e avanço; o controlador move e colide. Fim alcançável pode ficar longe do alvo. Um link só funciona como travessia de jogo quando existe código que a executa e devolve o controle ao seguidor.",
+    "next": "A aula 3D12 passa a shaders espaciais e partículas. Após revisar todo o currículo, avaliar aprofundamentos em movimento sobre degraus, RVO, alvos móveis e links dinâmicos.",
+    "sources": [
+      {
+        "label": "Godot4.5 — malhas de navegação e bake",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/navigation/navigation_using_navigationmeshes.html"
+      },
+      {
+        "label": "NavigationMesh — parâmetros e fontes",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationmesh.html"
+      },
+      {
+        "label": "NavigationAgents — seguir e avoidance",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/navigation/navigation_using_navigationagents.html"
+      },
+      {
+        "label": "NavigationAgent3D — estados, sinais e metadados",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationagent3d.html"
+      },
+      {
+        "label": "NavigationLinks — ligação e execução",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/navigation/navigation_using_navigationlinks.html"
+      },
+      {
+        "label": "NavigationLink3D — sentido e pontas",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationlink3d.html"
+      },
+      {
+        "label": "NavigationServer3D — sincronização",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationserver3d.html"
+      },
+      {
+        "label": "NavigationObstacle3D — bake e avoidance",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationobstacle3d.html"
+      },
+      {
+        "label": "NavigationMeshGenerator — custos de parsing",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_navigationmeshgenerator.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Pisos e fonte do bake · cenario.gd",
+      "whenToUse": "Montar a referência mínima antes de seguir caminhos.",
+      "description": "Duas plataformas com colisão sob uma região; máscara de fontes explícita. O raio só influencia um bake posterior.",
+      "code": "extends RefCounted\n\nstatic func caixa(pai: Node3D, nome: String, centro: Vector3, tamanho: Vector3) -> void:\n    var corpo := StaticBody3D.new()\n    corpo.name = nome\n    corpo.position = centro\n    corpo.collision_layer = 1\n    pai.add_child(corpo)\n    var forma := CollisionShape3D.new()\n    var box := BoxShape3D.new()\n    box.size = tamanho\n    forma.shape = box\n    corpo.add_child(forma)\n    var visual := MeshInstance3D.new()\n    var malha := BoxMesh.new()\n    malha.size = tamanho\n    visual.mesh = malha\n    var material := StandardMaterial3D.new()\n    material.albedo_color = Color(0.35, 0.25, 0.12)\n    visual.material_override = material\n    corpo.add_child(visual)\n\nstatic func criar(pai: Node3D) -> NavigationRegion3D:\n    var regiao := NavigationRegion3D.new()\n    regiao.name = \"Regiao\"\n    regiao.navigation_layers = 1\n    var malha := NavigationMesh.new()\n    malha.cell_size = 0.1\n    malha.cell_height = 0.1\n    malha.agent_radius = 0.4\n    malha.agent_height = 1.8\n    malha.agent_max_climb = 0.25\n    malha.agent_max_slope = 45.0\n    malha.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS\n    malha.geometry_collision_mask = 1\n    malha.region_min_size = 0.0\n    regiao.navigation_mesh = malha\n    pai.add_child(regiao)\n    caixa(regiao, \"PisoEsquerdo\", Vector3(-3.5, -0.25, 0), Vector3(5, 0.5, 4))\n    caixa(regiao, \"PisoDireito\", Vector3(3.5, -0.25, 0), Vector3(5, 0.5, 4))\n    return regiao\n",
+      "pros": "Geometria, máscara e resolução inspecionáveis.",
+      "cons": "Cenário plano; não valida rampas, tetos ou degraus."
+    },
+    {
+      "title": "2. Seguidor e travessia · agente.gd",
+      "whenToUse": "Separar caminho, gravidade e ação especial.",
+      "description": "Destino por comando; consulta no passo físico; callback guarda metadados; arco suspende o seguidor e verifica colisão.",
+      "code": "extends CharacterBody3D\nvar nav: NavigationAgent3D\nvar estado := \"parado\"\nvar executor := true\nvar pendente: Dictionary = {}\nvar inicio := Vector3.ZERO\nvar fim := Vector3.ZERO\nvar tempo := 0.0\nvar mensagem := \"Aguardando mapa.\"\nconst VELOCIDADE := 2.0\nconst DURACAO := 1.2\n\nfunc _ready() -> void:\n    nav = NavigationAgent3D.new()\n    nav.name = \"NavigationAgent3D\"\n    nav.navigation_layers = 1\n    nav.path_desired_distance = 0.2\n    nav.target_desired_distance = 0.2\n    nav.path_max_distance = 3.0\n    nav.path_metadata_flags = NavigationPathQueryParameters3D.PATH_METADATA_INCLUDE_ALL\n    nav.avoidance_enabled = false\n    nav.radius = 0.3 # Apenas avoidance; NÃO muda o bake nem a cápsula.\n    nav.debug_enabled = true\n    add_child(nav)\n    nav.link_reached.connect(_link_reached)\n    var col := CollisionShape3D.new()\n    var shape := CapsuleShape3D.new()\n    shape.radius = 0.3\n    shape.height = 1.6\n    col.shape = shape\n    col.position.y = 0.8\n    add_child(col)\n    var mesh := MeshInstance3D.new()\n    var capsule := CapsuleMesh.new()\n    capsule.radius = 0.3\n    capsule.height = 1.6\n    mesh.mesh = capsule\n    mesh.position.y = 0.8\n    add_child(mesh)\n\nfunc preparar(origem: Vector3, alvo: Vector3, com_executor: bool) -> void:\n    estado = \"parado\"\n    pendente.clear()\n    global_position = origem\n    velocity = Vector3.ZERO\n    executor = com_executor\n    tempo = 0.0\n    nav.target_position = alvo # Uma atribuição por comando, não por frame.\n    mensagem = \"Pronto. Iniciar/repetir libera o movimento.\"\n\nfunc _link_reached(detalhes: Dictionary) -> void:\n    # Só guarda metadados. Não consultar caminho dentro do callback.\n    pendente = detalhes.duplicate()\n\nfunc _physics_process(delta: float) -> void:\n    if estado == \"travessia\":\n        tempo = minf(DURACAO, tempo + delta)\n        var u := tempo / DURACAO\n        var desejado := inicio.lerp(fim, u) + Vector3.UP * (1.2 * sin(PI * u))\n        var colisao := move_and_collide(desejado - global_position)\n        if colisao != null:\n            estado = \"parado\"\n            mensagem = \"Travessia bloqueada por colisão; reinicie e inspecione.\"\n        elif u >= 1.0:\n            estado = \"seguir\"\n            velocity = Vector3.ZERO\n        return\n    velocity.x = 0.0\n    velocity.z = 0.0\n    if not is_on_floor():\n        velocity += get_gravity() * delta\n    if estado == \"seguir\":\n        var mapa := nav.get_navigation_map()\n        if NavigationServer3D.map_get_iteration_id(mapa) == 0:\n            mensagem = \"Mapa ainda não sincronizado.\"\n        elif nav.is_navigation_finished():\n            estado = \"parado\"\n            mensagem = \"Alvo alcançado.\" if nav.is_target_reached() else \"Fim alcançável; alvo não alcançado.\"\n        else:\n            var proximo := nav.get_next_path_position() # Uma consulta por passo físico ativo.\n            if not pendente.is_empty():\n                if not executor:\n                    estado = \"parado\"\n                    mensagem = \"Link encontrado; sem executor de travessia.\"\n                elif pendente.has(\"link_exit_position\"):\n                    inicio = global_position\n                    fim = pendente[\"link_exit_position\"]\n                    # Os pisos desta oficina têm superfície y=0; só este cenário é suportado.\n                    fim.y = 0.0\n                    tempo = 0.0\n                    velocity = Vector3.ZERO\n                    estado = \"travessia\"\n                    mensagem = \"Controlador executando arco; não é impulso balístico.\"\n                else:\n                    estado = \"parado\"\n                    mensagem = \"Metadados de saída ausentes; conferir owner/flags.\"\n                pendente.clear()\n                return\n            var diferenca := proximo - global_position\n            diferenca.y = 0.0\n            var direcao := diferenca.normalized()\n            var rapidez := minf(VELOCIDADE, diferenca.length() / maxf(delta, 0.0001))\n            velocity.x = direcao.x * rapidez\n            velocity.z = direcao.z * rapidez\n            mensagem = \"Seguindo caminho; gravidade separada do plano XZ.\"\n    move_and_slide() # Também parado ou sem caminho: gravidade não fica suspensa.\n    if global_position.y < -5.0:\n        estado = \"parado\"\n        mensagem = \"Queda detectada; reinicie e confira bake/colisão/travessia.\"\n",
+      "pros": "Estados e diagnóstico de fim/chegada explícitos.",
+      "cons": "Arco próprio para estes pisos; não calcula salto balístico, elevador ou RVO."
+    },
+    {
+      "title": "3. Bake, sincronização e repetição · oficina.gd",
+      "whenToUse": "Executar e repetir comparações sem recarregar a cena.",
+      "description": "Interface local, bake serializado, atualização de link e espera de iteração. Física roda em tempo real depois de R.",
+      "code": "extends Node3D\nconst CENARIO = preload(\"res://cenario.gd\")\nconst AGENTE = preload(\"res://agente.gd\")\nvar regiao: NavigationRegion3D\nvar ator\nvar link: NavigationLink3D\nvar painel: VBoxContainer\nvar leitura: Label\nvar raio: HSlider\nvar modo: OptionButton\nvar sentido: CheckButton\nvar executor: CheckButton\nvar sincronizando := false\nvar iteracao_anterior := 0\nvar tempo_espera := 0.0\nvar pronto := false\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var b := Button.new()\n    b.text = texto\n    painel.add_child(b)\n    b.pressed.connect(acao)\n\nfunc _ready() -> void:\n    regiao = CENARIO.criar(self)\n    regiao.bake_finished.connect(_bake_finished)\n    link = NavigationLink3D.new()\n    link.name = \"Travessia\"\n    link.start_position = Vector3(-2, 0, 0)\n    link.end_position = Vector3(2, 0, 0)\n    link.navigation_layers = 1\n    add_child(link)\n    ator = CharacterBody3D.new()\n    ator.name = \"Automato\"\n    ator.position = Vector3(-4, 0, 0)\n    ator.set_script(AGENTE)\n    add_child(ator)\n    var camera := Camera3D.new()\n    camera.position = Vector3(0, 12, 12)\n    add_child(camera)\n    camera.look_at(Vector3.ZERO)\n    camera.make_current()\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-55, -25, 0)\n    add_child(luz)\n    var mundo := WorldEnvironment.new()\n    var ambiente := Environment.new()\n    ambiente.background_mode = Environment.BG_COLOR\n    ambiente.background_color = Color(0.04, 0.03, 0.02)\n    ambiente.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    ambiente.ambient_light_color = Color.WHITE\n    ambiente.ambient_light_energy = 0.4\n    mundo.environment = ambiente\n    add_child(mundo)\n    interface()\n    call_deferred(\"assar\")\n\nfunc interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(24, 24)\n    layer.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.custom_minimum_size.x = 460\n    fundo.add_child(painel)\n    var titulo := Label.new()\n    titulo.text = \"ROTA, LINK E TRAVESSIA — GODOT 4.5\"\n    painel.add_child(titulo)\n    var ajuda := Label.new()\n    ajuda.text = \"Raio solicitado: aplicar exige bake; 0,4 é a referência.\\nMudanças de link/sentido/executor param e sincronizam.\\nB: bake · R: iniciar/repetir · C: parar e restaurar posição\"\n    painel.add_child(ajuda)\n    raio = HSlider.new()\n    raio.min_value = 0.2\n    raio.max_value = 1.2\n    raio.step = 0.1\n    raio.value = 0.4\n    painel.add_child(raio)\n    modo = OptionButton.new()\n    for nome in [\"Link bidirecional\", \"Só esquerda → direita\", \"Link desligado\"]:\n        modo.add_item(nome)\n    painel.add_child(modo)\n    modo.item_selected.connect(func(_i: int): atualizar_link())\n    sentido = CheckButton.new()\n    sentido.text = \"Inverter origem/destino\"\n    painel.add_child(sentido)\n    sentido.toggled.connect(func(_v: bool): atualizar_link())\n    executor = CheckButton.new()\n    executor.text = \"Executor de travessia presente\"\n    executor.button_pressed = true\n    painel.add_child(executor)\n    executor.toggled.connect(func(_v: bool): atualizar_link())\n    botao(\"Aplicar raio e fazer bake · B\", assar)\n    botao(\"Iniciar / repetir percurso · R\", iniciar)\n    botao(\"Parar e restaurar posição · C\", restaurar)\n    leitura = Label.new()\n    leitura.custom_minimum_size.x = 460\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n\nfunc assar() -> void:\n    if regiao.is_baking() or sincronizando:\n        return\n    pronto = false\n    ator.estado = \"parado\"\n    iteracao_anterior = NavigationServer3D.map_get_iteration_id(ator.nav.get_navigation_map())\n    regiao.navigation_mesh.agent_radius = raio.value\n    ator.mensagem = \"Bake solicitado; aguarde sinal e sincronização.\"\n    regiao.bake_navigation_mesh(true)\n\nfunc _bake_finished() -> void:\n    aguardar_mapa()\n\nfunc aguardar_mapa() -> void:\n    pronto = false\n    ator.estado = \"parado\"\n    tempo_espera = 0.0\n    sincronizando = true\n\nfunc atualizar_link() -> void:\n    if regiao.is_baking() or sincronizando:\n        ator.mensagem = \"Aguarde terminar e reaplique a opção.\"\n        return\n    var habilitado := modo.selected != 2\n    var duplo := modo.selected == 0\n    if link.enabled != habilitado or link.bidirectional != duplo:\n        iteracao_anterior = NavigationServer3D.map_get_iteration_id(ator.nav.get_navigation_map())\n        link.enabled = habilitado\n        link.bidirectional = duplo\n        aguardar_mapa()\n    else:\n        restaurar() # Sentido/executor não alteram o mapa.\n\nfunc restaurar() -> void:\n    if not pronto:\n        return\n    var sinal := -1.0 if sentido.button_pressed else 1.0\n    ator.preparar(Vector3(-4 * sinal, 0, 0), Vector3(4 * sinal, 0, 0), executor.button_pressed)\n\nfunc iniciar() -> void:\n    if pronto:\n        restaurar()\n        ator.estado = \"seguir\"\n\nfunc _physics_process(delta: float) -> void:\n    if sincronizando:\n        tempo_espera += delta\n        var atual := NavigationServer3D.map_get_iteration_id(ator.nav.get_navigation_map())\n        if atual != 0 and atual != iteracao_anterior:\n            sincronizando = false\n            pronto = regiao.navigation_mesh.get_polygon_count() > 0\n            if pronto:\n                restaurar()\n            else:\n                ator.mensagem = \"Bake sem polígonos; confira fontes e parâmetros.\"\n        elif tempo_espera > 5.0:\n            ator.mensagem = \"Sincronização ainda pendente; inspecione o mapa e os avisos.\"\n    var ocupado := regiao.is_baking() or sincronizando\n    modo.disabled = ocupado\n    sentido.disabled = ocupado\n    executor.disabled = ocupado\n    raio.editable = not ocupado\n    if leitura != null:\n        leitura.text = \"Pedido %.1f / recurso %.1f | polígonos %d\\n%s\\nEstado: %s | posição %s\\nMudança de raio só vale após novo bake. Sem avoidance/RVO.\" % [raio.value, regiao.navigation_mesh.agent_radius, regiao.navigation_mesh.get_polygon_count(), ator.mensagem, ator.estado, ator.global_position]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and not event.ctrl_pressed and not event.alt_pressed and not event.meta_pressed:\n        if event.keycode == KEY_B:\n            assar()\n        elif event.keycode == KEY_R:\n            iniciar()\n        elif event.keycode == KEY_C:\n            restaurar()\n",
+      "pros": "Prática autocontida, sem assets externos e com reinício.",
+      "cons": "Importação/compilação/runtime ainda pendentes; medir custos em cena real."
+    },
+    {
+      "title": "4. Configuração e contratos",
+      "whenToUse": "Conferir parâmetros e limites de cada representação.",
+      "description": "Leia junto ao roteiro de testes. A unidade web é ilustrativa e a malha nativa pode diferir por voxelização.",
+      "code": "Godot 4.5, GDScript, Compatibility, desktop. Execução no motor pendente.\nImportar project.godot e executar oficina.tscn; montagem procedural em runtime.\nUma NavigationRegion3D contém dois StaticBody3D/pisos (camada física 1).\nPisos: X [-6,-1] e [1,6], Z [-2,2], topo Y=0. Fosso sem piso.\nFonte do bake: STATIC_COLLIDERS, collision_mask=1, recursiva na região.\nNavigationMesh: cell_size=0.1, cell_height=0.1, radius=0.4, height=1.8,\nmax_climb=0.25, max_slope=45. Ajuste do mapa/célula no project.godot.\nLink: (-2,0,0) a (2,0,0), navigation_layers=1, raio de conexão=0.15.\nAgente: layers=1, path/target_desired_distance=0.2, metadata INCLUDE_ALL.\nCápsula: raio físico 0.3, altura1.6; NavigationAgent.radius não altera isso.\nDestino em global_position, atribuído no comando, uma consulta por frame ativo.\nGravity Y e direção XZ separadas; move_and_slide também quando parado.\nTravessia especial: arco paramétrico de1.2s/altura1.2, move_and_collide.\nAo entrar: suspender seguidor, consumir metadados, percorrer, retomar ao sair.\nSem executor: parar na entrada; sem link: terminar no último ponto alcançável.\nSem avoidance/RVO, perseguição contínua, elevadores, pulo balístico ou rampas.\nBake(true) não garante ausência de engasgo: parsing/custos e sincronização existem.\nNo browser: retângulos analíticos sem voxelização/colisão; tempo só avança com T.\nNo motor: física em tempo real após R; não há avanço manual do PhysicsServer.\n",
+      "language": "text",
+      "pros": "Nomes, números e responsabilidades reunidos.",
+      "cons": "Conferência documental não substitui executar a Godot."
+    }
+  ],
+  "simulator": {
+    "type": "navmesh_3d_sim",
+    "title": "Laboratório: margem aplicada, rota e executor de link",
+    "description": "Modelo analítico de duas ilhas planas: compare direção, conexão das pontas e código de travessia. O tempo só avança por T/botão; não há robô oscilando sozinho.",
+    "guide": [
+      {
+        "title": "Pedido não é bake aplicado",
+        "text": "Raio pedido 0,2–1,2u; B aplica a margem e reinicia. Retângulos físicos: X[-6,-1]/[1,6], Z[-2,2]. Modelo encolhe bordas por r; corpo de referência0,3u. Não é voxelização Recast."
+      },
+      {
+        "title": "Faça uma previsão e compare",
+        "text": "Com raio 0,4, link bidirecional/executor presente, T percorre a rota. Sem link ou no retorno de sentido único, termina no limite alcançável, sem alcançar o alvo. Pontas±2 precisam estar a até0,15u dos retângulos: em r 1,2 ficam a0,2u e desconectam neste modelo."
+      },
+      {
+        "title": "O link não move o corpo",
+        "text": "Executor ausente: para na entrada. Presente: arco de 1,2s com altura 1,2u, definido pelo nosso código. R repete mantendo opções; C restaura tudo. Clique na vista para focar B/R/T/C, ou use botões. Não há WASD porque o exercício é seguir caminho, sem movimento livre."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "O link está ligado, a rota até a outra plataforma existe e o agente chegou à entrada. Qual conclusão está correta?",
+    "options": [
+      "O link garante um salto físico sem código adicional.",
+      "É preciso executar a travessia no controlador; o link não move o corpo. Também é necessário distinguir fim de caminho de alvo alcançado.",
+      "Aumentar NavigationAgent3D.radius refaz a malha e altera a cápsula automaticamente.",
+      "bake_navigation_mesh(true) entrega a rota imediatamente e garante ausência de engasgos."
+    ],
+    "correctIndex": 1,
+    "feedback": [
+      "O link declara a conexão; salto, plataforma ou teleporte precisam de implementação.",
+      "Correto. Caminho, execução e critério de chegada são contratos distintos.",
+      "Raio de avoidance, margem do bake e forma de colisão são independentes.",
+      "Thread não elimina coleta/sincronização/custo e o mapa não se atualiza imediatamente."
+    ],
+    "explanation": "A ligação precisa de pontas conectadas, sentido/camadas corretos e código de travessia. Terminar o caminho pode significar apenas chegar ao último ponto alcançável."
+  }
+},
+
+{
+  "id": "3d-adv-spatial-shaders-particles",
+  "area": "3d",
+  "level": "avancado",
+  "levelLabel": "Avançado",
+  "title": "12. Shaders spatial e partículas: forma, borda e colisão",
+  "subtitle": "Deforme uma malha com normais coerentes, controle uma máscara por ângulo e separe o desenho das partículas de sua simulação.",
+  "nodesUsed": [
+    "ShaderMaterial",
+    "PlaneMesh",
+    "GPUParticles3D",
+    "ParticleProcessMaterial",
+    "GPUParticlesCollisionBox3D"
+  ],
+  "feynman": {
+    "title": "Três tarefas visuais, três contratos diferentes",
+    "explanation": "Uma chapa pode parecer ondular porque o shader muda a posição dos vértices enviados ao desenho. Um escudo pode ganhar borda porque uma fórmula compara normal e direção de visão. Faíscas podem quicar porque um material de processamento e um colisor específico interagem. Esses efeitos não se tornam colisão de gameplay nem iluminação física completa apenas por terem aparência convincente. Vamos observar um mecanismo por vez e depois reconhecer o que cada um não resolve.",
+    "analogies": [
+      {
+        "term": "Malha como amostragem",
+        "analogy": "Uma superfície com poucos pontos só permite mover esses pontos e ligar os trechos entre eles. Mais células amostram melhor a onda, mas custam mais vértices. A função não cria detalhe geométrico entre os vértices automaticamente."
+      },
+      {
+        "term": "Normal como orientação",
+        "analogy": "Depois de curvar uma chapa, sua inclinação muda. Iluminá-la com a direção antiga faz a forma e a luz discordarem. Nesta onda simples calculamos a normal pelas derivadas da altura, sem prometer que a mesma conta serve para qualquer deformação."
+      },
+      {
+        "term": "Dois tipos de chão",
+        "analogy": "O piso desenhado e o piso que as partículas consultam podem ser objetos diferentes. Apagar o colisor GPU pode deixar a mesa visível e permitir que as faíscas a atravessem. Isso ajuda a distinguir aparência de dados de simulação."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. O apoio usa Forward+ em desktop: duas shaders spatial e um emissor GPU com box de colisão. O shader da onda recebe uniform tempo controlado por T; partículas nativas usam tempo real após F. O laboratório web é Canvas com fórmulas próprias e tempo manual, não uma execução desses shaders.",
+    "anatomy": [
+      {
+        "prop": "vertex(): posição e normal no referencial correto",
+        "desc": "Sem render modes que mudem o referencial, VERTEX e NORMAL no vertex são locais à malha. Para y=A·sin(2x+t·v)·cos(2z+t·v), a normal é normalize(−dy/dx,1,−dy/dz). Isso vale para este plano/parametrização. Não há normal map; tangentes adicionais seriam outro problema. Deslocar VERTEX no desenho não atualiza CollisionShape3D nem navegação."
+      },
+      {
+        "prop": "Células, amostragem e culling",
+        "desc": "No PlaneMesh desta oficina, n células por lado usam subdivide_width/depth=n−1, com (n+1)² vértices. Duas células não têm a mesma capacidade de representar a onda que 32. Amplitude 0 produz plano; velocidade 0 congela a fase. A deformação precisa caber nos limites usados por culling: o apoio reserva extra_cull_margin 0,8 para amplitude máxima 0,8. Subdivisão e margem têm custo; não são garantia de qualidade/performance."
+      },
+      {
+        "prop": "fragment(): material e máscara de borda",
+        "desc": "O shader da onda fornece ALBEDO, METALLIC e ROUGHNESS para o sombreamento do motor. A esfera usa unshaded/blend_add/cull_back e ALPHA = (1 − clamp(dot(NORMAL, VIEW), 0, 1))^p, com vetores normalizados em view space. Expoente maior estreita a região clara; não aumenta igualmente a opacidade. É máscara artística inspirada no Fresnel, sem refração, conservação de energia ou glow garantido. Transparência também traz custo e ordenação."
+      },
+      {
+        "prop": "Desenho e processamento das partículas",
+        "desc": "GPUParticles3D usa draw_pass_1 para a malha visível e ParticleProcessMaterial em process_material para emissão/movimento/colisão. COLLISION_RIGID e GPUParticlesCollisionBox3D habilitam a interação; um StaticBody3D comum não fornece esse dado diretamente. Na Godot 4.5 a caixa usa size, e cull_mask filtra camadas visuais do emissor. collision_base_size é diâmetro; não confundir com raio nem máscara física."
+      },
+      {
+        "prop": "Ciclo de vida, tempo e limites de plataforma",
+        "desc": "one_shot=true limita o ciclo; explosiveness=1 reúne a emissão. emitting=false interrompe novas emissões, sem significar apagar instantaneamente tudo que já nasceu. restart limpa/reinicia e evita depender apenas de emitting=true após o término. finished indica fim do ciclo, não colisão individual. visibility_aabb precisa cobrir o efeito e influencia onde colisão/atração ocorrem. TIME nativo não acompanha pausa da árvore; aqui uniform tempo próprio mantém a onda controlável. Recursos devem ser conferidos no renderizador/hardware de destino."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Leia as duas shaders, a fábrica de partículas e o controlador. A cena cria os três exemplos sem assets externos. A colisão do apoio é GPU e visual; dano, coleta, som de impacto e física de gameplay exigem outra arquitetura.",
+    "duration": "75–110 min com previsões e comparações (estimativa)",
+    "prerequisite": "Aulas 3D 1–11: malhas, normais/referenciais, materiais PBR e separação visual/física. GDScript e funções seno/cosseno; derivadas são explicadas pela inclinação da altura. Godot 4.5/Forward+/desktop compatível com RenderingDevice. Compilação/execução no motor pendentes.",
+    "objectives": [
+      "Relacionar amostragem, deslocamento e normal da onda, sem confundir desenho com colisão.",
+      "Prever a máscara de borda pelo ângulo e expoente, reconhecendo seus limites artísticos.",
+      "Configurar o desenho, o processamento e o colisor das partículas e repetir/limpar um ciclo sem recarregar a cena."
+    ],
+    "practice": {
+      "title": "Prática guiada: três bancadas da forja",
+      "intro": "Extraia o apoio, importe project.godot e execute oficina.tscn. Os nós são montados em runtime e aparecem na árvore Remote. Da esquerda para direita: plano ondulado, esfera e piso de faíscas. O plano começa com tempo 0, emissor parado. T avança só a onda; F inicia as partículas em tempo real; R zera a onda e recria o emissor parado, preservando opções.",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── PlanoOndulado (MeshInstance3D / PlaneMesh 4×4)\n│   └── ShaderMaterial: onda.gdshader\n├── Escudo (MeshInstance3D / SphereMesh)\n│   └── ShaderMaterial: borda.gdshader\n├── PisoVisual (MeshInstance3D, sem física)\n├── ColisorGPU (GPUParticlesCollisionBox3D; size 5×0,2×5)\n├── Faiscas (GPUParticles3D; emissor em4/1,6/0)\n│   ├── process_material: ParticleProcessMaterial\n│   └── draw_pass_1: SphereMesh raio 0,06\n├── Camera3D + luz + WorldEnvironment\n└── CanvasLayer / Interface\n\nNada no shader atualiza CollisionShape3D. O piso visual não substitui o colisor GPU.",
+      "download": {
+        "url": "assets/aula-3d-12-shaders-particulas.zip",
+        "label": "Baixar projeto de apoio: shaders e partículas"
+      },
+      "downloadNote": "Nove arquivos locais, duas shaders, dois scripts e roteiro. Validação documental; execução Godot pendente.",
+      "steps": [
+        {
+          "title": "Identifique o que cada estágio modifica",
+          "text": "Abra onda.gdshader e borda.gdshader. Localize vertex/fragment, uniform tempo, saídas PBR e ALPHA. Compare o nó visual do piso com o colisor GPU. Faça uma previsão antes de disparar partículas.",
+          "expect": "Vertex altera dados para desenho; fragment fornece material/cor; process_material controla partículas. O cenário não ganha colisão de gameplay ondulante nem recebe impacto individual em GDScript por causa desses efeitos."
+        },
+        {
+          "title": "Compare a amostragem com o mesmo tempo",
+          "text": "No browser escolha Onda, mantenha amplitude 0,3/fase 1/tempo 0 e compare 2/8/32 células. No apoio os mesmos valores correspondem a subdivide 1/7/31. Observe o ponto de amostra(0,5;0) e a normal.",
+          "expect": "São 9/81/1089 vértices, respectivamente. Mais vértices representam mais amostras da mesma função; não mudam sua amplitude. Com tempo 0, y(0,5; 0) = 0,3 sen(1) ≈ 0,2524. O ponto ouro representa avaliação da função, não necessariamente um vértice na malha mais grossa."
+        },
+        {
+          "title": "Isole amplitude, fase e normal",
+          "text": "Teste amplitude 0, amplitude 0,8 e velocidade 0. Avance cinco vezes e reinicie. Confira no shader dy/dx = 2A cos(a) cos(b), dy/dz = −2A sen(a) sen(b). Compare iluminação ao recalcular a normal e considere a margem de culling.",
+          "expect": "Amplitude 0 deixa y=0/normalUP; velocidade 0 impede mudança da fase mesmo com tempo avançando. Normal unitária deriva da inclinação deste plano. Colisão física permanece independente; normal map/tangentes e outras deformações exigem soluções adicionais."
+        },
+        {
+          "title": "Preveja antes de olhar a borda",
+          "text": "Escolha Borda no browser. Em 60°, N·V=0,5: compare expoentes 1/3/6. Depois observe 0°/90°. No apoio altere expoente na esfera; a câmera fixa vê muitos ângulos simultaneamente.",
+          "expect": "Máscaras 0,5/0,125/0,015625 para 60°. No centro 0; na silhueta 1. Aumentar expoente estreita a borda. O anel ouro identifica ângulo na esfera ideal, sem prometer rasterização PBR, transparência ou refração real no Canvas."
+        },
+        {
+          "title": "Dispare, avance, limpe e repita",
+          "text": "No browser escolha Partículas, F e T até perto de 0,9–1 s. Observe vida 2 s e índice3 ciano; repita antes do fim e após terminar. R limpa. Na Godot, F reinicia 48 partículas em tempo real e R recria o emissor; T continua afetando só a onda.",
+          "expect": "O ciclo é repetível e não depende de recarregar a página/cena. O browser tem 8 pontos, um plano infinito, sem atrito/volume; não reproduz 48 partículas, box e integração GPU. finished é término do ciclo, não callback de impacto."
+        },
+        {
+          "title": "Retire só o colisor",
+          "text": "Compare piso ativo/off no mesmo instante do modelo. No apoio mantenha PisoVisual e desligue ColisorGPU. Confira COLLISION_RIGID, size, cull_mask/layers, visibility_aabb e collision_base_size.",
+          "expect": "Sem colisão os pontos cruzam y=0; com colisão podem rebater conforme restituição. Mesh/StaticBody físico comum não é o colisor específico desse sistema. Máscara visual, diâmetro e área de simulação são contratos distintos; números do bounce não exigem trajetória igual ao modelo web."
+        },
+        {
+          "title": "Transfira e diagnostique com limites",
+          "text": "Explique por que aumentar subdivisões, partículas e transparência pode custar mais. Diferencie custo de simulação, desenho e overdraw. Consulte o roteiro e compare recursos no renderizador real antes de migrar o efeito.",
+          "expect": "Não há promessa de custo zero, uso fixo de CPU ou milhares de impactos gratuitos. Efeitos de gameplay, normal maps, refração, glow, partículas contínuas e otimização precisam de implementações e medições próprias."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Por que deformar VERTEX não faz o jogador subir numa onda?",
+        "answer": "O shader altera geometria enviada ao desenho. A colisão física/navegação usa outros dados; não é atualizada automaticamente por essa operação."
+      },
+      {
+        "question": "Em 60° e expoente 3, a máscara vale quanto? E se aumentar o expoente?",
+        "answer": "N·V=cos60°=0,5; (1−0,5)^3=0,125. Aumentar o expoente diminui valores intermediários e concentra a faixa perto da silhueta."
+      },
+      {
+        "question": "A mesh da partícula já define sua gravidade e colisão?",
+        "answer": "Não. draw_pass define desenho; process_material define processamento. Colisão GPU exige modo/material e colisor específico, além de área/camadas coerentes."
+      },
+      {
+        "question": "Por que emitir=false não é o mesmo que limpar todas as partículas?",
+        "answer": "Parar emissão não elimina necessariamente as já ativas. O ciclo tem vida própria; restart reinicia, e o apoio oferece recriação do emissor para limpar de forma explícita."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "A onda parece uma chapa rígida ou facetada",
+        "text": "Confira células/subdivisões, frequência e amostragem. Poucos pontos podem produzir inclinações ou aliasing; não é obrigatório o plano inteiro subir/descer de forma uniforme. Reveja também normal e escala."
+      },
+      {
+        "title": "A forma muda, mas a luz parece errada",
+        "text": "Recalcule normais no referencial correto. A fórmula fornecida só vale para esta altura sobre plano; normal map exige tangente/binormal coerentes."
+      },
+      {
+        "title": "O efeito some perto da borda da tela",
+        "text": "Confira enquadramento, extra_cull_margin da malha deformada e visibility_aabb das partículas. Aumentar limites sem critério também prejudica culling."
+      },
+      {
+        "title": "A borda virou transparência estranha",
+        "text": "Confira vetores no mesmo espaço, normalização, cull mode, blend e ordenação. A esfera usa cull_back para evitar somar uma segunda superfície traseira neste exemplo; não é vidro físico."
+      },
+      {
+        "title": "Partículas atravessam o piso ou não repetem",
+        "text": "Confira colisor GPU visível, size/topo, cull_mask/layers, COLLISION_RIGID e AABB. Para repetir one-shot use restart; não trate finished como sinal de colisão. No browser é preciso F e depois T."
+      }
+    ],
+    "summary": "Amostragem e normal precisam acompanhar a forma visual. Máscara de borda depende de orientação e expoente, sem equivaler a vidro físico. Partículas têm processamento e desenho separados; colisão GPU, vida e reinício exigem configuração explícita.",
+    "next": "A aula 3D  13 aprofunda iluminação global e reflexos. Após revisar o currículo integral, avaliar tangentes/normal map, transparência, refração, partículas contínuas e otimização como aprofundamentos.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — spatial shaders",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/shaders/shader_reference/spatial_shader.html"
+      },
+      {
+        "label": "PlaneMesh — subdivisões",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_planemesh.html"
+      },
+      {
+        "label": "GPUParticles3D — ciclo, desenho e limites",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_gpuparticles3d.html"
+      },
+      {
+        "label": "ParticleProcessMaterial",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_particleprocessmaterial.html"
+      },
+      {
+        "label": "Colisão de partículas3D",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/particles/collision.html"
+      },
+      {
+        "label": "GPUParticlesCollisionBox3D — size",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_gpuparticlescollisionbox3d.html"
+      },
+      {
+        "label": "GPUParticlesCollision3D — visibilidade",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_gpuparticlescollision3d.html"
+      },
+      {
+        "label": "GeometryInstance3D — limites",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_geometryinstance3d.html"
+      },
+      {
+        "label": "Renderizadores e plataformas",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/rendering/renderers.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Onda e normal · onda.gdshader",
+      "whenToUse": "Deformação visual de um plano com altura analítica.",
+      "description": "Tempo próprio e derivadas da altura; precisa de subdivisões/margem. Sem normal map nem colisão de gameplay.",
+      "code": "shader_type spatial;\nuniform float amplitude : hint_range(0.0, 0.8) = 0.3;\nuniform float velocidade : hint_range(0.0, 3.0) = 1.0;\nuniform float tempo = 0.0;\n\nvoid vertex() {\n    float a = 2.0 * VERTEX.x + tempo * velocidade;\n    float b = 2.0 * VERTEX.z + tempo * velocidade;\n    float dx = 2.0 * amplitude * cos(a) * cos(b);\n    float dz = -2.0 * amplitude * sin(a) * sin(b);\n    VERTEX.y += amplitude * sin(a) * cos(b);\n    NORMAL = normalize(vec3(-dx, 1.0, -dz));\n}\n\nvoid fragment() {\n    ALBEDO = vec3(0.12, 0.45, 0.48);\n    ROUGHNESS = 0.35;\n    METALLIC = 0.2;\n}\n",
+      "pros": "Forma e normal coerentes com a mesma função.",
+      "cons": "Fórmula específica; não é água física.",
+      "language": "Godot Shader Language (spatial)"
+    },
+    {
+      "title": "2. Máscara angular · borda.gdshader",
+      "whenToUse": "Borda estilizada de uma esfera/escudo.",
+      "description": "Vetores normalizados em view space; transparência aditiva e face traseira descartada.",
+      "code": "shader_type spatial;\nrender_mode blend_add, cull_back, unshaded;\nuniform vec4 cor : source_color = vec4(0.25, 0.85, 0.9, 1.0);\nuniform float expoente : hint_range(0.5, 6.0) = 3.0;\n\nvoid fragment() {\n    float nv = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);\n    float borda = pow(1.0 - nv, expoente);\n    ALBEDO = cor.rgb;\n    ALPHA = borda;\n}\n",
+      "pros": "Expoente e ângulo têm relação previsível.",
+      "cons": "Não é Fresnel físico completo, glow ou refração.",
+      "language": "Godot Shader Language (spatial)"
+    },
+    {
+      "title": "3. Emissor GPU · particulas.gd",
+      "whenToUse": "Criar ciclo de faíscas com desenho/processamento explícitos.",
+      "description": "48 partículas, vida 2 s, seed fixo, material, draw pass e limites. O controlador fornece box separado.",
+      "code": "extends RefCounted\n\nstatic func criar(pai: Node3D) -> GPUParticles3D:\n    var p := GPUParticles3D.new()\n    p.name = \"Faiscas\"\n    p.position = Vector3(4, 1.6, 0)\n    p.emitting = false\n    p.one_shot = true\n    p.amount = 48\n    p.lifetime = 2.0\n    p.explosiveness = 1.0\n    p.use_fixed_seed = true\n    p.seed = 29\n    p.local_coords = false\n    p.layers = 1\n    p.collision_base_size = 0.12 # Diâmetro de colisão, não raio.\n    p.visibility_aabb = AABB(Vector3(-5, -20, -5), Vector3(10, 26, 10))\n    var processo := ParticleProcessMaterial.new()\n    processo.direction = Vector3.UP\n    processo.spread = 30.0\n    processo.initial_velocity_min = 2.0\n    processo.initial_velocity_max = 3.0\n    processo.gravity = Vector3(0, -9.8, 0)\n    processo.collision_mode = ParticleProcessMaterial.COLLISION_RIGID\n    processo.collision_bounce = 0.6\n    processo.collision_friction = 0.2\n    p.process_material = processo\n    var esfera := SphereMesh.new()\n    esfera.radius = 0.06\n    esfera.height = 0.12\n    var desenho := StandardMaterial3D.new()\n    desenho.albedo_color = Color(1.0, 0.55, 0.15)\n    desenho.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED\n    esfera.material = desenho\n    p.draw_pass_1 = esfera\n    pai.add_child(p)\n    return p\n",
+      "pros": "Dependências e repetição controláveis.",
+      "cons": "Não fornece impactos individuais de gameplay; runtime pendente."
+    },
+    {
+      "title": "4. Cena e comandos · oficina.gd",
+      "whenToUse": "Montar a bancada procedural e repetir comparações.",
+      "description": "Uniform da onda manual; partículas em tempo real após F. R zera tempo/recria emissor sem recarregar a cena.",
+      "code": "extends Node3D\nconst PARTICULAS = preload(\"res://particulas.gd\")\nvar plano: MeshInstance3D\nvar onda: ShaderMaterial\nvar borda: ShaderMaterial\nvar faiscas: GPUParticles3D\nvar colisor: GPUParticlesCollisionBox3D\nvar painel: VBoxContainer\nvar leitura: Label\nvar amplitude: HSlider\nvar velocidade: HSlider\nvar expoente: HSlider\nvar celulas: OptionButton\nvar colisao: CheckButton\nvar tempo := 0.0\nvar estado := \"Emissor parado; F dispara/reinicia.\"\n\nfunc slider(texto: String, minimo: float, maximo: float, passo: float, valor: float) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    painel.add_child(l)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    painel.add_child(s)\n    s.value_changed.connect(func(_v: float): atualizar())\n    return s\n\nfunc botao(texto: String, acao: Callable) -> void:\n    var b := Button.new()\n    b.text = texto\n    painel.add_child(b)\n    b.pressed.connect(acao)\n\nfunc objeto(nome: String, mesh: Mesh, pos: Vector3) -> MeshInstance3D:\n    var m := MeshInstance3D.new()\n    m.name = nome\n    m.mesh = mesh\n    m.position = pos\n    add_child(m)\n    return m\n\nfunc _ready() -> void:\n    plano = objeto(\"PlanoOndulado\", PlaneMesh.new(), Vector3(-4, 0, 0))\n    plano.extra_cull_margin = 0.8\n    onda = ShaderMaterial.new()\n    onda.shader = preload(\"res://onda.gdshader\")\n    plano.material_override = onda\n    var esfera := SphereMesh.new()\n    esfera.radius = 1.0\n    esfera.height = 2.0\n    var escudo := objeto(\"Escudo\", esfera, Vector3(0, 1, 0))\n    borda = ShaderMaterial.new()\n    borda.shader = preload(\"res://borda.gdshader\")\n    escudo.material_override = borda\n    var caixa := BoxMesh.new()\n    caixa.size = Vector3(5, 0.2, 5)\n    objeto(\"PisoVisual\", caixa, Vector3(4, -0.1, 0))\n    colisor = GPUParticlesCollisionBox3D.new()\n    colisor.name = \"ColisorGPU\"\n    colisor.position = Vector3(4, -0.1, 0)\n    colisor.size = Vector3(5, 0.2, 5)\n    colisor.cull_mask = 1\n    add_child(colisor)\n    criar_emissor()\n    var camera := Camera3D.new()\n    camera.position = Vector3(9, 8, 14)\n    add_child(camera)\n    camera.look_at(Vector3(0, 0.7, 0))\n    camera.make_current()\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-50, -30, 0)\n    add_child(luz)\n    var mundo := WorldEnvironment.new()\n    var ambiente := Environment.new()\n    ambiente.background_mode = Environment.BG_COLOR\n    ambiente.background_color = Color(0.035, 0.025, 0.015)\n    ambiente.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    ambiente.ambient_light_color = Color.WHITE\n    ambiente.ambient_light_energy = 0.35\n    mundo.environment = ambiente\n    add_child(mundo)\n    interface()\n    atualizar()\n\nfunc criar_emissor() -> void:\n    faiscas = PARTICULAS.criar(self)\n    faiscas.finished.connect(func(): estado = \"Ciclo GPU terminado; F permite repetir.\")\n\nfunc interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(20, 550)\n    layer.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.custom_minimum_size.x = 490\n    fundo.add_child(painel)\n    amplitude = slider(\"Amplitude local\", 0, 0.8, 0.1, 0.3)\n    velocidade = slider(\"Velocidade de fase rad/s\", 0, 3, 0.25, 1)\n    expoente = slider(\"Expoente da borda\", 0.5, 6, 0.5, 3)\n    celulas = OptionButton.new()\n    for n in [2, 8, 32]:\n        celulas.add_item(\"%d células/lado\" % n, n)\n    celulas.select(1)\n    painel.add_child(celulas)\n    celulas.item_selected.connect(func(_i: int): atualizar())\n    colisao = CheckButton.new()\n    colisao.text = \"Colisor GPU ativo; piso visual independente\"\n    colisao.button_pressed = true\n    painel.add_child(colisao)\n    colisao.toggled.connect(func(_v: bool): atualizar())\n    botao(\"T: avançar onda0,1s · partículas usam tempo real\", passo)\n    botao(\"F: disparar/repetir ciclo GPU\", disparar)\n    botao(\"R: zerar onda e limpar partículas\", restaurar)\n    leitura = Label.new()\n    painel.add_child(leitura)\n\nfunc atualizar() -> void:\n    if leitura == null:\n        return\n    var n := celulas.get_selected_id()\n    var malha := PlaneMesh.new()\n    malha.size = Vector2(4, 4)\n    malha.subdivide_width = n - 1\n    malha.subdivide_depth = n - 1\n    plano.mesh = malha\n    onda.set_shader_parameter(\"amplitude\", amplitude.value)\n    onda.set_shader_parameter(\"velocidade\", velocidade.value)\n    onda.set_shader_parameter(\"tempo\", tempo)\n    borda.set_shader_parameter(\"expoente\", expoente.value)\n    colisor.visible = colisao.button_pressed\n\nfunc passo() -> void:\n    tempo = snappedf(tempo + 0.1, 0.1)\n    onda.set_shader_parameter(\"tempo\", tempo)\n\nfunc disparar() -> void:\n    faiscas.restart(true)\n    faiscas.emitting = true\n    estado = \"Ciclo GPU em tempo real; restart limpa o anterior.\"\n\nfunc restaurar() -> void:\n    tempo = 0.0\n    onda.set_shader_parameter(\"tempo\", tempo)\n    faiscas.free()\n    criar_emissor() # Novo nó parado: nenhuma partícula antiga precisa desaparecer por timer.\n    estado = \"Tempo zerado e emissor recriado parado.\"\n\nfunc _process(_delta: float) -> void:\n    if leitura != null:\n        leitura.text = \"Onda:%.1fs | A=%.1f | fase=%.2f | expoente=%.1f\\n%s\" % [tempo, amplitude.value, velocidade.value, expoente.value, estado]\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and not event.ctrl_pressed and not event.alt_pressed and not event.meta_pressed:\n        if event.keycode == KEY_T:\n            passo()\n        elif event.keycode == KEY_F:\n            disparar()\n        elif event.keycode == KEY_R:\n            restaurar()\n",
+      "pros": "Projeto local completo, sem assets externos.",
+      "cons": "Compilar/executar no motor antes de homologar."
+    },
+    {
+      "title": "5. Configuração e escopo",
+      "whenToUse": "Conferir valores e separar modelo web do projeto.",
+      "description": "Leia com o roteiro de testes e a versão/renderizador declarados.",
+      "code": "Referência Godot4.5, Forward+, desktop compatível com RenderingDevice.\nImportar project.godot e executar oficina.tscn. Nove arquivos locais.\nMontagem em runtime: PlanoOndulado / Escudo / Faiscas / ColisorGPU.\nOnda: PlaneMesh4×4; n células/lado => subdivide=n-1 e (n+1)^2 vértices.\ny=A*sin(2*x+t*v)*cos(2*z+t*v). Normal analítica (-dy/dx,1,-dy/dz).\nAmplitude máxima0.8 e extra_cull_margin0.8. Sem normal map/tangente recalculada.\nTempo uniform próprio: T avança0.1s; TIME nativo não é usado.\nBorda: blend_add,cull_back,unshaded; ALPHA usa (1-clamp(N·V,0,1))^p.\nNão implementa refração, glow obrigatório ou Fresnel dielétrico completo.\nGPUParticles3D:48 partículas, one_shot=true, explosiveness=1, lifetime=2.\nuse_fixed_seed=true / seed29; local_coords=false; emitting=false inicial.\nprocess_material=ParticleProcessMaterial: direçãoUP, spread30, v2–3,\ngravity(0,-9.8,0), COLLISION_RIGID, bounce0.6, friction0.2.\ndraw_pass_1=SphereMesh raio0.06/altura0.12; collision_base_size=0.12 (diâmetro).\nColisorGPU: GPUParticlesCollisionBox3D, size(5,0.2,5), centro(4,-0.1,0).\nPisoVisual é apenas MeshInstance3D; cull_mask1 e layers1 do emissor.\nvisibility_aabb local(-5,-20,-5)+(10,26,10). Verificar cobertura real.\nF chama restart(true) e emitting=true; R recria emissor parado.\nPartículas nativas rodam em tempo real; T só controla a onda.\nBrowser usa8 pontos analíticos e plano infinito; não equivale ao GPU/atrito/box.\nSem colisão de gameplay alterada por shader; sem orçamento de desempenho medido.\n",
+      "language": "text",
+      "pros": "Contratos e limites reunidos.",
+      "cons": "Não é benchmark nem garantia entre plataformas."
+    }
+  ],
+  "simulator": {
+    "type": "spatial_shader_3d",
+    "title": "Laboratório: onda, máscara angular e partículas",
+    "description": "Três experiências analíticas independentes em Canvas. Selecione o modo; controles sem relação ficam desabilitados. Tempo manual, repetição e limpeza; não executa shaders ou GPU.",
+    "guide": [
+      {
+        "title": "Onda e amostragem",
+        "text": "Plano 4×4:2/8/32 células dão 9/81/1089 vértices. Onda y=A·sen(2x+t·v)·cos(2z+t·v); normal pelas derivadas. Ouro é amostra(0,5;0), mesmo se não houver vértice ali na malha grossa. T avança, R reinicia."
+      },
+      {
+        "title": "Borda por ângulo",
+        "text": "Esfera ideal: N·V=cosθ; máscara=(1−clamp(N·V,0,1))^p. Em 60°/p3, valor 0,125. Expoente maior estreita a borda; não é apenas aumentar brilho. Anel ouro marca o ângulo selecionado. Não há transparência, refração ou glow real no Canvas."
+      },
+      {
+        "title": "Ciclo de partículas",
+        "text": "F inicia/reinicia 8 pontos e T avança 0,1 s, até vida 2 s. Piso ativo usa plano infinito e restituição; off permite cruzar o chão. Sem atrito/volume; não reproduz GPU. R zera tempo e limpa; C restaura tudo. Atalhos só na vista focada, sem repetição/modificadores, com botões equivalentes."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Qual conjunto de afirmações descreve corretamente esta bancada?",
+    "options": [
+      "Deformar VERTEX atualiza a física, e aumentar o expoente torna toda a esfera igualmente mais opaca.",
+      "Vertex altera o desenho; a normal precisa acompanhar a onda. O expoente estreita a borda; partículas exigem processamento/colisor próprios e reinício explícito.",
+      "A mesh do draw pass determina sozinha gravidade, colisão e fim do ciclo.",
+      "GPU garante custo zero na CPU e faz qualquer StaticBody3D fornecer colisão às partículas."
+    ],
+    "correctIndex": 1,
+    "feedback": [
+      "Desenho e colisão são separados; expoente não é opacidade uniforme.",
+      "Correto. Forma, orientação, processamento e ciclo têm contratos distintos.",
+      "Draw pass fornece desenho; o processamento e o ciclo são configurados separadamente.",
+      "Há custos e limites; colisão GPU usa dados específicos, sem garantia de desempenho."
+    ],
+    "explanation": "O laboratório separa os três mecanismos. Aparência plausível não comprova física, implementação nativa ou desempenho."
+  }
+},
+
+{
+  "id": "3d-pro-global-illumination",
+  "area": "3d",
+  "level": "profissional",
+  "levelLabel": "Profissional",
+  "title": "13. Iluminação global e reflexos: escolher, preparar e comparar",
+  "subtitle": "Separe rebatimento difuso de reflexão especular, escolha uma técnica pelo cenário e valide a preparação antes de julgar o resultado.",
+  "nodesUsed": [
+    "LightmapGI",
+    "VoxelGI",
+    "Environment / SDFGI",
+    "ReflectionProbe",
+    "ArrayMesh"
+  ],
+  "feynman": {
+    "title": "Uma superfície pode receber luz rebatida e também refletir a sala",
+    "explanation": "A parede vermelha recebe luz da lâmpada e devolve parte dela para superfícies próximas. Uma esfera fosca pode ganhar uma tonalidade vermelha por esse transporte indireto. Uma esfera metálica pode mostrar a própria parede no reflexo e também ter brilho da luz direta. São contribuições diferentes. Desligar a luz indireta não apaga automaticamente a iluminação direta, e adicionar uma sonda de reflexo não equivale a calcular todos os rebatimentos da sala.",
+    "analogies": [
+      {
+        "term": "Luz que passa por uma superfície",
+        "analogy": "Um cartão vermelho sob uma lâmpada pode devolver luz colorida ao entorno. A quantidade depende de onde ele está, para onde aponta e do que bloqueia o caminho. Uma camada vermelha sobre toda a imagem não representa esse mecanismo."
+      },
+      {
+        "term": "Dados preparados e dados atuais",
+        "analogy": "Um levantamento fixo de uma oficina não muda quando alguém derruba uma parede. Um bake precisa de uma política de atualização; suportar luz dinâmica não significa aceitar qualquer geometria mudando sem preparação."
+      },
+      {
+        "term": "Uma captura local tem um ponto de vista",
+        "analogy": "Uma sonda registra o entorno de uma posição. Essa aproximação pode ajudar o metal, mas não enxerga a sala de todos os pontos ao mesmo tempo. Box projection compensa parte da paralaxe em volumes adequados, sem transformar a captura em reflexão geométrica exata."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5. Primeiro mantenha câmera, fonte, materiais e exposição fixos; depois varie uma contribuição. O browser oferece esse isolamento com um modelo próprio. O apoio prepara três variantes da mesma sala no editor, sem bakes prontos. No motor, GI também pode contribuir para reflexos, portanto os controles não isolam componentes exatamente como no Canvas.",
+    "anatomy": [
+      {
+        "prop": "Direto, indireto difuso e especular",
+        "desc": "Direto vem da fonte sem rebater antes. Indireto difuso passa por outras superfícies e depende de geometria/material. Especular pode vir tanto da luz direta quanto do ambiente. Sem sonda ainda podem existir reflexos de GI, céu ou SSR, conforme configuração. Nesta oficina o ambiente difuso da sonda é desativado, mas ReflectionProbe também possui opções de ambiente; não é exclusivamente um nó de espelho em qualquer uso."
+      },
+      {
+        "prop": "LightmapGI: preparar UV2 e conservar o bake",
+        "desc": "Bom candidato para geometria e iluminação predominantemente estáticas, com custo deslocado para bake/armazenamento. Malhas assadas precisam de UV2 válido e tamanho de lightmap. Objetos móveis podem receber indireto por probes, sem passar a ser contribuintes estáticos atualizados. Bake ocorre no editor; reprodução em outra plataforma não implica poder assar nela. A classe 4.5 documenta reflexão muito rugosa por harmônicos quando directional=true; isso não é captura local detalhada. O apoio usa directional=false e sonda separada."
+      },
+      {
+        "prop": "VoxelGI: volume assado, contribuição dinâmica configurada",
+        "desc": "Exige Forward+ na referência e bake inicial da geometria estática. Malhas/luzes em modo Static precisam de novo bake se mudarem. Dynamic tem outra participação e custo; não atribuir o mesmo comportamento a qualquer porta ou emissor. A caixa deve cobrir o necessário, com subdivisão e paredes suficientemente espessas. GPU dedicada é recomendação de desempenho, não o nome de uma condição de API que substitua medir o hardware."
+      },
+      {
+        "prop": "SDFGI: regiões próximas à câmera e limites dinâmicos",
+        "desc": "Também exige Forward+. Usa cascatas para representar regiões do cenário e pode acompanhar a câmera, sem bake manual como LightmapGI/VoxelGI. Não significa detalhe infinito em todo o mundo. Suporta luzes dinâmicas, mas oclusores e superfícies emissivas móveis não contribuem como geometria estática instantaneamente. Resolução, distância, convergência e vazamentos precisam de inspeção; use_occlusion reduz alguns problemas e custa trabalho, sem garantia de eliminá-los."
+      },
+      {
+        "prop": "ReflectionProbe: captura, máscara e atualização",
+        "desc": "Captura o entorno e filtra versões para diferentes rugosidades. size define influência; cull_mask define o que entra na captura. Box projection pode melhorar salas compatíveis com a aproximação. Once conserva uma captura até uma nova atualização pertinente; mudanças na luz não devem ser presumidas como recaptura automática. Always custa mais. O apoio exclui o próprio metal da captura, desliga ambiente difuso e oferece recaptura explícita."
+      },
+      {
+        "prop": "Preparação é parte do resultado",
+        "desc": "GI Mode das malhas e bake mode das luzes têm significado específico por técnica. Para Lightmap, luz Dynamic preserva direto em runtime e deixa indireto assado; mudar sua cor/energia depois não reescreve a textura. PrimitiveMesh puro não é o fluxo de lightmap fornecido: o gerador converte as formas em ArrayMesh e faz unwrap no editor, validando erros. Confira dados e recursos salvos antes de concluir que o método não funciona."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Oito passos separam leitura do modelo, preparação no editor e comparação real. O ZIP contém quatro scripts e instruções; nenhum resultado de bake está pronto. Uma tela inicial explica como gerar as três cenas. Execute a cena escolhida com F6 depois da preparação.",
+    "duration": "90–140 min com geração, bakes e comparações (estimativa; varia por hardware)",
+    "prerequisite": "Aulas 3D 1–12: materiais PBR, sombras, normais, recursos e separação visual/física. Godot 4.5, editor e Forward+ em desktop compatível para comparar todas as variantes. Gerador, unwrap, bakes e runtime ainda não executados nesta revisão.",
+    "objectives": [
+      "Distinguir rebatimento difuso, reflexo ambiente e brilho direto por uma comparação controlada.",
+      "Escolher LightmapGI, VoxelGI ou SDFGI segundo geometria, iluminação, plataforma e custo de atualização.",
+      "Preparar malhas/dados/capturas e repetir a comparação, reconhecendo um sistema sem bake em vez de avaliá-lo como pronto."
+    ],
+    "practice": {
+      "title": "Prática guiada: uma sala, três preparações",
+      "intro": "Importe project.godot. F5 abre instruções; a comparação nativa só existe após executar o EditorScript e gerar as cenas. Não há GLB externo. A referência contém paredes espessas, esfera fosca, metal, bloco e uma OmniLight3D; câmera e materiais permanecem iguais entre variantes.",
+      "tree": "Projeto de apoio\n├── inicio.tscn / inicio.gd: instruções\n├── gerar_cenas.gd: EditorScript executado manualmente\n├── sala.gd: geometria, ArrayMesh/UV2, materiais e presets\n├── controle.gd: controles das cenas geradas\n└── cenas/ (geradas no editor, não incluídas prontas)\n    ├── lightmap.tscn → LightmapGI + dados a assar\n    ├── voxel.tscn → VoxelGI + dados a assar\n    └── sdfgi.tscn → Environment.sdfgi_enabled\n\nCada Sala tem malhas, LuzDireta, Mundo, Sonda e Camera como filhos.\nMetal usa layer 2; captura da sonda usa layer 1 e exclui o próprio metal.\nA esfera dinâmica recebe GI conforme o sistema/probes; não exige UV2 de bake estático.",
+      "download": {
+        "url": "assets/aula-3d-13-gi-reflexos.zip",
+        "label": "Baixar projeto de apoio: GI, bakes e reflexos"
+      },
+      "downloadNote": "Nove arquivos locais, quatro scripts e roteiro. Cenas/bakes são gerados por você no editor; execução nativa ainda pendente.",
+      "steps": [
+        {
+          "title": "Faça previsões antes de comparar",
+          "text": "No browser, observe as duas salas: referência só direta e ajustes. Identifique esfera fosca, metal, parede e sombra. Desligue rebatimento e captura; depois ligue somente a captura e somente o rebatimento.",
+          "expect": "Sem rebatimento/captura, os quadros coincidem. A esfera fosca ganha indireto localizado quando há transporte da parede. O metal pode refletir a parede mesmo sem indireto difuso; o cálculo de brilho direto continua. Não confundir parede refletida com color bleeding na superfície fosca."
+        },
+        {
+          "title": "Varie o ganho sem mexer na fonte",
+          "text": "Compare ganho 0,0/0,2/1/2 com rebatimento ligado. Desligue rebatimento e confira que seu ganho fica desabilitado. G/P alternam componentes com a vista focada; R restaura a referência de controles.",
+          "expect": "A fonte e a geometria não mudam. O ganho atua no termo indireto do modelo, não é um parâmetro universal da Godot. Com GI desligada, mudar um valor guardado não deve alterar a imagem; não há movimento nem ciclo a esperar."
+        },
+        {
+          "title": "Escolha pela necessidade, não por um selo de qualidade",
+          "text": "Explique escolhas para sala fixa em hardware limitado, interior com contribuintes dinâmicos e cenário amplo com luz solar variável. Considere plataforma de execução e de bake separadamente. Mantenha as limitações por técnica na resposta.",
+          "expect": "Lightmap é candidato para fixo com UV2, bake e armazenamento; Voxel exige volume/bake inicial e modos dinâmicos adequados; SDFGI acompanha regiões e luzes, sem suportar qualquer oclusor/emissor móvel. Não há tecnologia sempre melhor nem FPS garantido."
+        },
+        {
+          "title": "Gere cenas e confira a geometria assável",
+          "text": "Abra gerar_cenas.gd no editor de scripts e use Arquivo → Executar (Ctrl+Shift+X). Confira Output/erros e as três cenas geradas. Em lightmap.tscn inspecione ArrayMesh, UV2 e GI Mode Static nas malhas fixas. O gerador não roda sozinho no jogo.",
+          "expect": "As três cenas têm geometria equivalente, owner/hierarquia salvos e recursos preparados. Erro de unwrap interrompe a geração. Não tratar PrimitiveMesh sem UV2 como se já estivesse pronto para lightmap. O gerador recusa sobrescrever destinos existentes; guarde cópia e renomeie conscientemente antes de regenerar."
+        },
+        {
+          "title": "Faça os dois bakes que a prática exige",
+          "text": "Em lightmap.tscn selecione LightmapGI e Bake Lightmaps; salve dados/cena. Em voxel.tscn selecione VoxelGI, Bake, salve VoxelGIData em .res e a cena. Abra/reabra e confirme dados presentes. Execute cada cena atual com F6.",
+          "expect": "Não basta adicionar o nó. A interface mostra aviso quando light_data ou voxel.data falta. A luz do apoio é Dynamic: Lightmap mantém direto em runtime, mas indireto permanece assado. Probes do Lightmap atendem o metal dinâmico; investigar distribuição se ele não recebe indireto."
+        },
+        {
+          "title": "Observe SDFGI e compare sem contaminar o teste",
+          "text": "Abra sdfgi.tscn, execute e aguarde estabilização. Confira Forward+, GI Mode Static, read_sky_light=false e use_occlusion=true. Mantenha energia 1, câmera e materiais iguais; desligue sistemas extras antes de comparar.",
+          "expect": "Não há arquivo de bake equivalente aos dois anteriores. Uma imagem transitória ou vazamento não comprova que SDFGI aceita oclusores dinâmicos. A comparação nativa não deve exigir pixel igual ao Canvas: iluminação, materiais, captura, exposição e algoritmos diferem."
+        },
+        {
+          "title": "Teste a captura antiga e a recaptura",
+          "text": "Com sonda Once, altere a energia da luz. Compare a captura antiga, Recapturar e Always. R restaura luz/controles e recria a sonda. Confira AMBIENT_DISABLED, size, cull_mask e exclusão do próprio metal.",
+          "expect": "Once não deve ser confundido com acompanhar toda mudança da sala. Always adiciona custo; box projection é aproximação. No motor, GI também pode fornecer reflexo, então desligar a sonda não implica metal sem qualquer reflexo. O browser separa esses termos para ensinar."
+        },
+        {
+          "title": "Registre resultado e limite antes de otimizar",
+          "text": "Use o roteiro do ZIP e anote versão/renderizador, dados salvos, resultado esperado/observado e custo medido. Investigue exposição, probes, UV2, volume/resolução e paredes antes de aumentar energia para esconder um erro.",
+          "expect": "O laboratório web valida o conceito de transporte limitado e separação dos controles. Não homologa bake, convergência, fugas de luz ou custo nativo. A aula seguinte trata orçamento/otimização; aprofundamentos globais do currículo só serão avaliados após a última aula."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Uma esfera metálica vermelha prova que a GI difusa está ligada?",
+        "answer": "Não. Ela pode estar refletindo a parede vermelha por uma captura especular. Compare a superfície fosca e isole as contribuições; preserve também a luz direta."
+      },
+      {
+        "question": "Por que adicionar LightmapGI sem preparar malha/dados pode não produzir o resultado esperado?",
+        "answer": "A técnica exige malhas assáveis com UV2, configurações e bake válido. O apoio fornece conversão/unwrap no editor e exige salvar dados; não entrega um nó com iluminação pronta."
+      },
+      {
+        "question": "Uma porta móvel participa igualmente em VoxelGI e SDFGI?",
+        "answer": "Não. Modos e limites diferem. VoxelGI possui contribuição de malhas Dynamic com custo; SDFGI não trata oclusores móveis como contribuintes dinâmicos equivalentes. Alterar algo assado Static exige revisar a preparação."
+      },
+      {
+        "question": "Por que desligar a sonda no motor não garante que o metal fique sem reflexos?",
+        "answer": "Pode haver contribuição especular de GI, céu ou SSR. A sonda é uma fonte adicional; o modelo web desliga propositalmente as outras capturas para permitir a comparação."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "A sala clareia, mas não sei por quê",
+        "text": "Desligue fontes extras, fixe exposição/câmera e varie um termo. Não mude luz direta, ambiente, GI e captura juntos para concluir que houve rebatimento."
+      },
+      {
+        "title": "Lightmap não funciona com as formas criadas",
+        "text": "Confira ArrayMesh/UV2, GI Mode, hierarquia, dados e erros de bake. O ZIP não promete lightmap em PrimitiveMesh puro ou bake em exportação."
+      },
+      {
+        "title": "Mudei uma parede e a GI ficou antiga",
+        "text": "Confira se a geometria era Static e requer novo bake. Não extrapole luz dinâmica para qualquer transformação de malha. Em SDFGI, observe atualização/convergência e limites de oclusores dinâmicos."
+      },
+      {
+        "title": "Metal sem detalhes ou reflexo deslocado",
+        "text": "Confira fontes de reflexão, rugosidade, influência/máscara da sonda, captura antiga e box projection. O cubemap tem limitações de ponto de captura; não é uma solução perfeita para toda geometria."
+      },
+      {
+        "title": "A energia alta esconde vazamento e tudo satura",
+        "text": "Reveja paredes/resolução/probes/exposição antes de intensificar luz. Números maiores não corrigem UV2, dados ausentes ou limites da técnica. Meça memória, tempo de bake e execução no destino."
+      }
+    ],
+    "summary": "Separe direto, indireto difuso e especular. Escolha a técnica pelo que muda na cena e pelo destino. Prepare UV2, modos, volumes, bakes e capturas; valide dados antes de julgar a imagem. Uma sonda pode complementar a GI, mas não substitui todos os transportes de luz.",
+    "next": "A aula 3D 14 aborda orçamento de renderização, culling e LOD. Depois dela será possível avaliar lacunas do currículo completo e priorizar as pendências de motor acumuladas.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — introdução e comparação de GI",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/introduction_to_global_illumination.html"
+      },
+      {
+        "label": "LightmapGI — fluxo de preparação",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/using_lightmap_gi.html"
+      },
+      {
+        "label": "LightmapGI — classe e directional",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_lightmapgi.html"
+      },
+      {
+        "label": "VoxelGI — uso e modos",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/using_voxel_gi.html"
+      },
+      {
+        "label": "VoxelGI — classe",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_voxelgi.html"
+      },
+      {
+        "label": "SDFGI — requisitos e limites",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/using_sdfgi.html"
+      },
+      {
+        "label": "ReflectionProbe — captura e ambiente",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_reflectionprobe.html"
+      },
+      {
+        "label": "ArrayMesh — lightmap_unwrap",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_arraymesh.html"
+      },
+      {
+        "label": "Light3D — bake mode",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_light3d.html"
+      },
+      {
+        "label": "Environment — ambiente e reflexos",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_environment.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Sala, malhas e presets · sala.gd",
+      "whenToUse": "Preparar geometria equivalente para três técnicas.",
+      "description": "Converte formas em ArrayMesh, valida unwrap das estáticas, configura materiais, fonte, ambiente e sonda. Chamado pelo EditorScript, não por gameplay.",
+      "code": "extends RefCounted\n\nstatic func anexar(raiz: Node3D, no: Node) -> void:\n    raiz.add_child(no)\n    no.owner = raiz\n\nstatic func malha(raiz: Node3D, nome: String, origem: PrimitiveMesh, pos: Vector3, cor: Color, metal: bool = false) -> MeshInstance3D:\n    var mesh := ArrayMesh.new()\n    mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, origem.surface_get_arrays(0))\n    if not metal:\n        var erro := mesh.lightmap_unwrap(Transform3D.IDENTITY, 0.15)\n        if erro != OK:\n            push_error(\"Falha de UV2 em %s: %s\" % [nome, error_string(erro)])\n            return null\n    var material := StandardMaterial3D.new()\n    material.albedo_color = cor\n    material.metallic = 1.0 if metal else 0.0\n    material.roughness = 0.12 if metal else 0.8\n    mesh.surface_set_material(0, material)\n    var no := MeshInstance3D.new()\n    no.name = nome\n    no.mesh = mesh\n    no.position = pos\n    no.gi_mode = GeometryInstance3D.GI_MODE_DYNAMIC if metal else GeometryInstance3D.GI_MODE_STATIC\n    no.layers = 2 if metal else 1 # Sonda captura layer1 e exclui a própria esfera metálica.\n    anexar(raiz, no)\n    return no\n\nstatic func criar(tipo: String) -> Node3D:\n    var raiz := Node3D.new()\n    raiz.name = \"Sala\"\n    raiz.set_meta(\"tecnica\", tipo)\n    raiz.set_script(preload(\"res://controle.gd\"))\n    var branco := Color(0.72, 0.70, 0.64)\n    var partes := [\n        [\"Piso\", Vector3(4.4, 0.2, 3.4), Vector3(0, -0.1, -0.5), branco],\n        [\"ParedeVermelha\", Vector3(0.2, 3.2, 3.4), Vector3(-2.1, 1.5, -0.5), Color(0.75, 0.035, 0.018)],\n        [\"ParedeDireita\", Vector3(0.2, 3.2, 3.4), Vector3(2.1, 1.5, -0.5), branco],\n        [\"Fundo\", Vector3(4.4, 3.2, 0.2), Vector3(0, 1.5, -2.1), branco],\n        [\"Teto\", Vector3(4.4, 0.2, 3.4), Vector3(0, 3.1, -0.5), branco],\n        [\"Bloco\", Vector3(0.38, 1.18, 0.62), Vector3(0.11, 0.59, -1.41), branco]\n    ]\n    for parte in partes:\n        var box := BoxMesh.new()\n        box.size = parte[1]\n        if malha(raiz, parte[0], box, parte[2], parte[3]) == null:\n            raiz.free()\n            return null\n    for i in range(2):\n        var esfera := SphereMesh.new()\n        esfera.radius = 0.57 if i == 0 else 0.62\n        esfera.height = esfera.radius * 2.0\n        esfera.radial_segments = 24\n        esfera.rings = 12\n        var pos := Vector3(-0.78, 0.57, -0.45) if i == 0 else Vector3(0.8, 0.62, -0.8)\n        if malha(raiz, \"Fosca\" if i == 0 else \"Metal\", esfera, pos, branco if i == 0 else Color(0.95, 0.76, 0.4), i == 1) == null:\n            raiz.free()\n            return null\n    var luz := OmniLight3D.new()\n    luz.name = \"LuzDireta\"\n    luz.position = Vector3(0.2, 2.8, 0.25)\n    luz.omni_range = 10.0\n    luz.light_energy = 1.0\n    luz.light_bake_mode = Light3D.BAKE_DYNAMIC\n    luz.shadow_enabled = true\n    anexar(raiz, luz)\n    var mundo := WorldEnvironment.new()\n    mundo.name = \"Mundo\"\n    var e := Environment.new()\n    e.background_mode = Environment.BG_COLOR\n    e.background_color = Color.BLACK\n    e.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED\n    e.reflected_light_source = Environment.REFLECTION_SOURCE_BG\n    e.tonemap_mode = Environment.TONE_MAPPER_FILMIC\n    e.sdfgi_enabled = tipo == \"sdfgi\"\n    e.sdfgi_read_sky_light = false\n    e.sdfgi_use_occlusion = true\n    mundo.environment = e\n    anexar(raiz, mundo)\n    var sonda := ReflectionProbe.new()\n    sonda.name = \"Sonda\"\n    sonda.position = Vector3(0, 1.5, -0.5)\n    sonda.size = Vector3(4.6, 3.4, 4.0)\n    sonda.interior = true\n    sonda.box_projection = true\n    sonda.ambient_mode = ReflectionProbe.AMBIENT_DISABLED\n    sonda.cull_mask = 1\n    sonda.enable_shadows = true\n    sonda.update_mode = ReflectionProbe.UPDATE_ONCE\n    anexar(raiz, sonda)\n    if tipo == \"lightmap\":\n        var lm := LightmapGI.new()\n        lm.name = \"LightmapGI\"\n        lm.interior = true\n        lm.directional = false\n        lm.generate_probes_subdiv = LightmapGI.GENERATE_PROBES_SUBDIV_8\n        anexar(raiz, lm)\n    elif tipo == \"voxel\":\n        var voxel := VoxelGI.new()\n        voxel.name = \"VoxelGI\"\n        voxel.position = Vector3(0, 1.5, -0.5)\n        voxel.size = Vector3(5, 4, 4)\n        voxel.subdiv = VoxelGI.SUBDIV_128\n        anexar(raiz, voxel)\n    var camera := Camera3D.new()\n    camera.name = \"Camera\"\n    camera.position = Vector3(0, 1.45, 5.6)\n    camera.rotation_degrees.x = -2.0\n    camera.current = true\n    anexar(raiz, camera)\n    return raiz\n",
+      "pros": "UV2, modos e máscaras explícitos.",
+      "cons": "Unwrap e comportamento real ainda exigem execução no editor."
+    },
+    {
+      "title": "2. Geração no editor · gerar_cenas.gd",
+      "whenToUse": "Criar as três cenas salvas antes dos bakes.",
+      "description": "Executar manualmente via editor de scripts. Verifica pack/save e atualiza FileSystem. Não assa luz automaticamente.",
+      "code": "@tool\nextends EditorScript\nconst SALA = preload(\"res://sala.gd\")\nfunc _run() -> void:\n    for tipo in [\"lightmap\", \"voxel\", \"sdfgi\"]:\n        if FileAccess.file_exists(\"res://cenas/%s.tscn\" % tipo):\n            push_error(\"Cena já existe: %s. Guarde cópia e escolha conscientemente como regenerar; nada será sobrescrito.\" % tipo)\n            return\n    var erro := DirAccess.make_dir_recursive_absolute(\"res://cenas\")\n    if erro != OK:\n        push_error(error_string(erro))\n        return\n    for tipo in [\"lightmap\", \"voxel\", \"sdfgi\"]:\n        var raiz := SALA.criar(tipo)\n        if raiz == null:\n            push_error(\"Geração interrompida; confira os erros de UV2.\")\n            return\n        var cena := PackedScene.new()\n        erro = cena.pack(raiz)\n        if erro == OK:\n            erro = ResourceSaver.save(cena, \"res://cenas/%s.tscn\" % tipo)\n        raiz.free()\n        if erro != OK:\n            push_error(\"Falha ao salvar %s: %s\" % [tipo, error_string(erro)])\n            return\n    get_editor_interface().get_resource_filesystem().scan()\n    print(\"Três cenas geradas. Abra uma, faça o bake indicado e execute com F6. O gerador recusa sobrescrever cenas existentes.\")\n",
+      "pros": "Hierarquia/recursos locais, sem GLB externo.",
+      "cons": "Recusa sobrescrever cenas existentes; regeneração exige guardar cópia e renomear destinos."
+    },
+    {
+      "title": "3. Comparação e recaptura · controle.gd",
+      "whenToUse": "Alternar GI/sonda e restaurar sem reabrir a cena.",
+      "description": "Avisa se dados faltam. R restaura controles e recria sonda; luz nativa difere do ganho web. Não substitui bakes.",
+      "code": "extends Node3D\n@onready var luz: OmniLight3D = $LuzDireta\n@onready var ambiente: Environment = $Mundo.environment\n@onready var sonda: ReflectionProbe = $Sonda\nvar lm: LightmapGI\nvar voxel: VoxelGI\nvar dados: LightmapGIData\nvar gi: CheckButton\nvar reflexo: CheckButton\nvar sempre: CheckButton\nvar energia: HSlider\nvar leitura: Label\n\nfunc _ready() -> void:\n    lm = get_node_or_null(\"LightmapGI\") as LightmapGI\n    voxel = get_node_or_null(\"VoxelGI\") as VoxelGI\n    if lm != null:\n        dados = lm.light_data\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(20, 650)\n    layer.add_child(fundo)\n    var painel := VBoxContainer.new()\n    painel.custom_minimum_size.x = 600\n    fundo.add_child(painel)\n    gi = CheckButton.new()\n    gi.text = \"GI da cena ativa · G\"\n    gi.button_pressed = true\n    painel.add_child(gi)\n    gi.toggled.connect(func(_v: bool): atualizar())\n    reflexo = CheckButton.new()\n    reflexo.text = \"Sonda local ativa · P\"\n    reflexo.button_pressed = true\n    painel.add_child(reflexo)\n    reflexo.toggled.connect(func(_v: bool): atualizar())\n    sempre = CheckButton.new()\n    sempre.text = \"Sonda Always; mais capturas/custo\"\n    painel.add_child(sempre)\n    sempre.toggled.connect(func(_v: bool): atualizar())\n    energia = HSlider.new()\n    energia.min_value = 0.5\n    energia.max_value = 2.0\n    energia.step = 0.1\n    energia.value = 1.0\n    painel.add_child(energia)\n    energia.value_changed.connect(func(_v: float): atualizar())\n    for item in [[\"Recapturar sonda Once\", recapturar], [\"Restaurar referência · R\", restaurar]]:\n        var b := Button.new()\n        b.text = item[0]\n        painel.add_child(b)\n        b.pressed.connect(item[1])\n    leitura = Label.new()\n    leitura.custom_minimum_size.x = 600\n    leitura.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART\n    painel.add_child(leitura)\n    atualizar()\n\nfunc atualizar() -> void:\n    if leitura == null:\n        return\n    luz.light_energy = energia.value\n    sonda.visible = reflexo.button_pressed\n    sonda.update_mode = ReflectionProbe.UPDATE_ALWAYS if sempre.button_pressed else ReflectionProbe.UPDATE_ONCE\n    if lm != null:\n        lm.light_data = dados if gi.button_pressed else null\n    elif voxel != null:\n        voxel.visible = gi.button_pressed\n    else:\n        ambiente.sdfgi_enabled = gi.button_pressed\n    var aviso := \"Aguarde convergência/captura; o teste nativo não separa componentes como o Canvas.\"\n    if lm != null and dados == null:\n        aviso = \"SEM LIGHTMAP: faça Bake Lightmaps no editor antes de avaliar GI.\"\n    elif voxel != null and voxel.data == null:\n        aviso = \"SEM VOXEL DATA: faça Bake e salve o recurso antes de avaliar GI.\"\n    leitura.text = \"%s | energia direta %.1f\\n%s\\nA energia da luz muda o direto; indireto pré-assado não acompanha automaticamente.\\nAmbiente difuso da sonda desativado; parede e materiais fixos.\" % [get_meta(\"tecnica\"), energia.value, aviso]\n\nfunc recapturar() -> void:\n    var nova := sonda.duplicate() as ReflectionProbe\n    add_child(nova)\n    sonda.free()\n    sonda = nova\n    atualizar()\n\nfunc restaurar() -> void:\n    gi.set_pressed_no_signal(true)\n    reflexo.set_pressed_no_signal(true)\n    sempre.set_pressed_no_signal(false)\n    energia.set_value_no_signal(1.0)\n    atualizar()\n    recapturar()\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and not event.ctrl_pressed and not event.alt_pressed and not event.meta_pressed:\n        if event.keycode == KEY_G:\n            gi.button_pressed = not gi.button_pressed\n        elif event.keycode == KEY_P:\n            reflexo.button_pressed = not reflexo.button_pressed\n        elif event.keycode == KEY_R:\n            restaurar()\n",
+      "pros": "Estados e limites visíveis.",
+      "cons": "Sincronização/captura e toggles reais ainda não homologados."
+    },
+    {
+      "title": "4. Configuração e contratos",
+      "whenToUse": "Conferir o que cada variante exige.",
+      "description": "Leia com o roteiro e os passos do editor. Não há resultado de bake pronto.",
+      "code": "Godot4.5, Forward+/desktop para gerar e comparar as três variantes.\nNenhum bake pré-calculado é fornecido. Compilação/unwrap/bake/runtime pendentes.\nEditor: gerar_cenas.gd cria cenas/lightmap.tscn, voxel.tscn e sdfgi.tscn.\nBoxMesh/SphereMesh são convertidos para ArrayMesh; estáticos recebem UV2\npor lightmap_unwrap no editor. PrimitiveMesh puro não recebe lightmap neste fluxo.\nTodas as malhas/luzes/GI têm o mesmo pai Sala e owner para salvar PackedScene.\nParedes com espessura; frente aberta para câmera fixa. Sem jogador/colisão física.\nLuz Omni em(0.2,2.8,0.25), sombra ligada e light_bake_mode=BAKE_DYNAMIC.\nEnergia direta1; alterar após bake não recalcula indireto do Lightmap.\nWorldEnvironment: fundo preto, ambiente difuso disabled, SSR/SSAO/glow desligados.\nSonda: size(4.6,3.4,4), centro(0,1.5,-0.5), interior/box_projection true,\nambient_mode=AMBIENT_DISABLED, cull_mask1, captura de sombras, UPDATE_ONCE.\nMetal está na layer2: recebe reflexão, mas não entra na captura layer1.\nLightmap: directional=false, probes subdiv8; bake no editor e salvar dados.\nVoxel: size(5,4,4), subdiv128; Bake no editor e salvar VoxelGIData em .res.\nSDFGI: read_sky_light=false, use_occlusion=true; aguardar estabilizar.\nSomente um sistema GI ativo por variante; não sobrepor técnicas na comparação.\nR restaura controles e recria sonda para recapturar; G/P alternam GI/sonda.\nCaptura Once pode ficar antiga; Always custa mais e não é obrigatório.\nO modelo web separa rebatimento difuso de captura especular idealizada.\nNo motor, GI também pode contribuir para reflexos; não exigir isolamento idêntico.\nLightmap directional pode fornecer reflexão muito rugosa por harmônicos;\nnão fornece uma captura local detalhada comparável à sonda desta oficina.\n",
+      "language": "text",
+      "pros": "Pré-requisitos e limites reunidos.",
+      "cons": "Não é benchmark nem garantia de equivalência entre algoritmos."
+    }
+  ],
+  "simulator": {
+    "type": "gi_reflection_3d",
+    "title": "Laboratório: mesma sala, contribuições separadas",
+    "description": "Referência fixa só direta e seus ajustes. Em tela estreita, as salas ficam empilhadas. Esfera fosca à esquerda de cada sala; metal à direita. Modelo próprio, sem executar técnicas GI Godot.",
+    "guide": [
+      {
+        "title": "Isole antes de comparar",
+        "text": "Desligue rebatimento e captura: os quadros coincidem. Ligue só rebatimento e observe superfícies foscas; ligue só captura e observe o metal. Metal refletindo parede vermelha não é a mesma evidência que indireto na esfera fosca."
+      },
+      {
+        "title": "Ganho e oclusão",
+        "text": "O ganho 0–2 multiplica um único rebatimento aproximado a partir de 9 áreas da parede. Distância, orientação e bloqueios entram no cálculo. Com GI desligada o ganho fica desabilitado; luz direta permanece fixa. Há só uma parede rebatedora e uma captura direcional idealizada, sem box projection/roughness nativos."
+      },
+      {
+        "title": "Repita sem movimento",
+        "text": "R restaura; G alterna rebatimento e P alterna captura com foco na vista, sem repetição/modificadores. Botões equivalentes pelos controles. Não há personagem, avanço temporal ou benchmark. A pausa global não muda a comparação estática."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "No teste com a mesma câmera e luz, o metal reflete a parede vermelha, mas a esfera fosca continua sem ganho indireto. Qual interpretação e próximo passo fazem sentido?",
+    "options": [
+      "A parede refletida já prova que todos os rebatimentos difusos estão calculados.",
+      "É possível haver captura especular sem rebatimento difuso. Isole os controles e confira a preparação/dados da técnica antes de aumentar a energia.",
+      "Adicionar ReflectionProbe sempre substitui LightmapGI e elimina qualquer necessidade de UV2.",
+      "SDFGI aceita qualquer porta móvel como oclusor dinâmico, portanto não é preciso conferir modos ou limites."
+    ],
+    "correctIndex": 1,
+    "feedback": [
+      "Reflexo no metal e indireto na superfície fosca são evidências diferentes.",
+      "Correto. Separe contribuições, confirme dados/modos e compare com uma variável por vez.",
+      "Uma sonda pode fornecer reflexão/ambiente conforme configuração, mas não substitui o fluxo de bake de lightmaps.",
+      "Oclusores móveis são uma limitação de SDFGI; modos e atualização precisam ser conferidos."
+    ],
+    "explanation": "A imagem precisa ser interpretada pelos mecanismos ativos. Reflexão especular, indireto difuso e brilho direto não são sinônimos."
+  }
+},
+
+{
+  "id": "3d-pro-optimization-culling-lod",
+  "area": "3d",
+  "level": "profissional",
+  "levelLabel": "Profissional",
+  "title": "14. Otimização 3D: medir, descartar, simplificar e agrupar",
+  "subtitle": "Formule uma hipótese, compare nas mesmas condições e confira custo e qualidade visual antes de aprovar uma otimização.",
+  "nodesUsed": [
+    "OccluderInstance3D",
+    "BoxOccluder3D",
+    "GeometryInstance3D",
+    "MultiMeshInstance3D",
+    "Performance"
+  ],
+  "feynman": {
+    "title": "Enviar menos trabalho só ajuda quando esse trabalho importa",
+    "explanation": "Uma oficina pode ter peças fora da câmera, escondidas por uma parede ou pequenas demais para exigir todos os detalhes. Cada caso permite uma decisão diferente. Também é possível agrupar peças para reduzir submissões; porém um grupo grande pode obrigar a enviar objetos que seriam descartados separadamente. Otimizar exige identificar o gargalo, mudar uma variável e medir novamente, conservando a qualidade necessária. Nenhuma dessas técnicas garante 60 FPS ou custo zero.",
+    "analogies": [
+      {
+        "term": "Quatro perguntas diferentes",
+        "analogy": "Está fora da vista? Está inteiramente coberto? Está longe para este detalhe? Compartilha trabalho com outras peças? Frustum, oclusão, nível de detalhe e agrupamento respondem a perguntas diferentes."
+      },
+      {
+        "term": "Caixa de peças versus caixas por setor",
+        "analogy": "Uma caixa única facilita transportar tudo, mas pode levar peças de que ninguém precisa naquele destino. Caixas menores permitem selecionar por área. MultiMesh reduz parte da submissão, enquanto o tamanho dos grupos influencia o descarte e o detalhe."
+      },
+      {
+        "term": "O número que caiu pode não ser o gargalo",
+        "analogy": "Reduzir a quantidade de triângulos não corrige necessariamente um script caro, transparências, custo de sombras ou espera por sincronização. Medir e separar causas é mais útil que escolher a técnica pelo nome."
+      }
+    ]
+  },
+  "howItWorks": {
+    "overview": "Referência Godot 4.5/Forward+/desktop para a prática. O browser usa uma planta 2D conservadora com doze peças e contagens calculadas; não mede GPU. O projeto nativo contém uma malha glTF própria para exercitar a importação de mesh LOD, agrupamento espacial, occluder e leitura de monitores. Importação/compilação/runtime continuam pendentes.",
+    "anatomy": [
+      {
+        "prop": "Medir antes e depois",
+        "desc": "Fixe dispositivo, build, resolução, câmera, aquecimento e condições. Use tempo por frame e profiler; FPS pode estar limitado por VSync. TIME_PROCESS e TIME_PHYSICS_PROCESS não são tempo GPU. Alguns monitores atrasam ou não estão disponíveis em determinado build; zero não prova custo nulo. O painel mede a cena inteira, incluindo chão/parede/UI."
+      },
+      {
+        "prop": "Frustum e oclusão não são a mesma seleção",
+        "desc": "Frustum testa limites do objeto contra o volume da câmera. Occlusion culling usa geometria de bloqueio e testes conservadores para não remover partes visíveis; não é um teste do centro nem um limite fixo de ângulo. Tem custo de CPU e pode não compensar em cenários abertos. O suporte ativa a opção do projeto e fornece BoxOccluder3D dentro da parede; a parede visual continua existindo quando o recurso occluder é retirado."
+      },
+      {
+        "prop": "Mesh LOD da importação",
+        "desc": "Pode gerar malhas menos detalhadas ao importar cenas 3D compatíveis. Não significa que qualquer PrimitiveMesh criada em runtime ganha níveis automaticamente. A seleção usa erro em espaço de tela, FOV/resolução e configurações, não só uma distância universal. Em MultiMesh, as instâncias compartilham o nível selecionado a partir dos limites do nó. Confira Generate LODs, reimporte e observe antes de concluir que está ativo."
+      },
+      {
+        "prop": "Visibility ranges e HLOD manual",
+        "desc": "Controlam visibilidade por alcance e podem trocar representações/nós. O suporte oferece esfera perto/caixa longe como HLOD manual, separado do mesh LOD importado. Com fade disabled, margens podem fornecer histerese; fades SELF/DEPENDENCIES têm custo e dependem de Forward+ na referência 4.5. A bancada nativa usa corte seco/margens 0 para uma referência clara, sem prometer transição imperceptível. Sumir da renderização não pausa automaticamente scripts/física."
+      },
+      {
+        "prop": "MultiMesh e limites do grupo",
+        "desc": "Compartilha malha e transforma instâncias por índice. Formato/flags devem ser definidos antes da alocação. O grupo tem limites e não oferece culling individual das suas instâncias: separar setores pode enviar menos geometria, mesmo com mais grupos. O número real de calls depende de superfícies, materiais, passes, sombras e otimizações do renderer. visible_instance_count limita uma quantidade/prefixo; não é máscara arbitrária de objetos. Física/IA individual não aparece automaticamente."
+      },
+      {
+        "prop": "Contadores precisam de escopo",
+        "desc": "O modelo soma instâncias enviadas × orçamento alto/baixo e grupos submetidos para uma superfície/um passo. Não são draw calls ou triângulos medidos na GPU. O monitor de primitivas reporta vértices/índices de renderização, com efeitos de passes; não deve ser igualado diretamente ao total de triângulos-fonte. Reduzir um contador sem comparar imagem e tempo não aprova a mudança."
+      }
+    ]
+  },
+  "teaching": {
+    "codeRequired": true,
+    "codeIntro": "Três scripts e uma malha glTF própria fornecem uma bancada local. O modelo web usa alto 1200/baixo 120 por peça, enquanto a esfera-fonte nativa tem 2208 triângulos e a caixa 12. Os níveis gerados pela Godot e as métricas reais dependem de importação/renderização.",
+    "duration": "80–120 min com hipóteses, importação e medições (estimativa)",
+    "prerequisite": "Aulas 3D 1–13: câmera, malhas/importação, materiais, sombras e custos de GI/partículas. Godot 4.5/Forward+/desktop; editor e hardware alvo para medir. Importação do glTF, compilação e execução nativa pendentes.",
+    "objectives": [
+      "Distinguir frustum, oclusão, alcance, mesh LOD e HLOD por critérios observáveis.",
+      "Comparar objetos separados e grupos espaciais, explicando a troca entre submissões e geometria enviada.",
+      "Registrar um teste A/B com condições fixas, métricas e qualidade visual, sem converter contagens do modelo em promessa de FPS."
+    ],
+    "practice": {
+      "title": "Prática guiada: doze peças e uma hipótese por vez",
+      "intro": "Importe project.godot, confira peca.gltf no Import e execute oficina.tscn. A malha foi criada para esta aula e tem buffer embutido, sem download externo. A câmera nativa olha +X; há uma parede visual e um occluder separado. O browser é uma planta plana simplificada, sem rasterização ou medição de hardware.",
+      "tree": "Oficina (Node3D / oficina.gd)\n├── Grupos: 12 nós / 3 MultiMeshes / 1 MultiMesh\n│   └── malha de peca.gltf ou caixa de HLOD manual\n├── ParedeVisual (MeshInstance3D)\n├── OccluderInstance3D → BoxOccluder3D\n├── Piso, Camera3D, luz sem sombras e WorldEnvironment\n└── CanvasLayer / Interface + Timer de medição\n\nMesh LOD: gerado pelo importador do glTF, a conferir.\nHLOD: duas representações com visibility ranges.\nSem física/IA individual. Descartar visual não é parar processamento.",
+      "download": {
+        "url": "assets/aula-3d-14-otimizacao-medicao.zip",
+        "label": "Baixar projeto de apoio: visibilidade e medição"
+      },
+      "downloadNote": "Nove arquivos, três scripts e glTF próprio. Malha-fonte validada documentalmente; níveis importados/runtime ainda pendentes.",
+      "steps": [
+        {
+          "title": "Escreva a hipótese e fixe a referência",
+          "text": "Antes de ativar opções, registre câmera, resolução, dispositivo/build e qual custo pretende reduzir. Separe geometria enviada, chamadas, CPU, GPU e qualidade. No browser use R para restaurar a referência.",
+          "expect": "A hipótese pode ser reduzir submissões ou geometria, não aumentar FPS por definição. O quadro estático do Canvas não mede o projeto; métricas de hardware só virão da execução real."
+        },
+        {
+          "title": "Leia a contagem padrão do modelo",
+          "text": "Com câmera 0/giro 0, occluder ligado, detalhe ligado, alcance desligado e peças individuais, some categorias e orçamento. Observe 12 peças,4 ocultas,8 enviadas; das enviadas 6 são altas e 2 baixas.",
+          "expect": "6 × 1200 + 2 × 120 = 7440 triângulos teóricos;8 lotes ideais sob a hipótese de uma superfície/um passo. Os números vêm das peças/classificação. A parede e a UI não entram nesse orçamento, mas entram nas métricas nativas."
+        },
+        {
+          "title": "Mude o enquadramento e o bloqueio separadamente",
+          "text": "A/D ou setas giram, W/S alteram X no modelo, e sliders fazem o mesmo. Desligue só o occluder, mantendo a parede visual. Depois restaure e teste alcance 12. Observe descarte por grupo inteiro quando mudar o agrupamento.",
+          "expect": "Frustum e oclusão são etapas diferentes. Occluder off não significa parede invisível; a renderização real ainda pode ocultar pixels pelo depth test depois de enviar geometria. Alcance 12 individual deixa 4 peças, enquanto um grupo global cujo centro fica além do limite pode sumir inteiro."
+        },
+        {
+          "title": "Compare custo de agrupamento",
+          "text": "Restaure e compare individual,3 colunas e grupo global. Mantenha as mesmas posições/opções. Compare não só lotes, mas também triângulos enviados e limites tracejados.",
+          "expect": "Na referência: individual 8 lotes/7440 tris; colunas 3/10080; global 1/14400. São resultados deste modelo conservador. O grupo global envia mais trabalho geométrico; não comprova ser mais rápido. A Godot pode realizar outros agrupamentos e passes."
+        },
+        {
+          "title": "Confira importação e os dois tipos de detalhe",
+          "text": "No projeto, selecione peca.gltf, confira Generate LODs e reimporte. Compare Sem LOD, Mesh LOD e HLOD manual. A malha-fonte contém 2208 triângulos; níveis simplificados não são entregues como bake pronto.",
+          "expect": "Mesh LOD depende da importação e do erro em tela. HLOD troca esfera/caixa em faixas; não é o mesmo mecanismo. PrimitiveMesh da caixa não precisa ganhar LOD automático para servir de representação manual. Avalie silhueta e transições."
+        },
+        {
+          "title": "Observe oclusor e alcance nativos",
+          "text": "Compare o recurso BoxOccluder3D ligado/desligado e alcance 20. Para medir custo global do sistema, faça outro teste com a opção do projeto desligada e reinicie. Mantenha câmera/build/resolução iguais.",
+          "expect": "O checkbox do apoio remove só a forma; o sistema continua ativo. AABB e visibilidade nativas não precisam reproduzir a planta 2D. Objetos parcialmente visíveis não devem ser removidos; reveja forma/tamanho do occluder se isso acontecer."
+        },
+        {
+          "title": "Registre A/B depois de estabilizar",
+          "text": "Após cada troca de estratégia, aguarde a importação e a recriação terminarem e os medidores estabilizarem. Registre draw calls, índices/vértices reportados, tempo process/física, memória e observação visual. Use profiler/visual profiler para investigar GPU e gargalo.",
+          "expect": "O painel atualiza 0,5 s, mas certos monitores atrasam até 1 s ou dependem do build. VSync pode mascarar diferenças em FPS. Compare custos repetidos em condições equivalentes; zero indisponível não é ganho demonstrado."
+        },
+        {
+          "title": "Aprove qualidade e defina o próximo teste",
+          "text": "Verifique popping, silhueta, paredes/aberturas, sombras e alcance. Teste R e trocas de grupo várias vezes. Escreva uma decisão com evidência e uma limitação; revise o roteiro do apoio.",
+          "expect": "Uma redução de contador sem ganho relevante/qualidade aceitável não basta. O ciclo é hipótese → medição → mudança → reteste. Ao encerrar a trilha, integre os conceitos num projeto pequeno e valide no destino, preservando registros e pendências."
+        }
+      ]
+    },
+    "checks": [
+      {
+        "question": "Menos triângulos no modelo garantem mais FPS?",
+        "answer": "Não. O gargalo pode estar em CPU, materiais, overdraw, sombras, sincronização ou outro trabalho. O modelo não mede a GPU; compare tempo e qualidade no hardware real."
+      },
+      {
+        "question": "Por que um MultiMesh global pode enviar peças fora da vista?",
+        "answer": "A seleção usa os limites do grupo, sem culling individual de cada instância. Grupos espaciais menores preservam mais oportunidades de descarte e seleção de detalhe."
+      },
+      {
+        "question": "Por que o corte manual de 16 u não é o mesh LOD nativo?",
+        "answer": "O corte é uma regra própria de distância. Mesh LOD gerado pela importação usa métrica em tela, limites, FOV e resolução. HLOD/visibility ranges permitem representações e faixas escolhidas pelo autor."
+      },
+      {
+        "question": "Desligar o recurso occluder mede o custo total de desligar occlusion culling?",
+        "answer": "Não. O apoio mantém o sistema habilitado no projeto. Para medir a diferença global, faça teste separado de configuração/reinício, nas mesmas condições."
+      }
+    ],
+    "pitfalls": [
+      {
+        "title": "O contador caiu, mas o jogo não ficou mais rápido",
+        "text": "Confirme gargalo, VSync, resolução, build e escopo do monitor. Separe process/física de GPU e considere ruído/aquecimento. Não invente percentual de economia a partir do Canvas."
+      },
+      {
+        "title": "A parede corta objetos que ainda deveriam aparecer",
+        "text": "Confira forma opaca, tamanho e aberturas do occluder; ele deve caber no bloqueio real. O modelo plano simplificado não valida um cenário com altura, portas e malhas transparentes."
+      },
+      {
+        "title": "Mesh LOD parece não fazer nada",
+        "text": "Confira importação de cena3D e geração/reimport; não espere níveis em qualquer PrimitiveMesh runtime. Observe FOV/resolução, bias e threshold. Compare geometria em vista/diagnóstico, não apenas FPS limitado."
+      },
+      {
+        "title": "O agrupamento global ficou mais caro",
+        "text": "Reveja AABB, distribuição espacial, luzes, superfícies, passes e seleção de detalhe compartilhada. visible_instance_count não substitui seleção espacial arbitrária. Teste setores menores."
+      },
+      {
+        "title": "A transição tem popping ou custo de transparência",
+        "text": "Escolha histerese/margens e representações adequadas. Fades podem custar mais e têm restrições de renderizador. A referência do projeto usa corte seco; não é uma configuração final universal."
+      }
+    ],
+    "summary": "Identifique o gargalo, fixe condições e compare tempo e imagem. Frustum, oclusão, alcance, detalhe e agrupamento atuam em pontos diferentes do trabalho. Um grupo pode reduzir submissões e aumentar geometria; uma técnica só é aprovada para seu caso depois de medir.",
+    "next": "A trilha termina aqui. O próximo exercício é integrar uma cena pequena, exportar para o dispositivo alvo e registrar testes. Conteúdos de publicação, acessibilidade e aprofundamentos devem ser planejados conforme os objetivos do projeto; não presumir que uma revisão editorial equivale à homologação no motor.",
+    "sources": [
+      {
+        "label": "Godot 4.5 — occlusion culling",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/occlusion_culling.html"
+      },
+      {
+        "label": "Mesh LOD — importação e erro em tela",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/mesh_lod.html"
+      },
+      {
+        "label": "Visibility ranges/HLOD",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/3d/visibility_ranges.html"
+      },
+      {
+        "label": "GeometryInstance3D — margens/fade",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_geometryinstance3d.html"
+      },
+      {
+        "label": "MultiMesh — limites e instâncias",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_multimesh.html"
+      },
+      {
+        "label": "OccluderInstance3D",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_occluderinstance3d.html"
+      },
+      {
+        "label": "BoxOccluder3D — size",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_boxoccluder3d.html"
+      },
+      {
+        "label": "Performance — monitores e disponibilidade",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_performance.html"
+      },
+      {
+        "label": "Viewport — LOD e configuração raiz",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_viewport.html"
+      },
+      {
+        "label": "Otimização geral",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/performance/general_optimization.html"
+      },
+      {
+        "label": "Otimização GPU",
+        "url": "https://docs.godotengine.org/en/4.5/tutorials/performance/gpu_optimization.html"
+      }
+    ]
+  },
+  "approaches": [
+    {
+      "title": "1. Grupos e faixas · grupos.gd",
+      "whenToUse": "Separar instancing, limites espaciais e alcance.",
+      "description": "Formato antes da alocação, transforms locais e AABB. Faixas de referência sem fade/histerese para comparar mecanismos.",
+      "code": "extends RefCounted\n\nstatic func criar(mesh: Mesh, pontos: Array, separado: bool) -> GeometryInstance3D:\n    var centro := Vector3.ZERO\n    for p in pontos:\n        centro += p\n    centro /= pontos.size()\n    if separado:\n        var no := MeshInstance3D.new()\n        no.mesh = mesh\n        no.position = centro\n        return no\n    var mm := MultiMesh.new()\n    mm.transform_format = MultiMesh.TRANSFORM_3D # Antes de alocar instâncias.\n    mm.mesh = mesh\n    mm.instance_count = pontos.size()\n    var limites := AABB(pontos[0] - centro - Vector3.ONE * 0.45, Vector3.ONE * 0.9)\n    for i in range(pontos.size()):\n        var local: Vector3 = pontos[i] - centro\n        mm.set_instance_transform(i, Transform3D(Basis.IDENTITY, local))\n        limites = limites.merge(AABB(local - Vector3.ONE * 0.45, Vector3.ONE * 0.9))\n    mm.custom_aabb = limites\n    var grupo := MultiMeshInstance3D.new()\n    grupo.multimesh = mm\n    grupo.position = centro\n    return grupo\n\nstatic func faixas(no: GeometryInstance3D, inicio: float, fim: float) -> void:\n    no.visibility_range_begin = inicio\n    no.visibility_range_end = fim\n    no.visibility_range_begin_margin = 0.0\n    no.visibility_range_end_margin = 0.0\n    no.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED\n    # Referência de corte seco. Estude histerese/margens antes de adotar no jogo.\n",
+      "pros": "Responsabilidades explícitas.",
+      "cons": "Não adiciona física/IA individual nem garante um único call em todos os passes."
+    },
+    {
+      "title": "2. Bancada nativa · oficina.gd",
+      "whenToUse": "Comparar estratégias nas mesmas posições/câmera.",
+      "description": "Carrega glTF, permite agrupamento, occluder, mesh LOD/HLOD e restauração. Trocar câmera não recria os grupos.",
+      "code": "extends Node3D\nconst GRUPOS = preload(\"res://grupos.gd\")\nconst MEDICAO = preload(\"res://medicao.gd\")\nvar mesh_alta: Mesh\nvar mesh_baixa: BoxMesh\nvar camera: Camera3D\nvar colecao: Node3D\nvar bloqueador: OccluderInstance3D\nvar caixa_oclusao: BoxOccluder3D\nvar painel: VBoxContainer\nvar giro: HSlider\nvar posicao: HSlider\nvar agrupamento: OptionButton\nvar detalhe: OptionButton\nvar alcance: CheckButton\nvar oclusao: CheckButton\nvar leitura: Label\n\nfunc slider(texto: String, minimo: float, maximo: float, passo: float, valor: float) -> HSlider:\n    var l := Label.new()\n    l.text = texto\n    painel.add_child(l)\n    var s := HSlider.new()\n    s.min_value = minimo\n    s.max_value = maximo\n    s.step = passo\n    s.value = valor\n    painel.add_child(s)\n    s.value_changed.connect(func(_v: float): atualizar_camera())\n    return s\n\nfunc caixa(nome: String, tamanho: Vector3, pos: Vector3) -> void:\n    var m := MeshInstance3D.new()\n    m.name = nome\n    var box := BoxMesh.new()\n    box.size = tamanho\n    m.mesh = box\n    m.position = pos\n    add_child(m)\n\nfunc _ready() -> void:\n    var importada: PackedScene = load(\"res://peca.gltf\")\n    var instancia := importada.instantiate()\n    var meshes := instancia.find_children(\"*\", \"MeshInstance3D\", true, false)\n    if instancia is MeshInstance3D:\n        mesh_alta = instancia.mesh\n    elif not meshes.is_empty():\n        mesh_alta = (meshes[0] as MeshInstance3D).mesh\n    instancia.free()\n    if mesh_alta == null:\n        push_error(\"Mesh importada não encontrada; confira peca.gltf e Import/Generate LODs.\")\n        return\n    mesh_baixa = BoxMesh.new()\n    mesh_baixa.size = Vector3.ONE * 0.9\n    colecao = Node3D.new()\n    colecao.name = \"Grupos\"\n    add_child(colecao)\n    caixa(\"ParedeVisual\", Vector3(0.4, 3, 6), Vector3(10, 1.5, 0))\n    caixa(\"Piso\", Vector3(28, 0.2, 18), Vector3(12, -0.1, 0))\n    bloqueador = OccluderInstance3D.new()\n    bloqueador.position = Vector3(10, 1.5, 0)\n    caixa_oclusao = BoxOccluder3D.new()\n    caixa_oclusao.size = Vector3(0.35, 2.9, 5.9)\n    bloqueador.occluder = caixa_oclusao\n    add_child(bloqueador)\n    camera = Camera3D.new()\n    camera.keep_aspect = Camera3D.KEEP_WIDTH\n    camera.fov = 70\n    camera.near = 1\n    camera.far = 26\n    camera.current = true\n    add_child(camera)\n    var luz := DirectionalLight3D.new()\n    luz.rotation_degrees = Vector3(-45, -30, 0)\n    luz.shadow_enabled = false # Sombras adicionariam outros passes à comparação.\n    add_child(luz)\n    var mundo := WorldEnvironment.new()\n    var e := Environment.new()\n    e.background_mode = Environment.BG_COLOR\n    e.background_color = Color(0.04, 0.03, 0.02)\n    e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR\n    e.ambient_light_color = Color.WHITE\n    e.ambient_light_energy = 0.35\n    mundo.environment = e\n    add_child(mundo)\n    interface()\n    restaurar()\n    var relogio := Timer.new()\n    relogio.wait_time = 0.5\n    relogio.timeout.connect(func(): leitura.text = MEDICAO.ler())\n    add_child(relogio)\n    relogio.start()\n\nfunc interface() -> void:\n    var layer := CanvasLayer.new()\n    add_child(layer)\n    var fundo := PanelContainer.new()\n    fundo.position = Vector2(20, 550)\n    layer.add_child(fundo)\n    painel = VBoxContainer.new()\n    painel.custom_minimum_size.x = 690\n    fundo.add_child(painel)\n    giro = slider(\"Giro da câmera em graus\", -60, 60, 5, 0)\n    posicao = slider(\"Posição X da câmera\", 0, 4, 0.5, 0)\n    agrupamento = OptionButton.new()\n    for texto in [\"12 nós separados\", \"3 MultiMeshes por coluna\", \"1 MultiMesh global\"]:\n        agrupamento.add_item(texto)\n    painel.add_child(agrupamento)\n    agrupamento.item_selected.connect(func(_i: int): reconstruir())\n    detalhe = OptionButton.new()\n    for texto in [\"Sem LOD\", \"Mesh LOD da importação\", \"HLOD manual: esfera perto/caixa longe\"]:\n        detalhe.add_item(texto)\n    painel.add_child(detalhe)\n    detalhe.item_selected.connect(func(_i: int): reconstruir())\n    alcance = CheckButton.new()\n    alcance.text = \"Alcance final 20 u, sem fade (referência)\"\n    painel.add_child(alcance)\n    alcance.toggled.connect(func(_v: bool): reconstruir())\n    oclusao = CheckButton.new()\n    oclusao.text = \"Occluder ativo; parede visual permanece\"\n    painel.add_child(oclusao)\n    oclusao.toggled.connect(func(ativo: bool): bloqueador.occluder = caixa_oclusao if ativo else null)\n    var reset := Button.new()\n    reset.text = \"Restaurar referência · R\"\n    painel.add_child(reset)\n    reset.pressed.connect(restaurar)\n    leitura = Label.new()\n    painel.add_child(leitura)\n\nfunc atualizar_camera() -> void:\n    if posicao == null or giro == null:\n        return\n    camera.position = Vector3(posicao.value, 1.5, 0)\n    camera.rotation.y = -PI / 2.0 - deg_to_rad(giro.value)\n\nfunc reconstruir() -> void:\n    if alcance == null:\n        return\n    for filho in colecao.get_children():\n        filho.free()\n    var limiar := 1.0 if detalhe.selected == 1 else 0.0\n    ProjectSettings.set_setting(\"rendering/mesh_lod/lod_change/threshold_pixels\", limiar)\n    get_viewport().mesh_lod_threshold = limiar\n    var pontos: Array = []\n    for x in [8.0, 14.0, 20.0]:\n        for z in [-6.0, -2.0, 2.0, 6.0]:\n            pontos.append(Vector3(x, 0.45, z))\n    var grupos: Array = []\n    if agrupamento.selected == 0:\n        for p in pontos:\n            grupos.append([p])\n    elif agrupamento.selected == 1:\n        for i in range(3):\n            grupos.append(pontos.slice(i * 4, i * 4 + 4))\n    else:\n        grupos.append(pontos)\n    var material := StandardMaterial3D.new()\n    material.albedo_color = Color(0.65, 0.38, 0.13)\n    for grupo in grupos:\n        var alta := GRUPOS.criar(mesh_alta, grupo, agrupamento.selected == 0)\n        alta.material_override = material\n        colecao.add_child(alta)\n        var limite := 20.0 if alcance.button_pressed else 0.0\n        GRUPOS.faixas(alta, 0.0, 16.0 if detalhe.selected == 2 else limite)\n        if detalhe.selected == 2:\n            var baixa := GRUPOS.criar(mesh_baixa, grupo, agrupamento.selected == 0)\n            baixa.material_override = material\n            colecao.add_child(baixa)\n            GRUPOS.faixas(baixa, 16.0, limite)\n    # Recriação só ao trocar estratégia. Aguarde estabilizar antes de registrar métricas.\n\nfunc restaurar() -> void:\n    giro.set_value_no_signal(0)\n    posicao.set_value_no_signal(0)\n    agrupamento.select(0)\n    detalhe.select(1)\n    alcance.set_pressed_no_signal(false)\n    oclusao.set_pressed_no_signal(true)\n    bloqueador.occluder = caixa_oclusao\n    atualizar_camera()\n    reconstruir()\n\nfunc _unhandled_key_input(event: InputEvent) -> void:\n    if event is InputEventKey and event.pressed and not event.echo and not event.ctrl_pressed and not event.alt_pressed and not event.meta_pressed:\n        if event.keycode == KEY_R:\n            restaurar()\n",
+      "pros": "Cena local sem assets externos.",
+      "cons": "Importação/compilação/runtime e fronteiras devem ser testados no motor."
+    },
+    {
+      "title": "3. Medir com escopo · medicao.gd",
+      "whenToUse": "Ler a cena real sem chamar orçamento fictício de medida.",
+      "description": "Unidades e limitações dos monitores explícitas. Atualização por Timer no controlador.",
+      "code": "extends RefCounted\n\nstatic func ler() -> String:\n    var fps := Performance.get_monitor(Performance.TIME_FPS)\n    var processo_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0\n    var fisica_ms := Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0\n    var chamadas := Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)\n    var primitivas := Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)\n    var memoria_mib := Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0\n    return \"FPS %.0f | process %.2f ms | física %.2f ms\\nDraw calls/frame %.0f | índices/vértices reportados %.0f | memória reportada %.1f MiB\\nMétricas da cena inteira, incluindo piso/parede/UI; não apenas as 12 peças.\\nAlguns monitores atrasam até 1 s ou não estão disponíveis em todo build.\\nProcess/física não são tempo GPU; usar profiler e hardware alvo.\" % [fps, processo_ms, fisica_ms, chamadas, primitivas, memoria_mib]\n",
+      "pros": "Process/física, calls, memória e FPS contextualizados.",
+      "cons": "Não fornece tempo GPU nem disponibilidade idêntica por build."
+    },
+    {
+      "title": "4. Configuração e limites",
+      "whenToUse": "Conferir diferenças entre modelo e motor.",
+      "description": "Leia junto ao roteiro; glTF próprio precisa de importação pela Godot.",
+      "code": "Godot4.5/Forward+/desktop; execução nativa pendente. Nove arquivos locais.\nImportar project.godot; peca.gltf é malha própria com buffer embutido, sem download.\nConfira Import/Generate LODs e reimporte. Não assumir LOD em PrimitiveMesh criada no jogo.\n12 peças: X8/14/20, Z-6/-2/2/6, centroY0.45. Esfera fonte raio0.45.\nCamera: KEEP_WIDTH, fov70, near1, far26, posiçãoX0..4/Y1.5/Z0, olhando+X.\nRoot viewport: rendering/occlusion_culling/use_occlusion_culling=true no projeto.\nOccluder é uma BoxOccluder3D dentro da parede visual; checkbox remove só o recurso\noccluder, mantendo o sistema ligado. Para medir custo total do sistema, faça teste\nseparado com ProjectSettings desligado e reinicie, mantendo o restante igual.\nMultiMesh: formato3D antes de instance_count; mesh compartilhada; AABB por grupo.\nSem física/IA/colisão individual automática. visible_instance_count não é máscara arbitrária.\nSem LOD: mesh_lod_threshold0. Mesh LOD:threshold1, geração por importação.\nHLOD: duas geometrias, troca16u com faixas e margens0 na referência; sem fade.\nAlcance20u opcional. Inspecionar fronteiras e estudar histerese/margens antes de usar no jogo.\nNo browser: alto1200/baixo120 são orçamentos fictícios; no projeto, a esfera possui\n2208 triângulos-fonte e a caixa12. LOD gerado pode ter outros níveis; não confundir.\nMonitores: FPS, TIME_PROCESS/PHYSICS emms, draw calls, primitivas, memória emMiB.\nTexto atualiza0.5s; alguns monitores atrasam até 1 s/variam por build. Não mede tempo GPU.\nEsperar após troca de estratégia/importação e comparar mesma câmera/resolução/build.\nSem promessa de60FPS, único draw call global ou invisibilidade sem custo.\n",
+      "language": "text",
+      "pros": "Condições e limites reunidos.",
+      "cons": "Não é benchmark nem orçamento aprovado."
+    }
+  ],
+  "simulator": {
+    "type": "occlusion_lod_3d",
+    "title": "Laboratório: visibilidade e custo de agrupar",
+    "description": "Planta 2D com 12 peças e contagens calculadas. Compare etapas e agrupamento sem confundir orçamento teórico com FPS ou draw calls medidos.",
+    "guide": [
+      {
+        "title": "Conte por categoria",
+        "text": "12 peças em X 8/14/20 e Z−6/−2/2/6, raio 0,45. Frustum horizontal 70°, perto 1/longe 26. Círculos contêm grupos e testes são conservadores; não são AABB/Embree3D. Parede emX10, Z−3..3, tratada como alta/opaca nesta planta."
+      },
+      {
+        "title": "Compare desenho e submissão",
+        "text": "Ciano enviado, cinza fora, laranja oculto e lilás alcance. Desligar o occluder não apaga a parede. Grupos são enviados/descartados por inteiro. Os orçamentos 1200/120 e o corte além de 16 u são regras próprias; lotes pressupõem uma superfície/um passo."
+      },
+      {
+        "title": "Repita com controle",
+        "text": "A/D ou setas giram a câmera; W/S ajustam X em 0,5 u; R restaura. Sliders/seletores fazem as mesmas comparações. Alcance fica desabilitado quando não se aplica. Cena estática, sem avanço temporal e sem benchmark de hardware."
+      }
+    ]
+  },
+  "quiz": {
+    "question": "Ao trocar objetos separados por um MultiMesh global, os lotes teóricos caíram, mas a geometria enviada aumentou. Qual decisão está correta?",
+    "options": [
+      "A menor quantidade de lotes prova que o FPS vai aumentar.",
+      "O grupo pode perder descarte individual e compartilhar seleção de detalhe. Compare setores menores, tempo real e qualidade nas mesmas condições.",
+      "Visibility range desliga automaticamente toda física e IA fora do alcance.",
+      "O número de triângulos do Canvas é o mesmo monitor de vértices/índices de qualquer frame Godot."
+    ],
+    "correctIndex": 1,
+    "feedback": [
+      "Menos lotes não determina sozinho o gargalo ou o custo final.",
+      "Correto. Agrupamento tem tradeoffs; medir e avaliar imagem é parte da decisão.",
+      "Visibilidade não pausa automaticamente lógica/física.",
+      "São contagens e escopos diferentes; o modelo não mede renderização nativa."
+    ],
+    "explanation": "Otimização deve ser sustentada por teste A/B e qualidade, reconhecendo os limites de cada técnica e métrica."
+  }
+}
 ];

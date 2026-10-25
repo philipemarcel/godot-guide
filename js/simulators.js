@@ -166,8 +166,8 @@ window.SimulatorEngine = (function () {
     let refresh = () => {};
     const resize = () => {
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
-      canvas.height = type === "lighting_3d_env" ? (canvas.width < 500 ? 800 : 440) : type === "pbr_material_3d" ? (canvas.width < 500 ? 720 : 440) : type === "raycast_picking_3d" ? (canvas.width < 500 ? 720 : 440) : type === "springarm_camera_3d" ? (canvas.width < 500 ? 720 : 440) : type === "character_3d_slopes" ? (canvas.width < 500 ? 720 : 560) : type === "csg_boolean_3d" ? (canvas.width < 500 ? 720 : 560) : type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
+      canvas.width = Math.max(["fsm_state_machine","pathfinding_astar","resource_forge","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env","gridmap_decal_3d","blendspace_2d_3d","navmesh_3d_sim","spatial_shader_3d","gi_reflection_3d","occlusion_lod_3d"].includes(type) ? 200 : ["vectors_2d", "signals_bus", "tilemap_grid", "tween_raycast_2d", "lighting_2d"].includes(type) ? 320 : 480, Math.floor(rect.width));
+      canvas.height = type === "occlusion_lod_3d" ? (canvas.width < 500 ? 800 : 440) : type === "gi_reflection_3d" ? (canvas.width < 620 ? 800 : 600) : type === "spatial_shader_3d" ? (canvas.width < 500 ? 800 : 440) : type === "navmesh_3d_sim" ? (canvas.width < 500 ? 800 : 440) : type === "blendspace_2d_3d" ? (canvas.width < 500 ? 800 : 440) : type === "gridmap_decal_3d" ? (canvas.width < 500 ? 800 : 440) : type === "lighting_3d_env" ? (canvas.width < 500 ? 800 : 440) : type === "pbr_material_3d" ? (canvas.width < 500 ? 720 : 440) : type === "raycast_picking_3d" ? (canvas.width < 500 ? 720 : 440) : type === "springarm_camera_3d" ? (canvas.width < 500 ? 720 : 440) : type === "character_3d_slopes" ? (canvas.width < 500 ? 720 : 560) : type === "csg_boolean_3d" ? (canvas.width < 500 ? 720 : 560) : type === "transform_basis_3d" ? (canvas.width < 500 ? 780 : 600) : type === "space_3d_axes" ? (canvas.width < 500 ? 780 : 600) : type === "multiplayer_rpc_sim" ? (canvas.width < 500 ? 680 : 340) : type === "optimization_pool" ? (canvas.width < 500 ? 680 : 340) : type === "async_loader_sim" ? (canvas.width < 500 ? 680 : 340) : type === "shader_particles_2d" ? (canvas.width < 500 ? 680 : 340) : type === "resource_forge" ? (canvas.width < 500 ? 620 : 320) : type === "pathfinding_astar" ? Math.min(360, Math.max(180, Math.floor(rect.width * 7 / 12 + 48))) : type === "fsm_state_machine" ? Math.max(150, Math.min(300, Math.floor(rect.width * 300 / 640))) : ["camera_parallax_2d", "tween_raycast_2d", "lighting_2d"].includes(type) ? 360 : type === "scene_tree" ? 385 : type === "vectors_2d" ? 450 : type === "gi_reflection_3d" ? 420 : 290;
       canvas.parentElement.style.alignSelf = ["gi_reflection_3d", "vectors_2d", "layers_masks", "camera_parallax_2d", "tween_raycast_2d"].includes(type) ? "start" : "stretch";
       canvas.style.height = "auto";
       canvas.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
@@ -222,6 +222,7 @@ window.SimulatorEngine = (function () {
       });
       sel.addEventListener("change", () => {
         state[key] = sel.value;
+        if(type === "navmesh_3d_sim") nav28Plan(state);
         if (type === "delta_fps" && key === "fps") state.accum = 0;
         if (type === "camera_parallax_2d") {
           if (key === "follow" && state.follow === "instant") state.camX = state.playerX;
@@ -974,69 +975,77 @@ window.SimulatorEngine = (function () {
       }
 
       case "gridmap_decal_3d": {
-        addSlider("Camada de Altura (GridMap Y)", 0, 2, 1, 1, "gy", " andar");
-        addSlider("Posição do Decal Projetado X", -80, 80, 4, 0, "decalX", "");
-        state.blocksCount = 9;
-        addButton("Adicionar / Alternar Blocos no GridMap", () => {
-          state.blocksCount = state.blocksCount >= 14 ? 6 : state.blocksCount + 2;
-        });
-        break;
+        grid26Defaults(state);
+        addSlider('Célula X',-2,2,1,0,'gx','');addSlider('Camada Y',0,2,1,0,'gy','');addSlider('Célula Z',-2,2,1,0,'gz','');
+        addSelect('ID da peça a colocar',[{value:'7',label:'7 · módulo estreito'},{value:'0',label:'0 · bloco inteiro'}],'item');
+        addSlider('Yaw da peça · quartos de volta',0,3,1,0,'turn',' × 90°');
+        addSlider('Centro X do projetor',-3,5,.5,1,'dx',' u');addSlider('Centro Y do projetor',1,5,.5,2,'dy',' u');addSlider('Profundidade Y do volume',.5,6,.5,2,'depth',' u');
+        addSelect('Máscara visual do projetor',[{value:'1',label:'1 · só GridMap'},{value:'2',label:'2 · só objeto separado'},{value:'3',label:'3 · ambos'},{value:'0',label:'0 · nenhum'}],'mask');
+        addSlider('Tempo manual da marca',0,3,.25,0,'age',' s');
+        addButton('Colocar peça · P',()=>grid26Set(state));addButton('Remover célula · X',()=>grid26Set(state,true));addButton('Repetir marca · F',()=>{state.age=0;});addButton('Avançar 0,5 s · T',()=>{state.age=Math.min(3,state.age+.5);});addButton('Restaurar · R',()=>grid26Defaults(state));
+        state.gridUI=()=>{for(const key of ['gx','gy','gz','item','turn','dx','dy','depth','mask','age']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const val=group.querySelector('#val-'+key);if(val){val.textContent=Number(state[key]).toFixed(['gx','gy','gz','turn'].includes(key)?0:2)+(key==='turn'?' × 90°':key==='age'?' s':['dx','dy','depth'].includes(key)?' u':'');input.setAttribute('aria-valuetext',val.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Grade por camada: setas movem seleção X/Z, Q/E mudam camada Y; P coloca, X remove, F repete marca, T avança meio segundo manualmente e R restaura. Clique seleciona célula sem pintar.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['arrowleft','arrowright','arrowup','arrowdown','q','e','p','x','f','t','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));if(k==='arrowleft')state.gx=clamp(state.gx-1,-2,2);if(k==='arrowright')state.gx=clamp(state.gx+1,-2,2);if(k==='arrowup')state.gz=clamp(state.gz-1,-2,2);if(k==='arrowdown')state.gz=clamp(state.gz+1,-2,2);if(k==='q')state.gy=clamp(state.gy-1,0,2);if(k==='e')state.gy=clamp(state.gy+1,0,2);if(k==='p')grid26Set(state);if(k==='x')grid26Set(state,true);if(k==='f')state.age=0;if(k==='t')state.age=Math.min(3,state.age+.5);if(k==='r')grid26Defaults(state);refresh();};
+        const click=event=>{canvas.focus();const r=canvas.getBoundingClientRect(),l=grid26Layout(canvas.width,canvas.height),x=((event.clientX-r.left)*canvas.width/r.width-l.ox)/l.scale,z=((event.clientY-r.top)*canvas.height/r.height-l.oy)/l.scale;if(x>=40&&x<280&&z>=80&&z<320){state.gx=Math.floor((x-40)/48)-2;state.gz=Math.floor((z-80)/48)-2;state.message='Célula selecionada; clique não coloca peça.';refresh();}};
+        canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
 
       case "blendspace_2d_3d": {
-        addSlider("BlendSpace2D X (Strafe Lado)", -1, 1, 0.1, 0.0, "bx", "");
-        addSlider("BlendSpace2D Y (Andar/Correr Frente)", -1, 1, 0.1, 0.7, "by", "");
-        addSelect("Filtro OneShot Tronco Superior", [
-          { value: "off", label: "Desligado (Apenas Locomoção)" },
-          { value: "on", label: "Ativo: Acenar/Atirar da Cintura p/ Cima!" }
-        ], "oneshot");
-        break;
+        addSlider('Pedido X · pose Passo',0,1,.05,0,'bx','');addSlider('Pedido Y · pose Lateral',0,1,.05,0,'by','');
+        addSelect('Filtro da ação',[{value:'arm',label:'Somente braço direito'},{value:'all',label:'Corpo todo · comparar'}],'filter');addSlider('Offset local da ferramenta',0,.5,.05,.2,'grip',' u');
+        anim27Defaults(state);
+        addButton('Disparar / repetir · F',()=>anim27Fire(state));addButton('Avançar 0,1 s · T',()=>anim27Step(state));addButton('Cancelar · C',()=>{state.shot=false;state.age=0;});addButton('Restaurar · R',()=>anim27Defaults(state));
+        state.animUI=()=>{for(const key of ['bx','by','filter','grip']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const val=group.querySelector('#val-'+key);if(val){val.textContent=Number(state[key]).toFixed(2)+(key==='grip'?' u':'');input.setAttribute('aria-valuetext',val.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Mistura de poses: A/D ou setas horizontais mudam X, W/S ou setas verticais mudam Y. F dispara ou repete, T avança 0,1 segundo, C cancela e R restaura. Parâmetros não movem o personagem no mundo.');
+        const key=event=>{const k=event.key.toLowerCase();if(!['a','d','w','s','arrowleft','arrowright','arrowup','arrowdown','f','t','c','r'].includes(k)||event.ctrlKey||event.altKey||event.metaKey)return;event.preventDefault();if(event.repeat)return;const clamp=v=>Math.round(Math.max(0,Math.min(1,v))*100)/100;if(['a','arrowleft'].includes(k))state.bx=clamp(state.bx-.05);if(['d','arrowright'].includes(k))state.bx=clamp(state.bx+.05);if(['w','arrowup'].includes(k))state.by=clamp(state.by+.05);if(['s','arrowdown'].includes(k))state.by=clamp(state.by-.05);if(k==='f')anim27Fire(state);if(k==='t')anim27Step(state);if(k==='c'){state.shot=false;state.age=0;}if(k==='r')anim27Defaults(state);refresh();};
+        const click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
 
       case "navmesh_3d_sim": {
-        addSlider("Margem do Robô (agent_radius)", 0.2, 1.2, 0.1, 0.5, "radius", "m");
-        addSelect("Ponte de Salto (NavigationLink3D)", [
-          { value: "on", label: "Ativada (Permite Saltar o Fosso!)" },
-          { value: "off", label: "Desativada (Sem Rota Entre as Plataformas)" }
-        ], "link");
-        break;
+        addSlider('Raio solicitado para o bake',.2,1.2,.1,.4,'radius',' u');
+        addSelect('Link lógico',[{value:'both',label:'Ligado · dois sentidos'},{value:'one',label:'Ligado · só esquerda → direita'},{value:'off',label:'Desligado'}],'link');
+        addSelect('Origem e destino',[{value:'forward',label:'Esquerda → direita'},{value:'reverse',label:'Direita → esquerda'}],'direction');
+        addSelect('Código de travessia',[{value:'on',label:'Presente · arco controlado'},{value:'off',label:'Ausente · parar na entrada'}],'executor');
+        nav28Defaults(state);
+        addButton('Aplicar bake do modelo · B',()=>{state.baked=state.radius;nav28Plan(state);state.notice='Margem aplicada; percurso reiniciado.';});
+        addButton('Reiniciar percurso · R',()=>nav28Plan(state));addButton('Avançar 0,1 s · T',()=>nav28Step(state));addButton('Restaurar tudo · C',()=>nav28Defaults(state));
+        state.nav28UI=()=>{for(const key of ['radius','link','direction','executor']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const val=group.querySelector('#val-'+key);if(val){val.textContent=state[key].toFixed(1)+' u';input.setAttribute('aria-valuetext',val.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Navegação: B aplica a margem do modelo, R reinicia o percurso, T avança 0,1 segundo e C restaura tudo. Sem movimento automático.');
+        const key=e=>{const k=e.key.toLowerCase();if(!['b','r','t','c'].includes(k)||e.ctrlKey||e.altKey||e.metaKey)return;e.preventDefault();if(e.repeat)return;if(k==='b'){state.baked=state.radius;nav28Plan(state);}if(k==='r')nav28Plan(state);if(k==='t')nav28Step(state);if(k==='c')nav28Defaults(state);refresh();},click=()=>canvas.focus();
+        canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
 
       case "spatial_shader_3d": {
-        addSlider("Amplitude Onda Vértice (VERTEX.y)", 0, 28, 1, 12, "amp", "");
-        addSlider("Velocidade Temporal (TIME)", 1, 10, 0.5, 4, "speed", "x");
-        addSlider("Potência da Borda Fresnel", 0.5, 6, 0.5, 2.5, "fresnel", "");
-        break;
+        addSelect('Experiência',[{value:'wave',label:'01 · Onda e malha'},{value:'rim',label:'02 · Borda por ângulo'},{value:'sparks',label:'03 · Partículas e piso'}],'mode');
+        addSlider('Amplitude local da onda',0,.8,.1,.3,'amp',' u');addSelect('Células por lado',[{value:'8',label:'8 × 8 células'},{value:'2',label:'2 × 2 células'},{value:'32',label:'32 × 32 células'}],'segments');addSlider('Velocidade de fase',0,3,.25,1,'speed',' rad/s');
+        addSlider('Expoente da borda',.5,6,.5,3,'power','');addSlider('Ângulo normal–vista',0,90,5,60,'angle','°');
+        addSelect('Colisão do modelo',[{value:'on',label:'Piso ativo'},{value:'off',label:'Sem colisão'}],'collision');addSlider('Restituição do modelo',0,1,.1,.6,'bounce','');fx29Defaults(state);
+        addButton('Avançar 0,1 s · T',()=>fx29Step(state));addButton('Disparar / repetir partículas · F',()=>{state.burst=true;state.age=0;});addButton('Reiniciar tempo e limpar · R',()=>{state.clock=0;state.age=0;state.burst=false;});addButton('Restaurar tudo · C',()=>fx29Defaults(state));
+        state.fx29UI=()=>{for(const button of controlsContainer.children){if(button.tagName==='BUTTON'||button.tag==='button'){const disabled=(button.textContent.startsWith('Disparar')&&state.mode!=='sparks')||(button.textContent.startsWith('Avançar')&&state.mode==='rim');button.disabled=disabled;button.setAttribute('aria-disabled',String(disabled));}}for(const key of ['mode','amp','segments','speed','power','angle','collision','bounce']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const active=key==='mode'||(state.mode==='wave'&&['amp','segments','speed'].includes(key))||(state.mode==='rim'&&['power','angle'].includes(key))||(state.mode==='sparks'&&['collision','bounce'].includes(key));input.disabled=!active;input.setAttribute('aria-disabled',String(!active));const val=group.querySelector('#val-'+key);if(val){val.textContent=String(state[key])+(key==='amp'?' u':key==='angle'?'°':key==='speed'?' rad/s':'');input.setAttribute('aria-valuetext',val.textContent);}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Bancada de shaders e partículas. T avança 0,1 segundo, F dispara ou repete partículas, R reinicia tempo e limpa, C restaura tudo. Sem movimento automático.');
+        const key=e=>{const k=e.key.toLowerCase();if(!['t','f','r','c'].includes(k)||e.ctrlKey||e.altKey||e.metaKey)return;e.preventDefault();if(e.repeat)return;if((k==='f'&&state.mode!=='sparks')||(k==='t'&&state.mode==='rim'))return;if(k==='t')fx29Step(state);if(k==='f'){state.burst=true;state.age=0;}if(k==='r'){state.clock=0;state.age=0;state.burst=false;}if(k==='c')fx29Defaults(state);refresh();},click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
 
       case "gi_reflection_3d": {
-        addSelect("Luz indireta difusa (GI)", [
-          { value: "gi_probe", label: "Ligada · 1 rebatimento" },
-          { value: "direct", label: "Desligada · só luz direta" }
-        ], "giMode");
-        addSlider("Energia da luz rebatida", 0, 2, 0.1, 1, "bounce", "x");
-        addSelect("Reflexo ambiente no metal", [
-          { value: "on", label: "Ligado · sonda local" },
-          { value: "off", label: "Desligado" }
-        ], "probe");
-        const note=document.createElement("p");
-        note.className="sim-keyboard-help";
-        note.textContent="Esquerda: referência fixa. Direita: seus ajustes. Em cada sala: esfera esquerda fosca, esfera direita metálica. A luz direta é a mesma. Modelo de 1 rebatimento na parede vermelha; não executa VoxelGI ou LightmapGI.";
-        controlsContainer.appendChild(note);
-        break;
+        addSelect('Luz indireta difusa (modelo)',[{value:'gi_probe',label:'Ligada · parede vermelha → superfície'},{value:'direct',label:'Desligada · só luz direta'}],'giMode');
+        addSlider('Ganho do rebatimento (modelo)',0,2,.1,1,'bounce','x');
+        addSelect('Captura especular no metal',[{value:'on',label:'Ligada · ambiente da sala'},{value:'off',label:'Desligada'}],'probe');
+        const reset=()=>{state.giMode='gi_probe';state.bounce=1;state.probe='on';};
+        addButton('Restaurar comparação · R',reset);
+        state.gi30UI=()=>{for(const key of ['giMode','bounce','probe']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=state.bounce.toFixed(1)+'x';input.setAttribute('aria-valuetext',value.textContent);input.disabled=state.giMode!=='gi_probe';input.setAttribute('aria-disabled',String(input.disabled));}}};
+        const note=document.createElement('p');note.className='sim-keyboard-help';note.textContent='Referência fixa e ajustes mostram a mesma sala/câmera. Fosca à esquerda, metal à direita. Em tela estreita, referência em cima. R restaura; G alterna rebatimento; P alterna captura, somente com foco na vista. Modelo próprio com 9 áreas emissoras na parede; não executa LightmapGI, VoxelGI, SDFGI ou ReflectionProbe Godot.';controlsContainer.appendChild(note);
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Comparação de luz: G alterna rebatimento, P alterna captura especular e R restaura. Sem movimento automático.');
+        const key=e=>{const k=e.key.toLowerCase();if(!['g','p','r'].includes(k)||e.ctrlKey||e.altKey||e.metaKey)return;e.preventDefault();if(e.repeat)return;if(k==='g')state.giMode=state.giMode==='gi_probe'?'direct':'gi_probe';if(k==='p')state.probe=state.probe==='on'?'off':'on';if(k==='r')reset();refresh();},click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
 
       case "occlusion_lod_3d": {
-        addSlider("Ângulo da Camera3D (Frustum)", -80, 80, 2, 0, "camAngle", "°");
-        addSelect("OccluderInstance3D na Parede", [
-          { value: "on", label: "Ativado (Esconde Objetos Atrás do Muro!)" },
-          { value: "off", label: "Desativado (Desenha Tudo à Toa)" }
-        ], "occluder");
-        addSelect("Auto-LOD por Distância", [
-          { value: "on", label: "Ativado (Reduz Triângulos ao Longe)" },
-          { value: "off", label: "Desativado (Malha Pesada Sempre)" }
-        ], "lod");
-        break;
+        addSlider('Giro da câmera',-60,60,5,0,'yaw','°');addSlider('Posição X da câmera',0,4,.5,0,'camX',' u');
+        addSelect('Occluder do modelo',[{value:'on',label:'Ativo · parede opaca'},{value:'off',label:'Inativo · parede só visual'}],'occluder');addSelect('Detalhe por distância',[{value:'on',label:'Ligado · limiar manual de 16 u'},{value:'off',label:'Desligado · todos detalhados'}],'lod');
+        addSelect('Alcance do grupo',[{value:'off',label:'Sem descarte por alcance'},{value:'on',label:'Descartar além do limite'}],'range');addSlider('Limite de alcance',12,28,2,20,'rangeEnd',' u');
+        addSelect('Agrupamento',[{value:'individual',label:'12 objetos separados'},{value:'chunks',label:'3 grupos por coluna'},{value:'global',label:'1 grupo com todos os objetos'}],'batch');opt31Defaults(state);addButton('Restaurar bancada · R',()=>opt31Defaults(state));
+        state.opt31UI=()=>{for(const key of ['yaw','camX','occluder','lod','range','rangeEnd','batch']){const group=[...controlsContainer.children].find(el=>el.querySelector?.('#sim-input-'+key)),input=group.querySelector('#sim-input-'+key);input.value=String(state[key]);const value=group.querySelector('#val-'+key);if(value){value.textContent=String(state[key])+(key==='yaw'?'°':' u');input.setAttribute('aria-valuetext',value.textContent);}if(key==='rangeEnd'){input.disabled=state.range!=='on';input.setAttribute('aria-disabled',String(input.disabled));}}};
+        canvas.tabIndex=0;canvas.setAttribute('role','group');canvas.setAttribute('aria-label','Bancada de visibilidade. A/D ou setas horizontais giram a câmera; W/S mudam sua posição X. R restaura. Modelo sem animação automática.');
+        const key=e=>{const k=e.key.toLowerCase();if(!['a','d','w','s','arrowleft','arrowright','r'].includes(k)||e.ctrlKey||e.altKey||e.metaKey)return;e.preventDefault();if(e.repeat)return;if(['a','arrowleft'].includes(k))state.yaw=Math.max(-60,state.yaw-5);if(['d','arrowright'].includes(k))state.yaw=Math.min(60,state.yaw+5);if(k==='w')state.camX=Math.min(4,state.camX+.5);if(k==='s')state.camX=Math.max(0,state.camX-.5);if(k==='r')opt31Defaults(state);refresh();},click=()=>canvas.focus();canvas.addEventListener('keydown',key);canvas.addEventListener('click',click);const previous=currentCleanup;currentCleanup=()=>{previous?.();canvas.removeEventListener('keydown',key);canvas.removeEventListener('click',click);};break;
       }
     }
 
@@ -1075,6 +1084,12 @@ window.SimulatorEngine = (function () {
       if(type === "raycast_picking_3d") state.pickUI();
       if(type === "pbr_material_3d") state.pbrUI();
       if(type === "lighting_3d_env") state.lightUI();
+      if(type === "gridmap_decal_3d") state.gridUI();
+      if(type === "blendspace_2d_3d") state.animUI();
+      if(type === "navmesh_3d_sim") state.nav28UI();
+      if(type === "spatial_shader_3d") state.fx29UI();
+      if(type === "gi_reflection_3d") state.gi30UI();
+      if(type === "occlusion_lod_3d") state.opt31UI();
       if (type === "fsm_state_machine") {
         const group=[...controlsContainer.children].find(el=>el.querySelector?.("#sim-input-actorX"));
         const input=group.querySelector("#sim-input-actorX");input.value=String(state.actorX);
@@ -1105,7 +1120,7 @@ window.SimulatorEngine = (function () {
       }
 
     }
-    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d", "csg_boolean_3d", "character_3d_slopes", "springarm_camera_3d", "raycast_picking_3d", "pbr_material_3d","lighting_3d_env"].includes(type)) draw(0); };
+    refresh = () => { if (paused || ["vectors_2d", "layers_masks", "tilemap_grid", "fsm_state_machine", "pathfinding_astar", "resource_forge", "shader_particles_2d", "async_loader_sim", "optimization_pool", "multiplayer_rpc_sim", "space_3d_axes", "transform_basis_3d", "csg_boolean_3d", "character_3d_slopes", "springarm_camera_3d", "raycast_picking_3d", "pbr_material_3d","lighting_3d_env","gridmap_decal_3d","blendspace_2d_3d","navmesh_3d_sim","spatial_shader_3d","gi_reflection_3d","occlusion_lod_3d"].includes(type)) draw(0); };
     function loop(now) {
       activeLoopId = null;
       if (paused || document.hidden) return;
@@ -1131,7 +1146,7 @@ window.SimulatorEngine = (function () {
           cancelAnimationFrame(activeLoopId);
           activeLoopId = null;
         }
-        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env"].includes(type)) draw(0);
+        if (["fsm_state_machine","pathfinding_astar","shader_particles_2d","async_loader_sim","optimization_pool","multiplayer_rpc_sim","space_3d_axes","transform_basis_3d","csg_boolean_3d","character_3d_slopes","springarm_camera_3d","raycast_picking_3d","pbr_material_3d","lighting_3d_env","gridmap_decal_3d","blendspace_2d_3d","navmesh_3d_sim","spatial_shader_3d","gi_reflection_3d","occlusion_lod_3d"].includes(type)) draw(0);
         schedule();
       }
     };
@@ -1591,6 +1606,58 @@ window.SimulatorEngine = (function () {
   function light25Fog(density,distance){const t=Math.exp(-Math.max(0,density)*Math.max(0,distance));return {t,rgb:[.16,.25,.28].map(f=>.5*t+f*(1-t))};}
   function light25Display(x){const v=Math.max(0,x)/(1+Math.max(0,x));return v<=.0031308?v*12.92:1.055*Math.pow(v,1/2.4)-.055;}
   function light25Image(s){const key=JSON.stringify([s.lightType,s.energy,s.range,s.angle,s.half,s.shadows,s.ambient]);if(light25Cache.has(key))return light25Cache.get(key);const c=document.createElement('canvas');c.width=160;c.height=160;const ct=c.getContext('2d'),image=ct.createImageData(160,160);for(let y=0;y<160;y++)for(let x=0;x<160;x++){const px=(x+.5)/16-5,pz=(y+.5)/16,r=light25Sample(s,px,pz),i=(y*160+x)*4;for(let k=0;k<3;k++)image.data[i+k]=Math.round(255*light25Display([.55,.32,.12][k]*r.total));image.data[i+3]=255;}ct.putImageData(image,0,0);if(light25Cache.size>=4)light25Cache.delete(light25Cache.keys().next().value);light25Cache.set(key,c);return c;}
+  function grid26Key(x,y,z){return [x,y,z].join(',');}
+  function grid26Defaults(s){Object.assign(s,{gx:0,gy:0,gz:0,item:'7',turn:0,dx:1,dy:2,depth:2,mask:'1',age:0,cells:{},message:'Cena restaurada.'});for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)s.cells[grid26Key(x,0,z)]={id:0,turn:0};s.cells['0,1,0']={id:7,turn:0};}
+  function grid26Set(s,remove=false){const key=grid26Key(s.gx,s.gy,s.gz);if(remove){delete s.cells[key];s.message='Célula removida; outras camadas preservadas.';}else{s.cells[key]={id:Number(s.item),turn:s.turn};s.message='Peça '+s.item+' colocada; orientação yaw '+s.turn*90+'°.';}}
+  function grid26Center(x,y,z){return [2*x+1,2*y+1,2*z+1];}
+  function grid26Map(p){return p.map(v=>Math.floor(v/2));}
+  function grid26Global(p){return [10+p[2],p[1],-4-p[0]];}
+  function grid26Local(p){return [-p[2]-4,p[1],p[0]-10];}
+  function grid26Alpha(age){return age<=2?1:Math.max(0,3-age);}
+  function grid26Projection(s,p,layer,exists=true){const local=[p[0]-s.dx,p[1]-s.dy,p[2]-1],inside=Math.abs(local[0])<=2&&Math.abs(local[1])<=s.depth/2&&Math.abs(local[2])<=2,filtered=(Number(s.mask)&layer)!==0,uv=[local[0]/4+.5,local[2]/4+.5],radius=Math.hypot(local[0],local[2]),tex=radius>=1&&radius<=1.5?1:0;return {local,inside,filtered,exists,uv,tex,alpha:exists&&inside&&filtered?tex*grid26Alpha(s.age):0,eligible:exists&&inside&&filtered};}
+  function grid26Layout(w,h){const stacked=w<500,lw=stacked?320:660,lh=stacked?800:400,scale=Math.min(w/lw,h/lh);return {stacked,lw,lh,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2};}
+  function anim27Defaults(s){Object.assign(s,{bx:0,by:0,filter:'arm',grip:.2,shot:false,age:0});}
+  function anim27Blend(x,y){const sum=Math.max(1,x+y),px=x/sum,py=y/sum;return {x:px,y:py,weights:[Math.max(0,1-px-py),px,py],limited:x+y>1};}
+  function anim27Fire(s){s.shot=true;s.age=0;}
+  function anim27Step(s){if(s.shot){s.age=Math.min(1,Math.round((s.age+.1)*10)/10);if(s.age>=1)s.shot=false;}}
+  function anim27Pose(s){const b=anim27Blend(s.bx,s.by),w=b.weights,base={left:-.35*w[1]+.45*w[2],right:.35*w[1]+.45*w[2],arm:.1*w[1]-.25*w[2]},curve=s.shot?1-Math.abs(2*s.age-1):0,amount=s.shot?Math.min(1,s.age/.1,(1-s.age)/.1):0,left=s.filter==='arm'?base.left:base.left*(1-amount),right=s.filter==='arm'?base.right:base.right*(1-amount),arm=base.arm*(1-amount)+1.2*curve*amount,hand=[.35+.7*Math.cos(arm),1.45+.7*Math.sin(arm)],tip=[hand[0]+(.7+s.grip)*Math.cos(arm),hand[1]+(.7+s.grip)*Math.sin(arm)];return {b,base,curve,amount,left,right,arm,hand,tip};}
+  function anim27Layout(w,h){const stacked=w<500,lw=stacked?320:660,lh=stacked?800:400,scale=Math.min(w/lw,h/lh);return {stacked,lw,lh,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2};}
+  function nav28Defaults(s){Object.assign(s,{radius:.4,baked:.4,link:'both',direction:'forward',executor:'on'});nav28Plan(s);}
+  function nav28Plan(s){
+    const sign=s.direction==='forward'?1:-1,connection=Math.max(0,s.baked-1),connected=s.link!=='off'&&(sign===1||s.link==='both')&&connection<=.15+1e-9;
+    Object.assign(s,{sign,connection,connected,x:-4*sign,y:0,age:0,time:0,stage:'walk',notice:'Percurso reiniciado; avance com T.',end:connected?4*sign:(-1-s.baked)*sign});
+  }
+  function nav28Step(s,dt=.1){
+    if(!['walk','cross'].includes(s.stage))return;
+    s.time=Math.round((s.time+dt)*1e8)/1e8;
+    if(s.stage==='cross'){
+      s.age=Math.min(1.2,Math.round((s.age+dt)*1e8)/1e8);const u=s.age/1.2;
+      s.x=(-2+4*u)*s.sign;s.y=1.2*Math.sin(Math.PI*u);
+      if(s.age>=1.2){s.x=2*s.sign;s.y=0;s.stage='walk';}return;
+    }
+    const goal=s.connected&&s.x*s.sign<2-1e-8?-2*s.sign:s.end,d=goal-s.x,step=Math.min(Math.abs(d),2*dt);
+    s.x+=Math.sign(d)*step;
+    if(Math.abs(goal-s.x)<1e-8){s.x=goal;if(s.connected&&goal===-2*s.sign){s.stage=s.executor==='on'?'cross':'waiting';s.age=0;s.notice=s.executor==='on'?'Entrada do link: controlador assume a travessia.':'Rota existe, mas falta executor: parado na entrada do link.';}else{s.stage=s.connected?'arrived':'unreachable';s.notice=s.connected?'Alvo alcançado.':'Fim alcançável: navegação terminou, alvo não alcançado.';}}
+  }
+  function nav28Layout(w,h){const stacked=w<500,lw=stacked?340:700,lh=stacked?780:400,scale=Math.min(w/lw,h/lh);return {stacked,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2};}
+  function fx29Defaults(s){Object.assign(s,{mode:'wave',amp:.3,segments:'8',speed:1,power:3,angle:60,collision:'on',bounce:.6,clock:0,age:0,burst:false});}
+  function fx29Wave(x,z,s){const a=2*x+s.clock*s.speed,b=2*z+s.clock*s.speed,y=s.amp*Math.sin(a)*Math.cos(b),dx=2*s.amp*Math.cos(a)*Math.cos(b),dz=-2*s.amp*Math.sin(a)*Math.sin(b),n=Math.hypot(dx,1,dz);return {y,normal:[-dx/n,1/n,-dz/n]};}
+  function fx29Rim(dot,power){return Math.pow(1-Math.max(0,Math.min(1,dot)),power);}
+  function fx29Particle(index,age,collision,bounce){
+    const vx=(index-3.5)*.24,vy=1.8+index*.12,g=9.8,y0=1.6,hit=(vy+Math.sqrt(vy*vy+2*g*y0))/g;
+    let y=y0+vy*age-.5*g*age*age,hits=0;
+    if(collision==='on'&&age>=hit){let t=age-hit,up=bounce*(g*hit-vy);hits=1;for(let i=0;i<80;i++){const duration=2*up/g;if(up<.001||duration<.0001){y=0;break;}if(t<duration){y=up*t-.5*g*t*t;break;}t-=duration;up*=bounce;hits++;if(i===79)y=0;}}
+    return {x:vx*age,y:collision==='on'?Math.max(0,y):y,hits,hit,alive:age<2};
+  }
+  function fx29Step(s){s.clock=Math.round((s.clock+.1)*10)/10;if(s.burst){s.age=Math.min(2,Math.round((s.age+.1)*10)/10);if(s.age>=2)s.burst=false;}}
+  function fx29Layout(w,h){const stacked=w<500,lw=stacked?340:700,lh=stacked?780:400,scale=Math.min(w/lw,h/lh);return {stacked,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2};}
+  function opt31Defaults(s){Object.assign(s,{yaw:0,camX:0,occluder:'on',lod:'on',range:'off',rangeEnd:20,batch:'individual'});}
+  function opt31Objects(){const out=[];for(const x of [8,14,20])for(const z of [-6,-2,2,6])out.push({id:out.length+1,x,z,r:.45});return out;}
+  function opt31Bound(items){const minX=Math.min(...items.map(p=>p.x)),maxX=Math.max(...items.map(p=>p.x)),minZ=Math.min(...items.map(p=>p.z)),maxZ=Math.max(...items.map(p=>p.z));return {x:(minX+maxX)/2,z:(minZ+maxZ)/2,r:Math.hypot((maxX-minX)/2,(maxZ-minZ)/2)+.45};}
+  function opt31Frustum(p,s){const a=s.yaw*Math.PI/180,dx=p.x-s.camX,q=dx*Math.cos(a)+p.z*Math.sin(a),side=-dx*Math.sin(a)+p.z*Math.cos(a),half=35*Math.PI/180;return q+p.r>=1&&q-p.r<=26&&q*Math.sin(half)+side*Math.cos(half)>=-p.r&&q*Math.sin(half)-side*Math.cos(half)>=-p.r;}
+  function opt31Hidden(p,s){if(p.x-p.r<=10||s.camX>=10)return false;const d=Math.hypot(p.x-s.camX,p.z),theta=Math.atan2(p.z,p.x-s.camX),spread=Math.asin(Math.min(1,p.r/d)),wall=Math.atan2(3,10-s.camX);return Math.abs(theta)+spread<wall-1e-9;}
+  function opt31Evaluate(s){const objects=opt31Objects(),groups=s.batch==='global'?[objects]:s.batch==='chunks'?[0,1,2].map(i=>objects.slice(i*4,i*4+4)):objects.map(p=>[p]);const totals={outside:0,range:0,hidden:0,submitted:0,high:0,low:0,batches:0,tris:0};const rows=groups.map(items=>{const bound=opt31Bound(items),distance=Math.hypot(bound.x-s.camX,bound.z);let status='submitted';if(!opt31Frustum(bound,s))status='outside';else if(s.range==='on'&&distance>s.rangeEnd)status='range';else if(s.occluder==='on'&&opt31Hidden(bound,s))status='hidden';const low=s.lod==='on'&&distance>16;totals[status]+=items.length;if(status==='submitted'){totals.batches++;totals[low?'low':'high']+=items.length;totals.tris+=items.length*(low?120:1200);}return {items,bound,distance,status,low};});return {rows,totals};}
+  function opt31Layout(w,h){const stacked=w<500,lw=stacked?340:700,lh=stacked?800:400,scale=Math.min(w/lw,h/lh);return {stacked,scale,ox:(w-lw*scale)/2,oy:(h-lh*scale)/2};}
   function renderSimulation(type, ctx, w, h, dt, state, telemetry) {
     switch (type) {
       case "scene_tree": {
@@ -2406,170 +2473,68 @@ window.SimulatorEngine = (function () {
       }
 
       case "gridmap_decal_3d": {
-        const cx = w * 0.5, cy = 190;
-        for (let i = 0; i < state.blocksCount; i++) {
-          const bx = (i % 4) - 1.5;
-          const bz = Math.floor(i / 4) - 1;
-          const by = i > 7 ? state.gy : 0;
-          const p = project3D(bx * 1.3, by * 0.9, bz * 1.3, cx, cy, 28);
-          ctx.fillStyle = by > 0 ? "#b85d35" : "#6e4720";
-          ctx.strokeStyle = "#f4d088";
-          ctx.fillRect(p.x - 18, p.y - 18, 36, 36);
-          ctx.strokeRect(p.x - 18, p.y - 18, 36, 36);
-        }
-
-        // Decal Projetado
-        ctx.strokeStyle = "#5ce1e6";
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.ellipse(cx + state.decalX, cy - 10, 48, 22, 0, 0, Math.PI * 2);
-        ctx.stroke();
-
-        telemetry.innerHTML = `
-          <div>Células no GridMap: ${state.blocksCount} blocos</div>
-          <div>Decal Projetado: Alinhado ao relevo 3D</div>
-        `;
-        break;
+        const l=grid26Layout(w,h),selected=state.cells[grid26Key(state.gx,state.gy,state.gz)],center=grid26Center(state.gx,state.gy,state.gz),top=[center[0],center[1]+1,center[2]],g=grid26Projection(state,top,1,!!selected),prop=grid26Projection(state,[1,2.5,1],2),fmt=v=>'('+v.map(n=>Number(n).toFixed(2)).join('; ')+')',total=Object.keys(state.cells).length;
+        ctx.save();ctx.translate(l.ox,l.oy);ctx.scale(l.scale,l.scale);
+        const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,380);ctx.strokeRect(x,10,300,380);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};
+        frame(10,'01 · EDITAR UMA CAMADA');ctx.fillStyle='#d2bc95';ctx.font='13px JetBrains Mono';ctx.fillText('Y='+state.gy+' · células de 2 × 2 × 2 u',24,60);
+        for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++){const item=state.cells[grid26Key(x,state.gy,z)],px=40+(x+2)*48,pz=80+(z+2)*48;ctx.fillStyle='#100d09';ctx.fillRect(px,pz,48,48);ctx.strokeStyle='#735b38';ctx.lineWidth=1;ctx.strokeRect(px,pz,48,48);if(item){const narrow=item.id===7,wide=!narrow||item.turn%2===0,rx=px+(wide?1:13),rz=pz+(!narrow||!wide?1:13),rw=wide?46:22,rh=!narrow||!wide?46:22;ctx.fillStyle=narrow?'#26565a':'#72502b';ctx.fillRect(rx,rz,rw,rh);const projection=grid26Projection(state,[2*x+1,2*state.gy+2,2*z+1],1);if(Math.abs(2*state.gy+2-state.dy)<=state.depth/2&&projection.filtered){ctx.save();ctx.beginPath();ctx.rect(rx,rz,rw,rh);ctx.clip();ctx.strokeStyle='rgba(92,225,230,'+grid26Alpha(state.age)+')';ctx.lineWidth=12;ctx.beginPath();ctx.arc(40+(state.dx+4)*24,80+5*24,30,0,Math.PI*2);ctx.stroke();ctx.restore();}ctx.fillStyle='#f4d088';ctx.font='11px JetBrains Mono';ctx.fillText(String(item.id),px+5,pz+13);}if(x===state.gx&&z===state.gz){ctx.strokeStyle='#ffdf8a';ctx.lineWidth=3;ctx.strokeRect(px+2,pz+2,44,44);}}
+        ctx.strokeStyle='#5ce1e6';ctx.lineWidth=1;ctx.setLineDash([4,4]);ctx.strokeRect(40+(state.dx+2)*24,80+3*24,96,96);ctx.setLineDash([]);ctx.fillStyle='#d2bc95';ctx.font='13px JetBrains Mono';ctx.fillText('X → · Z ↓ · clique seleciona',24,346);ctx.fillText('Contorno ciano = volume projetor',24,368);
+        if(l.stacked)ctx.translate(-340,400);frame(350,'02 · VOLUME E FILTROS');ctx.fillStyle='#d2bc95';ctx.font='13px JetBrains Mono';ctx.fillText('Projeção por −Y · Z central = 1 u',364,60);
+        const sample=(y,title,result)=>{ctx.fillStyle='#d2bc95';ctx.fillText(title,364,y);ctx.fillStyle=result.eligible?'#5ce1e6':'#efba77';ctx.fillText(!result.exists?'Sem superfície na célula':!result.filtered?'Fora da máscara visual':!result.inside?'Fora do volume':'No volume e na máscara',364,y+24);ctx.fillStyle='#d2bc95';ctx.fillText('P local: '+fmt(result.local),364,y+48);ctx.fillText('UV: '+fmt(result.uv),364,y+70);ctx.fillStyle='#2a2118';ctx.fillRect(364,y+82,30,18);ctx.fillStyle='rgba(92,225,230,'+result.alpha+')';ctx.fillRect(364,y+82,30,18);ctx.strokeStyle='#b48b4c';ctx.strokeRect(364,y+82,30,18);ctx.fillStyle='#f4d088';ctx.fillText('Alfa do texel: '+result.alpha.toFixed(2),404,y+96);};
+        sample(88,'GridMap · topo selecionado · layer 1',g);sample(224,'Objeto separado · layer 2',prop);ctx.restore();
+        telemetry.innerHTML=`<div>Seleção Vector3i(${state.gx}, ${state.gy}, ${state.gz}) · item <strong>${selected?selected.id:'−1 · vazio'}</strong>${selected?' · yaw '+selected.turn*90+'°':''}. Total <strong>${total}</strong> células ocupadas; camadas independentes.</div><div>Centro local ${fmt(center)} → global ${fmt(grid26Global(center))} no exemplo de grade transladada em (10;0;−4) e yaw 90°. A figura está no referencial local, sem física Godot.</div><div>Marca: volume X/Z=4 u; Y=${state.depth.toFixed(2)} u em centro (${state.dx.toFixed(2)};${state.dy.toFixed(2)};1). Máscara ${state.mask}; GridMap usa layer 1, objeto separado layer 2. Aceitação do topo selecionado: <strong>${g.eligible?'sim':'não'}</strong>. Alfa do texel na amostra da grade: <strong>${g.alpha.toFixed(2)}</strong>; no objeto: <strong>${prop.alpha.toFixed(2)}</strong>. Aceitar não garante texel visível: o centro do anel é transparente.</div><div>Tempo MANUAL ${state.age.toFixed(2)} s → alfa ${grid26Alpha(state.age).toFixed(2)}; mantém até 2 s, apaga entre 2–3 s. F repete, T avança 0,5 s; sem avanço automático. Último comando: ${state.message} Modelo próprio, sem normal/depth fades, sombras, oclusão ou renderer de Decal.</div>`;break;
       }
 
       case "blendspace_2d_3d": {
-        const padX = 135, padY = 145, padR = 95;
-        ctx.strokeStyle = "#d4a359";
-        ctx.strokeRect(padX - padR, padY - padR, padR * 2, padR * 2);
-
-        const dotX = padX + state.bx * padR;
-        const dotY = padY - state.by * padR;
-        ctx.fillStyle = "#5ce1e6";
-        ctx.beginPath(); ctx.arc(dotX, dotY, 8, 0, Math.PI * 2); ctx.fill();
-
-        const speedFactor = Math.min(1, Math.hypot(state.bx, state.by));
-        const idleWeight = Math.max(0, 1 - speedFactor);
-
-        // Boneco articulado 3D ao lado
-        const sx = w * 0.72, sy = 145;
-        const legSwing = Math.sin(state.t * (4 + speedFactor * 8)) * 28 * speedFactor;
-        ctx.strokeStyle = "#f4d088";
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(sx, sy - 50, 14, 0, Math.PI * 2); // Cabeça
-        ctx.moveTo(sx, sy - 36); ctx.lineTo(sx, sy + 15); // Tronco
-        ctx.moveTo(sx, sy + 15); ctx.lineTo(sx - legSwing, sy + 68); // Perna E
-        ctx.moveTo(sx, sy + 15); ctx.lineTo(sx + legSwing, sy + 68); // Perna D
-        // Braços (OneShot no tronco superior)
-        const armY = state.oneshot === "on" ? sy - 48 + Math.sin(state.t * 12) * 15 : sy - 5;
-        ctx.moveTo(sx - 28, sy - 10); ctx.lineTo(sx, sy - 28); ctx.lineTo(sx + 32, armY);
-        ctx.stroke();
-
-        telemetry.innerHTML = `
-          <div>Blend Position: Vector2(${state.bx.toFixed(1)}, ${state.by.toFixed(1)})</div>
-          <div>Peso Parado: ${(idleWeight * 100).toFixed(0)}% | Locomoção: ${(speedFactor * 100).toFixed(0)}%</div>
-        `;
-        break;
+        const l=anim27Layout(w,h),p=anim27Pose(state),b=p.b,fmt=v=>'('+v.map(n=>n.toFixed(3)).join('; ')+')';ctx.save();ctx.translate(l.ox,l.oy);ctx.scale(l.scale,l.scale);
+        const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,300,380);ctx.strokeRect(x,10,300,380);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};frame(10,'01 · TRIÂNGULO DE POSES');
+        const point=(x,y)=>[60+x*210,300-y*210];ctx.strokeStyle='#735b38';ctx.lineWidth=1;for(let i=0;i<=4;i++){ctx.beginPath();ctx.moveTo(60+i*52.5,90);ctx.lineTo(60+i*52.5,300);ctx.moveTo(60,90+i*52.5);ctx.lineTo(270,90+i*52.5);ctx.stroke();}ctx.fillStyle='rgba(212,163,89,.14)';ctx.strokeStyle='#d4a359';ctx.beginPath();ctx.moveTo(60,300);ctx.lineTo(270,300);ctx.lineTo(60,90);ctx.closePath();ctx.fill();ctx.stroke();const request=point(state.bx,state.by),applied=point(b.x,b.y);ctx.strokeStyle='#efba77';ctx.strokeRect(request[0]-5,request[1]-5,10,10);ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.arc(applied[0],applied[1],5,0,Math.PI*2);ctx.fill();ctx.font='13px JetBrains Mono';ctx.fillStyle='#f4d088';ctx.fillText('Lateral',30,74);ctx.fillText('Parado',24,326);ctx.fillText('Passo',236,326);ctx.fillStyle='#d2bc95';ctx.fillText('□ pedido · ● aplicado',24,354);ctx.fillText('X + Y ≤ 1 após limitar',24,376);
+        if(l.stacked)ctx.translate(-340,400);frame(350,'02 · POSE E ENCAIXE');const xy=(x,y)=>[440+x*70,328-y*70],segment=(a,b,color,width=8)=>{const p0=xy(...a),p1=xy(...b);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(...p0);ctx.lineTo(...p1);ctx.stroke();};
+        segment([-.2,1.1],[.2,1.1],'#84694b',4);segment([0,1.45],[.35,1.45],'#84694b',3);segment([0,1.45],[-.35,1.45],'#84694b',3);segment([0,1.1],[0,1.8],'#d4a359',18);const head=xy(0,2);ctx.strokeStyle='#f4d088';ctx.lineWidth=3;ctx.beginPath();ctx.arc(...head,14,0,Math.PI*2);ctx.stroke();for(const [x,angle]of [[-.2,p.left],[.2,p.right]])segment([x,1.1],[x+Math.sin(angle),1.1-Math.cos(angle)],'#d4a359',9);segment([-.35,1.45],[-.75,1.15],'#84694b',8);segment([.35,1.45],p.hand,'#5ce1e6',9);const grip=[p.hand[0]+state.grip*Math.cos(p.arm),p.hand[1]+state.grip*Math.sin(p.arm)];segment(p.hand,grip,'#efba77',3);segment(grip,p.tip,'#f4d088',5);const hand=xy(...p.hand);ctx.fillStyle='#5ce1e6';ctx.beginPath();ctx.arc(...hand,5,0,Math.PI*2);ctx.fill();ctx.font='13px JetBrains Mono';ctx.fillStyle='#d2bc95';ctx.fillText('Tempo manual: '+state.age.toFixed(1)+' s',364,66);ctx.fillText('Ação: '+(state.shot?'ativa':'inativa'),364,88);ctx.fillText('Offset local '+state.grip.toFixed(2)+' u',364,350);ctx.fillText('Peças rígidas · sem Skin/colisão',364,374);ctx.restore();
+        telemetry.innerHTML=`<div>Pedido (${state.bx.toFixed(2)};${state.by.toFixed(2)}) → aplicado (${b.x.toFixed(3)};${b.y.toFixed(3)}). ${b.limited?'Pedido dividido por X+Y para permanecer no triângulo.':'Pedido já está no triângulo.'} Pesos: Parado <strong>${b.weights[0].toFixed(3)}</strong>; Passo <strong>${b.weights[1].toFixed(3)}</strong>; Lateral <strong>${b.weights[2].toFixed(3)}</strong>; soma <strong>${b.weights.reduce((x,y)=>x+y,0).toFixed(3)}</strong>.</div><div>Filtro ${state.filter==='arm'?'braço direito':'corpo todo'}; ação ${state.shot?'ativa':'inativa'} em ${state.age.toFixed(1)} s. Perna esquerda: base ${p.base.left.toFixed(3)} → saída ${p.left.toFixed(3)} rad. Perna direita: base ${p.base.right.toFixed(3)} → saída ${p.right.toFixed(3)} rad.</div><div>Mão ${fmt(p.hand)} → ponta da ferramenta ${fmt(p.tip)} em unidades ilustrativas. O offset é LOCAL e acompanha a rotação da mão; não garante encaixe para qualquer modelo.</div><div>Modelo próprio de poses/ângulos em plano 2D; não executa quaternions, Skeleton3D, Skin, AnimationTree ou OneShot Godot. Tempo só avança por T/botão. Sem locomoção espacial, ciclos de caminhada, suavização automática ou arraste do gráfico.</div>`;break;
       }
 
       case "navmesh_3d_sim": {
-        const margin = state.radius * 18;
-        // Duas plataformas separadas por um fosso
-        ctx.fillStyle = "rgba(92, 225, 230, 0.22)";
-        ctx.strokeStyle = "#5ce1e6";
-        ctx.fillRect(40 + margin, 70 + margin, 150 - margin * 2, 150 - margin * 2);
-        ctx.strokeRect(40 + margin, 70 + margin, 150 - margin * 2, 150 - margin * 2);
-
-        ctx.fillRect(280 + margin, 70 + margin, 150 - margin * 2, 150 - margin * 2);
-        ctx.strokeRect(280 + margin, 70 + margin, 150 - margin * 2, 150 - margin * 2);
-
-        if (state.link === "on") {
-          ctx.strokeStyle = "#4cd97b";
-          ctx.lineWidth = 4;
-          ctx.setLineDash([6, 4]);
-          ctx.beginPath(); ctx.moveTo(160, 145); ctx.lineTo(310, 145); ctx.stroke();
-          ctx.setLineDash([]);
-        }
-
-        const p = (Math.sin(state.t * 2) + 1) * 0.5;
-        // Sem link não há rota que conecte as duas plataformas deste exemplo.
-        const ax = state.link === "on" ? 115 + p * 240 : 115 + p * Math.max(0, 59 - margin);
-        const ay = state.link === "on" ? 145 - Math.sin(p * Math.PI) * 48 : 145;
-        drawGear(ctx, ax, ay, 16, 7, state.t * 3, "#c87d32", "#f4d088");
-
-        telemetry.innerHTML = `
-          <div>NavMesh agent_radius: ${state.radius.toFixed(1)}m</div>
-          <div>NavigationLink3D: <strong>${state.link === "on" ? "Salto Ativo (link_reached)" : "Desconectado — sem rota até a outra plataforma"}</strong></div>
-        `;
-        break;
+        const l=nav28Layout(w,h),r=state.baked,dirty=Math.abs(state.radius-r)>1e-8,labels={walk:'Seguindo rota',cross:'Travessia pelo controlador',waiting:'Sem executor na entrada',arrived:'Alvo alcançado',unreachable:'Fim alcançável; alvo distante'};
+        ctx.save();ctx.translate(l.ox,l.oy);ctx.scale(l.scale,l.scale);
+        const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,320,370);ctx.strokeRect(x,10,320,370);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};frame(10,'01 · MAPA VISTO DE CIMA');
+        const mx=x=>170+x*22,mz=z=>174+z*22;ctx.font='12px JetBrains Mono';
+        for(const [left,right]of [[-6,-1],[1,6]]){ctx.fillStyle='#53422b';ctx.fillRect(mx(left),mz(-2),(right-left)*22,88);ctx.strokeStyle='#84694b';ctx.strokeRect(mx(left),mz(-2),(right-left)*22,88);ctx.fillStyle='rgba(92,225,230,.25)';ctx.strokeStyle='#5ce1e6';ctx.fillRect(mx(left+r),mz(-2+r),(right-left-2*r)*22,(4-2*r)*22);ctx.strokeRect(mx(left+r),mz(-2+r),(right-left-2*r)*22,(4-2*r)*22);}
+        ctx.strokeStyle=state.connected?'#71d49a':'#bb7262';ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(mx(-2),mz(0));ctx.lineTo(mx(2),mz(0));ctx.stroke();ctx.setLineDash([]);for(const x of [-2,2]){ctx.beginPath();ctx.arc(mx(x),mz(0),.15*22,0,Math.PI*2);ctx.stroke();}
+        ctx.strokeStyle='#f4d088';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(mx(-4*state.sign),mz(.3));ctx.lineTo(mx(state.end),mz(.3));ctx.stroke();ctx.fillStyle='#f4d088';ctx.fillRect(mx(4*state.sign)-4,mz(0)-4,8,8);drawGear(ctx,mx(state.x),mz(0),7,6,0,'#c87d32','#f4d088');
+        ctx.fillStyle='#d2bc95';ctx.fillText('Fosso: sem superfície',82,104);ctx.fillText('Ciano: centros permitidos',24,266);ctx.fillText('Quadrado: alvo solicitado',24,288);ctx.fillText('Tracejado: link lógico',24,310);ctx.fillText('Raio aplicado: '+r.toFixed(1)+' u',24,336);ctx.fillStyle=dirty?'#f4d088':'#5ce1e6';ctx.fillText(dirty?'Pedido mudou: aplique com B':'Margem do modelo atualizada',24,358);
+        if(l.stacked)ctx.translate(-350,390);frame(360,'02 · PERFIL DA TRAVESSIA');const px=x=>520+x*22,py=y=>250-y*45;ctx.fillStyle='#53422b';for(const [a,b]of [[-6,-1],[1,6]])ctx.fillRect(px(a),250,(b-a)*22,14);ctx.strokeStyle='#735b38';ctx.setLineDash([3,4]);ctx.beginPath();for(let i=0;i<=30;i++){const u=i/30,x=px(-2+4*u),y=py(1.2*Math.sin(Math.PI*u));if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();ctx.setLineDash([]);drawGear(ctx,px(state.x),py(state.y)-9,9,7,0,'#c87d32','#f4d088');ctx.fillStyle='#5ce1e6';ctx.font='12px JetBrains Mono';ctx.fillText('x = '+state.x.toFixed(2)+' · y = '+state.y.toFixed(2),374,82);ctx.fillText('Tempo manual: '+state.time.toFixed(1)+' s',374,104);ctx.fillStyle='#d2bc95';ctx.fillText('Arco definido pelo nosso código',374,294);ctx.fillText('Não é salto balístico nem RVO',374,316);ctx.fillText('T avança · R reinicia',374,346);ctx.restore();
+        telemetry.innerHTML=`<div><strong>${labels[state.stage]}</strong>. ${state.notice} Tempo ${state.time.toFixed(1)} s; posição (${state.x.toFixed(2)}; ${state.y.toFixed(2)}; 0.00).</div><div>Raio pedido ${state.radius.toFixed(1)} u; aplicado ${r.toFixed(1)} u. ${dirty?'Alteração pendente de B: a rota usa a margem anterior.':'Pedido aplicado.'} Raio físico de referência 0,3 u; ${r<.3?'margem menor que o corpo: passagem segura não garantida.':'margem analítica igual ou maior que o corpo.'}</div><div>Link ${state.link==='off'?'desligado':state.link==='one'?'só esquerda → direita':'bidirecional'}; rota até alvo <strong>${state.connected?'disponível':'indisponível'}</strong>. Distância ponta–retângulo ${state.connection.toFixed(2)} u; busca ${(.15).toFixed(2)} u. ${state.stage==='unreachable'?'Fim de caminho ≠ alvo alcançado.':''}</div><div>Modelo próprio: retângulos encolhidos, rota em X e arco controlado; não executa Recast, NavigationServer3D, colisão, gravidade ou avoidance. Mudanças de link/sentido/executor reiniciam o percurso; alterar o raio exige B. Nenhum frame avança sozinho, mesmo fora da pausa global.</div>`;break;
       }
 
       case "spatial_shader_3d": {
-        const cx = w * 0.5, cy = 155;
-        ctx.strokeStyle = `rgba(92, 225, 230, ${Math.min(1, state.fresnel / 4)})`;
-        ctx.lineWidth = 2;
-
-        for (let r = -3; r <= 3; r++) {
-          ctx.beginPath();
-          for (let c = -5; c <= 5; c++) {
-            const waveY = Math.sin(c * 0.7 + state.t * state.speed) * Math.cos(r * 0.7 + state.t * state.speed) * (state.amp * 0.08);
-            const pt = project3D(c * 0.9, waveY, r * 0.9, cx, cy, 24);
-            if (c === -5) ctx.moveTo(pt.x, pt.y);
-            else ctx.lineTo(pt.x, pt.y);
-          }
-          ctx.stroke();
+        const l=fx29Layout(w,h),wave=fx29Wave(.5,0,state),dot=Math.cos(state.angle*Math.PI/180),rim=fx29Rim(dot,state.power),particle=fx29Particle(3,state.age,state.collision,state.bounce),titles={wave:'01 · ONDA E MALHA',rim:'02 · BORDA POR ÂNGULO',sparks:'03 · PARTÍCULAS E PISO'};
+        ctx.save();ctx.translate(l.ox,l.oy);ctx.scale(l.scale,l.scale);const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,320,370);ctx.strokeRect(x,10,320,370);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};frame(10,titles[state.mode]);ctx.font='12px JetBrains Mono';
+        if(state.mode==='wave'){
+          const n=Number(state.segments),pt=(x,y,z)=>[170+(x-z)*31,194+(x+z)*13-y*50];ctx.strokeStyle='#5ce1e6';ctx.lineWidth=1;for(let axis=0;axis<2;axis++)for(let i=0;i<=n;i++){ctx.beginPath();for(let j=0;j<=n;j++){const x=-2+4*(axis?j:i)/n,z=-2+4*(axis?i:j)/n,p=pt(x,fx29Wave(x,z,state).y,z);if(!j)ctx.moveTo(...p);else ctx.lineTo(...p);}ctx.stroke();}const p=pt(.5,wave.y,0);ctx.fillStyle='#f4d088';ctx.beginPath();ctx.arc(...p,4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d2bc95';ctx.fillText('Ponto ouro: x=0,5 / z=0',24,300);ctx.fillText('Normal analítica recalculada',24,322);ctx.fillText('Colisão física não se deforma',24,346);
+        }else if(state.mode==='rim'){
+          // Disco de uma esfera ideal: n·v=sqrt(1-r²). Não é glow nem refração.
+          for(let i=0;i<36;i++){const radius=100*(1-i/36),d=Math.sqrt(Math.max(0,1-(radius/100)**2)),f=fx29Rim(d,state.power);ctx.fillStyle=`rgb(${Math.round(12+70*f)},${Math.round(18+205*f)},${Math.round(20+210*f)})`;ctx.beginPath();ctx.arc(170,180,radius,0,Math.PI*2);ctx.fill();}ctx.strokeStyle='#f4d088';const radius=100*Math.sin(state.angle*Math.PI/180);ctx.beginPath();ctx.arc(170,180,Math.max(1,radius),0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d2bc95';ctx.fillText('Anel ouro: ângulo selecionado',24,300);ctx.fillText('(1 − clamp(N·V, 0, 1))^p',24,322);ctx.fillText('Máscara estilizada · não vidro',24,346);
+        }else{
+          ctx.strokeStyle='#84694b';ctx.beginPath();ctx.moveTo(30,244);ctx.lineTo(310,244);ctx.stroke();ctx.fillStyle='#d2bc95';ctx.fillText(state.collision==='on'?'Piso colide no modelo':'Piso só visual · atravessa',24,280);if(state.burst)for(let i=0;i<8;i++){const p=fx29Particle(i,state.age,state.collision,state.bounce);if(p.y>=-1.8){ctx.fillStyle=i===3?'#5ce1e6':'#f4d088';ctx.beginPath();ctx.arc(170+p.x*55,244-p.y*45,i===3?5:3,0,Math.PI*2);ctx.fill();}}ctx.fillText('F dispara · T avança · R limpa',24,308);ctx.fillText('8 pontos · vida de 2 segundos',24,330);ctx.fillText('Ciano: partícula de índice 3',24,352);
         }
-
-        telemetry.innerHTML = `
-          <div>shader_type spatial | vertex() onda: ${state.amp}</div>
-          <div>Fresnel Rim Power: ${state.fresnel.toFixed(1)}</div>
-        `;
-        break;
+        if(l.stacked)ctx.translate(-350,390);frame(360,'LEITURA E LIMITES');ctx.font='12px JetBrains Mono';ctx.fillStyle='#5ce1e6';const lines=state.mode==='wave'?['Tempo: '+state.clock.toFixed(1)+' s','Células/lado: '+state.segments,'Vértices: '+((Number(state.segments)+1)**2),'y(0,5;0): '+wave.y.toFixed(4)+' u','Ny: '+wave.normal[1].toFixed(4),'|y| ≤ amplitude '+state.amp.toFixed(1)]:state.mode==='rim'?['Ângulo: '+state.angle.toFixed(0)+'°','N·V: '+dot.toFixed(4),'Expoente: '+state.power.toFixed(1),'Máscara: '+rim.toFixed(4),'Centro: 0 · silhueta: 1','Expoente maior estreita borda']:['Emissão: '+(state.burst?'ciclo ativo':'inativa'),'Idade: '+state.age.toFixed(1)+' s','P3 y: '+particle.y.toFixed(3)+' u','Primeiro impacto: '+particle.hit.toFixed(3)+' s','Colisões P3: '+particle.hits,'Modelo sem feedback de GPU'];lines.forEach((line,i)=>ctx.fillText(line,374,78+i*28));ctx.fillStyle='#d2bc95';['Canvas com fórmulas próprias','Não executa shader nem GPU','Sem custo/FPS nativo medido','Tempo avança só por comando'].forEach((line,i)=>ctx.fillText(line,374,278+i*23));ctx.restore();
+        telemetry.innerHTML=`<div><strong>${titles[state.mode]}</strong>. Tempo manual ${state.clock.toFixed(1)} s; ${state.mode==='wave'?`${state.segments} células por lado → ${(Number(state.segments)+1)**2} vértices; y(0,5;0)=${wave.y.toFixed(4)} u; normal=(${wave.normal.map(n=>n.toFixed(4)).join('; ')}).`:state.mode==='rim'?`Ângulo ${state.angle}°; N·V=${dot.toFixed(4)}; expoente ${state.power}; máscara=${rim.toFixed(4)}. Expoente maior estreita a faixa.`:`Ciclo ${state.burst?'ativo':'inativo'}; idade ${state.age.toFixed(1)} s; P3 y=${particle.y.toFixed(3)} u; impactos=${particle.hits}; primeiro impacto=${particle.hit.toFixed(3)} s.`}</div><div>Onda: y=A·sin(2x+t·v)·cos(2z+t·v), normal proporcional a (−dy/dx,1,−dy/dz). Borda: (1−clamp(N·V,0,1))^p em esfera ideal. Partículas: 8 trajetórias balísticas próprias, vida 2 s, plano y=0 e restituição configurável; sem atrito nem volume.</div><div>T avança 0,1 s; F inicia/repete um ciclo; R zera tempo e limpa; C restaura opções. Trocar experiência preserva parâmetros/tempo. Controles sem relação com a experiência ficam desabilitados.</div><div>Não executa Godot, shader, rasterização PBR, GPUParticles3D ou colisores GPU. Deformação visual não altera colisão física; máscara de borda não é Fresnel físico completo, transparência ou glow. Não mede desempenho nem equivalência ao bounce nativo.</div>`;break;
       }
 
       case "gi_reflection_3d": {
-        const isGI=state.giMode === "gi_probe";
-        window.GILightingLab.render(ctx,w,h,state);
-        telemetry.innerHTML=`<div>Luz direta: fixa nos dois painéis.</div>
-          <div>GI difusa: <strong>${isGI ? Number(state.bounce).toFixed(1)+"x · parede → superfície" : "desligada · energia do rebatimento não se aplica"}</strong></div>
-          <div>Reflexo ambiente: <strong>${state.probe === "on" ? "ligado no metal" : "desligado"}</strong></div>
-          <div>Ambiente difuso da sonda: desativado neste exemplo.</div>`;
-        break;
+        const isGI=state.giMode==='gi_probe';window.GILightingLab.render(ctx,w,h,state);
+        telemetry.innerHTML=`<div><strong>Referência fixa: apenas luz direta.</strong> Mesma geometria, câmera, fonte e mapeamento de cor nos dois quadros. Esfera fosca à esquerda da sala; metal à direita.</div><div>Ajustes: rebatimento difuso ${isGI?Number(state.bounce).toFixed(1)+'x':'desligado · ganho não se aplica'}; captura especular ${state.probe==='on'?'ligada':'desligada'}. Ambiente difuso da captura desativado para isolar o reflexo.</div><div>Ganho zero e captura desligada reproduzem a referência. A cor vermelha depende de orientação/distância/oclusão; não é um filtro sobre a imagem. O metal conserva o cálculo de brilho direto sem captura.</div><div>Modelo próprio: 9 áreas da parede, um rebatimento difuso e captura direcional idealizada no centro do metal. Não executa técnicas GI Godot, roughness/cubemap/box projection nativos ou benchmark. R restaura; G/P alternam com foco; pausa não muda este quadro estático.</div>`;break;
       }
 
       case "occlusion_lod_3d": {
-        const camX = 75, camY = 145;
-        const rad = (state.camAngle * Math.PI) / 180;
-
-        // Cone de visão Frustum
-        ctx.fillStyle = "rgba(92, 225, 230, 0.12)";
-        ctx.beginPath();
-        ctx.moveTo(camX, camY);
-        ctx.lineTo(camX + Math.cos(rad - 0.45) * 380, camY + Math.sin(rad - 0.45) * 380);
-        ctx.lineTo(camX + Math.cos(rad + 0.45) * 380, camY + Math.sin(rad + 0.45) * 380);
-        ctx.closePath();
-        ctx.fill();
-
-        // Parede OccluderInstance3D
-        const wallX = 220;
-        ctx.fillStyle = "#8c6229";
-        ctx.fillRect(wallX, 90, 18, 110);
-
-        // Objetos atrás da parede
-        const occluded = state.occluder === "on" && Math.abs(state.camAngle) < 24;
-        for (let i = 0; i < 4; i++) {
-          const ox = 320 + (i % 2) * 55;
-          const oy = 105 + Math.floor(i / 2) * 75;
-          if (!occluded) {
-            const teeth = state.lod === "on" ? 5 : 12;
-            drawGear(ctx, ox, oy, 20, teeth, state.t, "#b85d35", "#f4d088");
-          } else {
-            ctx.strokeStyle = "rgba(255, 85, 68, 0.35)";
-            ctx.strokeRect(ox - 16, oy - 16, 32, 32);
-          }
-        }
-
-        const tris = occluded ? 120 : state.lod === "on" ? 650 : 4800;
-        telemetry.innerHTML = `
-          <div>Objetos Atrás do Muro: <strong>${occluded ? "OCULTADOS (0 Draw Calls!)" : "Sendo Renderizados"}</strong></div>
-          <div>Triângulos na GPU: <strong>${tris} tris</strong></div>
-        `;
-        break;
+        const l=opt31Layout(w,h),result=opt31Evaluate(state),t=result.totals,colors={submitted:'#5ce1e6',outside:'#82796b',range:'#bb93df',hidden:'#e48265'};
+        ctx.save();ctx.translate(l.ox,l.oy);ctx.scale(l.scale,l.scale);const frame=(x,title)=>{ctx.fillStyle='#1c140c';ctx.strokeStyle='#b48b4c';ctx.lineWidth=2;ctx.fillRect(x,10,320,380);ctx.strokeRect(x,10,320,380);ctx.fillStyle='#f4d088';ctx.font='bold 14px Cinzel';ctx.fillText(title,x+12,36);};frame(10,'01 · PLANTA DO MODELO');const xy=(x,z)=>[32+x*9.5,190-z*9.5],camera=xy(state.camX,0),a=state.yaw*Math.PI/180;
+        ctx.save();ctx.beginPath();ctx.rect(22,52,296,252);ctx.clip();ctx.fillStyle='rgba(92,225,230,.09)';ctx.beginPath();ctx.moveTo(...camera);for(const angle of [a-35*Math.PI/180,a+35*Math.PI/180])ctx.lineTo(...xy(state.camX+26*Math.cos(angle),26*Math.sin(angle)));ctx.closePath();ctx.fill();ctx.strokeStyle='#d4a359';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(...xy(10,-3));ctx.lineTo(...xy(10,3));ctx.stroke();
+        for(const row of result.rows){if(state.batch!=='individual'){const p=xy(row.bound.x,row.bound.z);ctx.strokeStyle='#65543b';ctx.setLineDash([3,4]);ctx.beginPath();ctx.arc(...p,row.bound.r*9.5,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}for(const item of row.items){const p=xy(item.x,item.z);ctx.fillStyle=colors[row.status];ctx.beginPath();ctx.arc(...p,row.status==='submitted'?(row.low?4:6):4,0,Math.PI*2);ctx.fill();ctx.fillStyle='#e9d9ba';ctx.font='10px monospace';ctx.fillText(String(item.id),p[0]+7,p[1]-5);}}
+        ctx.strokeStyle='#f4d088';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(...camera);ctx.lineTo(camera[0]+18*Math.cos(a),camera[1]-18*Math.sin(a));ctx.stroke();ctx.fillStyle='#f4d088';ctx.beginPath();ctx.arc(...camera,4,0,Math.PI*2);ctx.fill();ctx.restore();ctx.font='12px JetBrains Mono';ctx.fillStyle='#d2bc95';['Ciano: enviado · cinza: fora','Laranja: oculto · lilás: alcance','Círculo tracejado: limite do grupo'].forEach((s,i)=>ctx.fillText(s,24,326+i*23));
+        if(l.stacked)ctx.translate(-350,400);frame(360,'02 · CONTAGEM CALCULADA');ctx.fillStyle='#5ce1e6';ctx.font='12px JetBrains Mono';const lines=['Objetos: 12 = '+t.outside+' + '+t.range+' + '+t.hidden+' + '+t.submitted,'Fora do frustum: '+t.outside,'Além do alcance: '+t.range,'Ocultos pelo muro: '+t.hidden,'Instâncias enviadas: '+t.submitted,'Detalhadas / simples: '+t.high+' / '+t.low,'Triângulos teóricos: '+t.tris,'Lotes ideais (1 passo): '+t.batches];lines.forEach((s,i)=>ctx.fillText(s,374,72+i*26));ctx.fillStyle='#d2bc95';['Não são draw calls/FPS medidos','Modelo plano e conservador','LOD manual ≠ mesh LOD nativo','A/D gira · W/S muda X · R restaura'].forEach((s,i)=>ctx.fillText(s,374,298+i*23));ctx.restore();
+        telemetry.innerHTML=`<div><strong>Contagem do modelo:</strong> 12 = fora ${t.outside} + alcance ${t.range} + ocultos ${t.hidden} + enviados ${t.submitted}. Das enviadas, ${t.high} detalhadas × 1200 e ${t.low} simples × 120 = <strong>${t.tris} triângulos teóricos</strong>.</div><div>Agrupamento ${state.batch==='individual'?'individual':state.batch==='chunks'?'3 colunas':'global'}: ${t.batches} ${t.batches===1?"lote ideal":"lotes ideais"} para uma superfície e um passo. Não representa chamadas reais, sombras, materiais extras, overdraw ou custo de CPU/GPU.</div><div>Setor horizontal de 70°, perto 1/longe 26 u. Parede opaca em X=10, Z de −3 a 3. Teste conservador do círculo que contém cada grupo; grupo inteiro enviado ou descartado. Alcance usa centro do grupo, sem histerese; detalhe troca além de 16 u. Não executa AABB/Embree, erro de tela ou fade da Godot.</div><div>Agrupar pode diminuir lotes e aumentar geometria enviada. Não há FPS prometido. Controles ou A/D/W/S ajustam a câmera; R restaura. Cena estática: pausa não muda as contagens.</div>`;break;
       }
     }
   }

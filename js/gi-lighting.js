@@ -154,25 +154,21 @@
     const result={width,height,data:rgba};cache.set(key,result);return result;
   }
   function render(ctx,w,h,state) {
-    const gi=state.giMode==="gi_probe",bounce=gi?Number(state.bounce):0,probe=state.probe==="on";
-    const margin=12,gap=12,panelW=(w-margin*2-gap)/2,panelH=h-92,top=46;
-    const pixelW=Math.min(200,Math.max(120,Math.round(panelW))),pixelH=Math.round(pixelW*panelH/panelW);
-    const configs=[{bounce:0,probe:false,title:"01 · LUZ DIRETA",color:"#d4a359"},{bounce,probe,title:"02 · SEUS AJUSTES",color:"#5ce1e6"}];
+    const gi=state.giMode==='gi_probe',bounce=gi?Number(state.bounce):0,probe=state.probe==='on',stacked=w<620;
+    const maxW=stacked?w-24:(w-36)/2;
+    const panelW=Math.max(100,Math.min(maxW,(stacked?(h-100)/2:h-80)/1.05));
+    const panelH=panelW*1.05,unit=panelH+48,totalH=stacked?unit*2+12:unit;
+    const y0=Math.max(8,(h-totalH)/2),x0=stacked?(w-panelW)/2:(w-(panelW*2+12))/2;
+    const pixelW=Math.min(200,Math.max(100,Math.round(panelW))),pixelH=Math.round(pixelW*1.05);
+    const configs=[{bounce:0,probe:false,title:'01 · LUZ DIRETA',color:'#d4a359'},{bounce,probe,title:'02 · SEUS AJUSTES',color:'#5ce1e6'}];
     configs.forEach((config,index)=>{
-      const x=margin+index*(panelW+gap);
-      ctx.fillStyle=config.color;ctx.font="bold 12px monospace";ctx.fillText(config.title,x,25);
+      const x=x0+(stacked?0:index*(panelW+12)),top=y0+(stacked?index*(unit+12):0);
+      ctx.fillStyle=config.color;ctx.font='bold 12px monospace';ctx.fillText(config.title,x,top+14);
       const pixels=image(pixelW,pixelH,config.bounce,config.probe);
-      // O bitmap é calculado somente quando os controles ou as dimensões mudam.
       let buffer=pixels.canvas;
-      if(!buffer){
-        buffer=document.createElement("canvas");buffer.width=pixelW;buffer.height=pixelH;
-        const bctx=buffer.getContext("2d"),data=bctx.createImageData(pixelW,pixelH);
-        data.data.set(pixels.data);bctx.putImageData(data,0,0);pixels.canvas=buffer;
-      }
-      ctx.drawImage(buffer,x,top,panelW,panelH);
-      ctx.strokeStyle="#6e512c";ctx.lineWidth=1;ctx.strokeRect(x,top,panelW,panelH);
-      ctx.fillStyle="#d2bc95";ctx.font="11px monospace";
-      ctx.fillText(index===0?"GI: 0 · Reflexo ambiente: off":`GI: ${bounce.toFixed(1)}x · Reflexo: ${probe?"on":"off"}`,x,h-20);
+      if(!buffer){buffer=document.createElement('canvas');buffer.width=pixelW;buffer.height=pixelH;const bctx=buffer.getContext('2d'),data=bctx.createImageData(pixelW,pixelH);data.data.set(pixels.data);bctx.putImageData(data,0,0);pixels.canvas=buffer;}
+      ctx.drawImage(buffer,x,top+24,panelW,panelH);ctx.strokeStyle='#6e512c';ctx.lineWidth=1;ctx.strokeRect(x,top+24,panelW,panelH);
+      ctx.fillStyle='#d2bc95';ctx.font='11px monospace';ctx.fillText(index===0?'GI: 0 · Reflexo: off':`GI: ${bounce.toFixed(1)}x · Reflexo: ${probe?'on':'off'}`,x,top+panelH+42);
     });
   }
   window.GILightingLab={render,sample,image,indirectIrradiance,directIrradiance,intersect};
