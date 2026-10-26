@@ -773,7 +773,7 @@ window.GODOT_LESSONS_2D = [
       },
       {
         "title": "“O barril não recebe meu lançamento.”",
-        "text": "Confira que o script está no RigidBody2D, que freeze está desligado e que a função de lançamento foi chamada. O exemplo 3 usa _ready() para disparar uma única vez."
+        "text": "Confira o script no RigidBody2D, Freeze desligado e a forma válida. O exemplo 3 dispara no primeiro _integrate_forces(), com lancamento_pendente = true, e depois marca false. Reiniciar a cena cria outra instância e permite novo lançamento. Não aplique o impulso em todo callback sem essa proteção."
       }
     ],
     "summary": "StaticBody2D é apropriado para o chão fixo. CharacterBody2D exige lógica de velocidade e movimento. RigidBody2D delega a evolução à simulação e recebe forças ou impulsos. Formas, filtros e o contrato de cada API determinam a colisão.",
@@ -794,6 +794,10 @@ window.GODOT_LESSONS_2D = [
       {
         "label": "Godot: StaticBody2D",
         "url": "https://docs.godotengine.org/en/stable/classes/class_staticbody2d.html"
+      },
+      {
+        "label": "Godot: estado físico direto e impulso central",
+        "url": "https://docs.godotengine.org/en/4.5/classes/class_physicsdirectbodystate2d.html"
       }
     ]
   },
@@ -816,7 +820,7 @@ window.GODOT_LESSONS_2D = [
     ]
   },
   "howItWorks": {
-    "overview": "Na prática, `velocity` contém unidades por segundo. `move_and_slide()` considera o intervalo internamente. A gravidade é uma aceleração: multiplicá-la por delta produz a mudança de velocidade. São operações diferentes.\n\n`move_and_collide()` recebe deslocamento e retorna informações de uma colisão. O segundo exemplo rebate a direção, mas descarta o restante do deslocamento daquele passo: é introdutório, não um resolvedor completo de múltiplos impactos.\n\nO laboratório do site é um modelo reduzido. A prática no editor é o local para observar o comportamento real das classes da Godot.",
+    "overview": "Na prática, `velocity` contém unidades por segundo. `move_and_slide()` considera o intervalo internamente. A gravidade é uma aceleração: multiplicá-la por delta produz a mudança de velocidade. São operações diferentes.\n\n`move_and_collide()` recebe deslocamento e retorna informações de uma colisão. O segundo exemplo rebate a direção, mas descarta o restante do deslocamento daquele passo: é introdutório, não um resolvedor completo de múltiplos impactos.\n\nO laboratório do site é um modelo reduzido. A prática no editor é o local para observar o comportamento real das classes da Godot.\n\nNa extensão de corpo rígido, o lançamento único usa _integrate_forces() e o estado físico recebido pela engine. A variável booleana impede que ele se repita em cada passo. Isso também permite comparar massas sem disparar antes de seus dados físicos estarem atualizados.",
     "anatomy": [
       {
         "prop": "velocity",
@@ -860,10 +864,10 @@ window.GODOT_LESSONS_2D = [
     {
       "title": "3. Extensão: lançamento único de um corpo rígido",
       "whenToUse": "Em cena separada com um RigidBody2D e CollisionShape2D, acima de chão estático.",
-      "description": "Anexe ao RigidBody2D. Deixe Freeze desligado e Mass = 1 para comparar o impulso sem mudar outras propriedades. _ready() aplica um único lançamento; depois a simulação continua.",
-      "code": "extends RigidBody2D\n\n@export var impulso: Vector2 = Vector2(120, -200)\n\nfunc _ready() -> void:\n    apply_central_impulse(impulso)\n",
-      "pros": "A função é realmente chamada e o impulso ocorre uma vez por instância.",
-      "cons": "Massa, amortecimento e materiais influenciam o resultado. Não promete quique sem configurar o material físico."
+      "description": "Anexe ao RigidBody2D. Deixe Freeze e Custom Integrator desligados e comece com Mass = 1. A Godot chama _integrate_forces(estado) com acesso ao estado físico do corpo. O impulso é aplicado nesse primeiro passo, quando a massa está disponível, e não em _ready().\n\nA variável lancamento_pendente começa como true. Após o primeiro impulso, passa a false; assim o callback pode continuar sendo chamado sem repetir o lançamento. O integrador padrão mantém gravidade e contatos. Para comparar Mass = 2, reinicie a cena mantendo o mesmo impulso e as outras condições.",
+      "code": "extends RigidBody2D\n\n@export var impulso: Vector2 = Vector2(120, -200)\n\nvar lancamento_pendente: bool = true\n\nfunc _integrate_forces(estado: PhysicsDirectBodyState2D) -> void:\n    if lancamento_pendente:\n        estado.apply_central_impulse(impulso)\n        lancamento_pendente = false\n",
+      "pros": "Lançamento único no estado físico, sem multiplicar impulso por delta; evita depender da atualização da massa em _ready().",
+      "cons": "Massa, amortecimento e materiais influenciam o resultado. Não promete quique sem material físico. Relançar durante a mesma execução exigiria um comando explícito; este exemplo só lança na criação."
     }
   ],
   "simulator": {

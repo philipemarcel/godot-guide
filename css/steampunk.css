@@ -2160,3 +2160,25 @@ body { overflow-anchor: none; }
   .topnav-trigger, .topnav-option, .topnav-chevron,
   #btn-curriculum-toggle.map-edge-toggle, .map-edge-toggle svg { transition:none; }
 }
+
+/* Dicionário: consulta rápida, cartões legíveis e filtros combinados. */
+.glossary-filters { align-items: end; }
+.glossary-search-field { flex: 2 1 290px; min-width: 0; }
+.glossary-category-field { flex: 1 1 220px; min-width: 0; }
+.glossary-filters label { display: block; margin-bottom: 7px; }
+.glossary-filters input, .glossary-filters select { width: 100%; max-width: none; min-width: 0; }
+.glossary-filters select { min-height: 48px; padding: 10px 12px; border: 1px solid var(--brass-dark); border-radius: 6px; background: #100b06; color: var(--text-cream); font: inherit; }
+.glossary-filters #reference-count { flex-basis: 100%; }
+.glossary-filters #glossary-clear { min-height: 48px; padding: 10px 14px; border: 1px solid var(--brass-dark); border-radius: 6px; background: #17100a; color: var(--brass-bright); font: inherit; cursor: pointer; }
+.glossary-filters #glossary-clear:hover { border-color: var(--brass-bright); background: #2d2012; }
+.glossary-card > .badge-pill { align-self: flex-start; }
+.glossary-card h2 { font-family: var(--font-heading); font-size: 1.12rem; color: var(--brass-bright); margin: 2px 0 5px; overflow-wrap: anywhere; }
+.glossary-card p { margin: 4px 0; color: var(--text-sand); }
+.glossary-definition { padding: 12px 14px; border-left: 3px solid #87472d; border-radius: 4px; background: #f3e5c8; color: #23170d; }
+.glossary-example { padding-top: 8px; border-top: 1px dashed var(--brass-dark); }
+.glossary-links { margin-top: auto; padding-top: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.glossary-links a, .glossary-lesson-link { color: var(--brass-bright); text-decoration: underline; text-underline-offset: 3px; }
+.glossary-lesson-link { padding: 6px 0; border: 0; background: transparent; text-align: left; font: inherit; cursor: pointer; line-height: 1.45; }
+.glossary-links a { padding: 6px 0; }
+.glossary-card { overflow-wrap: anywhere; }
+.glossary-filters :is(input, select, button):focus-visible, .glossary-links :is(a, button):focus-visible { outline: 2px solid var(--aether-cyan, #4de0e7); outline-offset: 4px; }

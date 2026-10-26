@@ -1,5 +1,5 @@
 // ============================================================================
-// ACADEMIA AETHER & GODOT — ÍCONES SVG STEAMPUNK, TRADUTOR 2D<->3D E GLOSSÁRIO FEYNMAN
+// ACADEMIA AETHER & GODOT — ÍCONES SVG STEAMPUNK, TRADUTOR 2D<->3D E DICIONÁRIO DE CONCEITOS
 // Zero emojis — 100% Ícones SVG Vetoriais Customizados
 // ============================================================================
 
@@ -114,87 +114,2221 @@ window.GODOT_2D_3D_COMPARE = [
 
 window.GODOT_FEYNMAN_GLOSSARY = [
   {
-    term: "Node (Nó)",
-    category: "Fundamentos",
-    feynman: "Uma pecinha individual de LEGO que sabe fazer um único trabalho muito bem (mostrar foto, tocar barulho, contar tempo ou detectar batida).",
-    technical: "Unidade básica de construção da Godot. Todos os objetos na árvore herdam da classe `Node`."
+    "id": "conceito-1",
+    "term": "Node (Nó)",
+    "category": "Fundamentos",
+    "definition": "Elemento que pode integrar a hierarquia de uma cena e executar comportamentos.",
+    "detail": "As propriedades disponíveis dependem da classe: Node2D tem transformação 2D; Node comum não tem position.",
+    "example": "Organize uma peça como filha de um Node2D.",
+    "aliases": [
+      "no",
+      "nós",
+      "node"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node.html"
   },
   {
-    term: "Scene (Cena / .tscn)",
-    category: "Fundamentos",
-    feynman: "Um brinquedo completo montado com várias pecinhas de LEGO (Nós) e guardado numa caixa com manual para você fazer quantas cópias quiser.",
-    technical: "Árvore de nós salva em disco (`PackedScene`) que pode ser instanciada como objeto, personagem, projétil, interface ou fase."
+    "id": "conceito-2",
+    "term": "Scene (Cena)",
+    "category": "Fundamentos",
+    "definition": "Estrutura de nós com uma raiz, usada para organizar uma parte do jogo.",
+    "detail": "Uma cena salva pode ser instanciada várias vezes; ela pode conter apenas um nó.",
+    "example": "Salve um personagem em personagem.tscn.",
+    "aliases": [
+      "cena",
+      "scene",
+      "tscn"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/getting_started/step_by_step/nodes_and_scenes.html"
   },
   {
-    term: "Delta (Δt)",
-    category: "Programação",
-    feynman: "O cronômetro entre duas páginas do desenho animado. Multiplicar a velocidade por `delta` faz o boneco andar na mesma velocidade real seja num PC lento (30 FPS) ou num PC da NASA (240 FPS).",
-    technical: "Tempo em segundos (float) decorrido desde o frame anterior (`0.0166s` a 60 FPS)."
+    "id": "conceito-3",
+    "term": "Instância",
+    "category": "Fundamentos",
+    "definition": "Ocorrência criada a partir de um modelo, como uma cena salva.",
+    "detail": "Duas instâncias podem ter posições próprias e ainda compartilhar recursos, como um material.",
+    "example": "Crie duas locomotivas a partir da mesma cena.",
+    "aliases": [
+      "instanciar",
+      "instantiate",
+      "cópia"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_packedscene.html"
   },
   {
-    term: "Signal (Sinal)",
-    category: "Arquitetura",
-    feynman: "Uma campainha sem fio: o botão só grita 'ME APERTARAM!' sem precisar saber quem está escutando na sala.",
-    technical: "Implementação nativa do padrão Observer para comunicação desacoplada entre nós (`signal`, `.connect()`, `.emit()`)."
+    "id": "conceito-4",
+    "term": "PackedScene",
+    "category": "Fundamentos",
+    "definition": "Recurso que armazena uma árvore de nós para salvá-la ou instanciá-la.",
+    "detail": "instantiate cria a árvore; add_child coloca sua raiz sob um pai na árvore ativa.",
+    "example": "Instancie uma cena e adicione seu nó raiz à fase.",
+    "aliases": [
+      "packed scene",
+      "pack",
+      "instantiate"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_packedscene.html"
   },
   {
-    term: "CharacterBody vs RigidBody",
-    category: "Física",
-    feynman: "`CharacterBody` é um boneco de controle remoto que obedece cada passo seu sem cair de cara no chão; `RigidBody` é uma bola de boliche que você chuta e a física rola sozinha.",
-    technical: "Corpo cinemático controlado por código (`move_and_slide`) vs Corpo dinâmico simulado por forças e impulsos físicos."
+    "id": "conceito-5",
+    "term": "SceneTree",
+    "category": "Fundamentos",
+    "definition": "Objeto que administra a árvore ativa de nós da aplicação.",
+    "detail": "A cena atualmente editada no painel Local pode diferir da árvore vista em Remote durante a execução.",
+    "example": "Use get_tree para acessar a árvore em execução.",
+    "aliases": [
+      "árvore",
+      "arvore",
+      "remote",
+      "local"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_scenetree.html"
   },
   {
-    term: "Collision Layer vs Collision Mask",
-    category: "Física",
-    feynman: "**Layer (Camada)** é o crachá dizendo 'QUEM EU SOU'. **Mask (Máscara)** é o óculos dizendo 'QUEM EU PROCURO ENXERGAR E BATER'.",
-    technical: "Sistema de filtros de bits de 32 camadas que define pertencimento (`collision_layer`) e detecção (`collision_mask`)."
+    "id": "conceito-6",
+    "term": "Node2D",
+    "category": "Fundamentos",
+    "definition": "Nó com posição, rotação e escala em duas dimensões.",
+    "detail": "Seu transform é relativo ao pai; sprites e corpos 2D herdam dessa base.",
+    "example": "Um pai em X=100 desloca seus filhos 2D junto com ele.",
+    "aliases": [
+      "2d",
+      "transformação 2d",
+      "position"
+    ],
+    "lesson": "2d-intro-nodes-scenes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node2d.html"
   },
   {
-    term: "Vector2 / Vector3 & Normalização",
-    category: "Matemática",
-    feynman: "Uma seta que diz para onde ir e com qual força. Normalizar (`.normalized()`) corta a seta para tamanho 1 exato para o jogador não correr 41% mais rápido quando anda na diagonal!",
-    technical: "Estrutura matemática de coordenadas/direção. Um vetor normalizado possui magnitude (comprimento) igual a `1.0`."
+    "id": "conceito-7",
+    "term": "Node3D",
+    "category": "Fundamentos",
+    "definition": "Nó com transformação espacial em três dimensões.",
+    "detail": "O referencial local depende do pai. A convenção usa +Y para cima e -Z como frente de muitos nós.",
+    "example": "Posicione um objeto com Vector3(0, 2, 0).",
+    "aliases": [
+      "3d",
+      "espacial",
+      "position"
+    ],
+    "lesson": "3d-intro-space-axes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
   },
   {
-    term: "Resource (Recurso Customizado / .tres)",
-    category: "Arquitetura",
-    feynman: "Uma fichinha de cartinha de Pokémon em branco (Nome, Foto, Dano, Preço) para você preencher dezenas de itens e magias diferentes sem programar novos scripts.",
-    technical: "Contêiner de dados serializável que herda de `Resource`, compartilhado por referência na memória."
+    "id": "conceito-8",
+    "term": "Resource (Recurso)",
+    "category": "Fundamentos",
+    "definition": "Objeto serializável usado para representar dados e recursos do projeto.",
+    "detail": "Texturas, materiais e cenas também são Resources. Referências ao mesmo recurso podem compartilhar alterações.",
+    "example": "Dois itens podem usar a mesma textura carregada.",
+    "aliases": [
+      "recurso",
+      "tres",
+      "res",
+      "resource"
+    ],
+    "lesson": "2d-adv-resources-saveload",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_resource.html"
   },
   {
-    term: "Tween",
-    category: "Animação",
-    feynman: "Um piloto automático com efeito mola: você diz 'aumente este botão até o tamanho 1.2 em 0.2 segundos quicando igual gelatina' e ele faz tudo sozinho!",
-    technical: "Interpolador procedural leve criado com `create_tween()` para animar propriedades via código com curvas de transição."
+    "id": "conceito-9",
+    "term": "RefCounted",
+    "category": "Programação",
+    "definition": "Objeto cuja vida é administrada por contagem de referências.",
+    "detail": "Ele não integra a árvore como Node e não recebe _ready; _init pode preparar seu estado.",
+    "example": "Estoque.new cria o objeto de regra da aula 3A.",
+    "aliases": [
+      "referência",
+      "referencia",
+      "ref counted"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_refcounted.html"
   },
   {
-    term: "RayCast2D / RayCast3D",
-    category: "Física & IA",
-    feynman: "Uma bengala de raio laser invisível que avisa na hora se tem parede na frente, se acabou o chão da plataforma ou em quem o tiro acertou.",
-    technical: "Sensor de interseção de segmento de reta que retorna colisor, ponto de impacto e vetor normal da superfície."
+    "id": "conceito-10",
+    "term": "Grupo de nós",
+    "category": "Arquitetura",
+    "definition": "Nome que reúne nós para consultas ou chamadas coletivas.",
+    "detail": "Um grupo não muda a relação pai–filho nem garante a ordem de processamento.",
+    "example": "Adicione inimigos ao grupo inimigos para localizá-los.",
+    "aliases": [
+      "grupo",
+      "group",
+      "get_nodes_in_group"
+    ],
+    "lesson": "2d-init-areas-collisions",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node.html"
   },
   {
-    term: "Shader",
-    category: "Gráficos & GPU",
-    feynman: "Uma receita entregue para 5.000 duendes pintores da Placa de Vídeo pintarem todos os pixels (ou sacudirem os vértices da água) ao mesmo tempo sem cansar o processador principal!",
-    technical: "Programa executado em paralelo na GPU (`canvas_item` para 2D, `spatial` para 3D, `sky` e `fog`)."
+    "id": "conceito-11",
+    "term": "Script e classe",
+    "category": "Programação",
+    "definition": "Arquivo que define propriedades e comportamentos de uma classe.",
+    "detail": "extends indica a classe-base; class_name registra um nome global opcional para o script.",
+    "example": "Um script extends Node2D pode ser anexado a um Node2D.",
+    "aliases": [
+      "gdscript",
+      "classe",
+      "extends",
+      "class_name"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html"
   },
   {
-    term: "Object Pooling (Piscina de Objetos)",
-    category: "Otimização",
-    feynman: "Em vez de fabricar um prato novo e quebrar no lixo a cada sopa servida, o restaurante lava e reutiliza os mesmos 100 pratos sem parar!",
-    technical: "Técnica que pré-aloca e recicla instâncias desativadas para evitar custos de CPU e memória com `instantiate()` e `queue_free()` em massa."
+    "id": "conceito-12",
+    "term": "Variável",
+    "category": "Programação",
+    "definition": "Nome associado a um valor que pode mudar durante a execução.",
+    "detail": "O tipo limita valores compatíveis; regras como vida não negativa exigem validação adicional.",
+    "example": "var vida: int = 100 guarda o estado de vida.",
+    "aliases": [
+      "var",
+      "estado",
+      "variable"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html"
   },
   {
-    term: "Occlusion Culling & LOD",
-    category: "Otimização 3D",
-    feynman: "Não desenhar os móveis que estão escondidos atrás de uma parede fechada (**Occlusion**) e usar modelos mais simples quando estão bem longe da câmera (**LOD**).",
-    technical: "Descarte de geometria ocluída por `OccluderInstance3D` e redução automática de polígonos por distância da câmera."
+    "id": "conceito-13",
+    "term": "Função e retorno",
+    "category": "Programação",
+    "definition": "Bloco chamado para executar uma operação, com parâmetros e possível resultado.",
+    "detail": "return encerra essa chamada. Validar antes de modificar o estado evita operações parciais.",
+    "example": "consumir recebe ID e quantidade e retorna ok e motivo.",
+    "aliases": [
+      "func",
+      "return",
+      "parâmetro",
+      "parametro"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html"
   },
   {
-    term: "Basis & Transform3D",
-    category: "Matemática 3D",
-    feynman: "Três varetas coloridas coladas no objeto 3D (Direita, Cima, Costas) que mostram para onde ele está virado (`basis`) mais o endereço de onde ele está na sala (`origin`).",
-    technical: "Matriz 3x4 composta por uma matriz de rotação/escala 3x3 (`Basis`) e um vetor de translação (`origin: Vector3`)."
+    "id": "conceito-14",
+    "term": "Tipagem estática",
+    "category": "Programação",
+    "definition": "Anotação que informa tipos esperados para variáveis, argumentos e retornos.",
+    "detail": "Ajuda a detectar incompatibilidades; um int ainda pode ser negativo e violar a regra do jogo.",
+    "example": "quantidade: int precisa também da guarda quantidade > 0.",
+    "aliases": [
+      "tipo",
+      "type",
+      "int",
+      "float",
+      "bool",
+      "string"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/static_typing.html"
+  },
+  {
+    "id": "conceito-15",
+    "term": "Array",
+    "category": "Programação",
+    "definition": "Coleção ordenada de elementos acessados por índice.",
+    "detail": "O primeiro índice é zero. Em Array[Dictionary], os campos de cada Dictionary ainda precisam de contrato.",
+    "example": "Um Array guarda as três configurações de peças.",
+    "aliases": [
+      "lista",
+      "coleção",
+      "colecao",
+      "índice",
+      "indice"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_array.html"
+  },
+  {
+    "id": "conceito-16",
+    "term": "Dictionary",
+    "category": "Programação",
+    "definition": "Coleção de associações entre chaves e valores.",
+    "detail": "Confira se a chave existe antes de usá-la quando a entrada puder variar.",
+    "example": "saldos[\"engrenagem\"] consulta o saldo pelo ID.",
+    "aliases": [
+      "dicionario",
+      "mapa",
+      "chave",
+      "has"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_dictionary.html"
+  },
+  {
+    "id": "conceito-17",
+    "term": "Constante",
+    "category": "Programação",
+    "definition": "Nome cujo valor atribuído é definido como constante no script.",
+    "detail": "Configuração inicial e estado de uma partida têm papéis diferentes; mantenha alterações da sessão em estado próprio.",
+    "example": "Use const VELOCIDADE = 200.0 como configuração.",
+    "aliases": [
+      "const",
+      "configuração",
+      "configuracao"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html"
+  },
+  {
+    "id": "conceito-18",
+    "term": "load e preload",
+    "category": "Programação",
+    "definition": "Formas de obter recursos para usar no código.",
+    "detail": "preload exige caminho constante e carrega com o script; load resolve o carregamento durante a execução.",
+    "example": "Carregue uma PackedScene e depois chame instantiate.",
+    "aliases": [
+      "carregar",
+      "recurso",
+      "preload",
+      "load"
+    ],
+    "lesson": "2d-pro-architecture-async",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_resourceloader.html"
+  },
+  {
+    "id": "conceito-19",
+    "term": "@export",
+    "category": "Programação",
+    "definition": "Anotação que expõe uma propriedade compatível no Inspector e permite salvá-la na cena ou recurso.",
+    "detail": "Ela não gera uma build do jogo. O tipo e a configuração precisam ser adequados ao valor escolhido.",
+    "example": "Exponha velocidade para ajustar no Inspector.",
+    "aliases": [
+      "export",
+      "inspector",
+      "propriedade"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_exports.html"
+  },
+  {
+    "id": "conceito-20",
+    "term": "@onready",
+    "category": "Programação",
+    "definition": "Adia a inicialização de uma variável até a etapa de preparação do nó.",
+    "detail": "A referência ainda depende de o caminho apontar para um nó existente e do tipo esperado.",
+    "example": "Use @onready var leitura: Label = $Leitura.",
+    "aliases": [
+      "onready",
+      "ready",
+      "caminho"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html#onready-annotation"
+  },
+  {
+    "id": "conceito-21",
+    "term": "Delta (Δt)",
+    "category": "Programação",
+    "definition": "Intervalo de tempo, em segundos, recebido por callbacks de processamento.",
+    "detail": "Integrar velocidade com delta reduz dependência da taxa; isso não garante precisão ou comportamento idêntico em qualquer condição.",
+    "example": "Deslocamento simples: velocidade × delta.",
+    "aliases": [
+      "delta",
+      "tempo",
+      "dt",
+      "frame"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node.html"
+  },
+  {
+    "id": "conceito-22",
+    "term": "_process",
+    "category": "Programação",
+    "definition": "Callback de atualização ligado aos quadros de processamento visual.",
+    "detail": "Sua frequência pode variar. Operações físicas costumam pertencer ao passo de física.",
+    "example": "Atualize uma apresentação visual usando o delta recebido.",
+    "aliases": [
+      "process",
+      "quadro",
+      "frame",
+      "fps"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node.html"
+  },
+  {
+    "id": "conceito-23",
+    "term": "_physics_process",
+    "category": "Programação",
+    "definition": "Callback executado no ritmo configurado para a física.",
+    "detail": "A taxa é configurável; ela não é necessariamente igual aos FPS de renderização.",
+    "example": "Leia entrada e mova o CharacterBody durante a física.",
+    "aliases": [
+      "physics process",
+      "passo físico",
+      "passo fisico",
+      "tick"
+    ],
+    "lesson": "2d-intro-gdscript-lifecycle",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node.html"
+  },
+  {
+    "id": "conceito-24",
+    "term": "Timer",
+    "category": "Programação",
+    "definition": "Nó que emite timeout ao terminar uma contagem de tempo.",
+    "detail": "One Shot e Autostart mudam seu ciclo. Pausa e escala de tempo também podem afetar a contagem.",
+    "example": "Use um Timer para reabilitar uma ação após um intervalo.",
+    "aliases": [
+      "timeout",
+      "temporizador",
+      "espera"
+    ],
+    "lesson": "2d-init-areas-collisions",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_timer.html"
+  },
+  {
+    "id": "conceito-25",
+    "term": "await",
+    "category": "Programação",
+    "definition": "Suspende a continuação de uma função até um sinal ou uma corrotina concluir.",
+    "detail": "O restante da aplicação pode continuar. Vida da cena, reentrada e cancelamento precisam de política própria.",
+    "example": "Bloqueie um botão enquanto aguarda timeout.",
+    "aliases": [
+      "esperar",
+      "assíncrono",
+      "assincrono",
+      "corrotina"
+    ],
+    "lesson": "2d-inter-signals-events",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/gdscript/gdscript_basics.html#awaiting-signals-or-coroutines"
+  },
+  {
+    "id": "conceito-26",
+    "term": "Signal (Sinal)",
+    "category": "Arquitetura",
+    "definition": "Anúncio de uma ocorrência para funções conectadas.",
+    "detail": "Conectar não recupera eventos antigos. Conexões comuns chamam os ouvintes durante a emissão; conexões diferidas têm outro momento.",
+    "example": "Emita pressao_alterada com o novo valor.",
+    "aliases": [
+      "sinal",
+      "eventos",
+      "observer",
+      "emit",
+      "connect"
+    ],
+    "lesson": "2d-inter-signals-events",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_signal.html"
+  },
+  {
+    "id": "conceito-27",
+    "term": "Callable",
+    "category": "Arquitetura",
+    "definition": "Valor que representa uma função que pode ser chamada.",
+    "detail": "Argumentos e assinatura precisam ser compatíveis com a chamada ou sinal.",
+    "example": "Conecte o sinal pressed ao Callable de uma função.",
+    "aliases": [
+      "callback",
+      "função conectada",
+      "funcao conectada"
+    ],
+    "lesson": "2d-inter-signals-events",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_callable.html"
+  },
+  {
+    "id": "conceito-28",
+    "term": "Autoload e Event Bus",
+    "category": "Arquitetura",
+    "definition": "Autoload disponibiliza um nó compartilhado; um Event Bus pode usar esse nó para reunir sinais.",
+    "detail": "Um barramento de sinais não armazena estado ou histórico automaticamente.",
+    "example": "Um nó Eventos permite que cenas distintas anunciem ocorrências.",
+    "aliases": [
+      "singleton",
+      "barramento",
+      "event bus",
+      "global"
+    ],
+    "lesson": "2d-inter-signals-events",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/singletons_autoload.html"
+  },
+  {
+    "id": "conceito-29",
+    "term": "Composição",
+    "category": "Arquitetura",
+    "definition": "Organização em que um objeto possui ou usa outros objetos para cumprir suas responsabilidades.",
+    "detail": "A dependência deve ser explícita; possuir uma referência não torna o objeto um nó filho.",
+    "example": "O controlador usa um Estoque para consumir peças.",
+    "aliases": [
+      "compor",
+      "dependência",
+      "dependencia"
+    ],
+    "lesson": "2d-ponte-dados",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/best_practices/scene_organization.html"
+  },
+  {
+    "id": "conceito-30",
+    "term": "FSM (Máquina de estados)",
+    "category": "Arquitetura",
+    "definition": "Modelo que organiza comportamento em estados e transições permitidas.",
+    "detail": "Entrada, saída e interrupção precisam de regras para não deixar efeitos do estado anterior ativos.",
+    "example": "Um personagem alterna parado, andando e atacando.",
+    "aliases": [
+      "estado",
+      "finite state machine",
+      "transição",
+      "transicao"
+    ],
+    "lesson": "2d-adv-fsm-components",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/animation/animation_tree.html"
+  },
+  {
+    "id": "conceito-31",
+    "term": "Vector2",
+    "category": "Matemática",
+    "definition": "Par de componentes usado para posições, deslocamentos e outras grandezas 2D.",
+    "detail": "O significado depende do contexto. Na convenção 2D da Godot, UP é (0,-1).",
+    "example": "Vector2(80, 60) pode representar uma posição local.",
+    "aliases": [
+      "vetor",
+      "coordenadas",
+      "x y",
+      "vector2"
+    ],
+    "lesson": "2d-intro-vectors-coords",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_vector2.html"
+  },
+  {
+    "id": "conceito-32",
+    "term": "Vector3",
+    "category": "Matemática",
+    "definition": "Três componentes usadas para posições, direções e outras grandezas espaciais.",
+    "detail": "Na convenção 3D da Godot, UP é (0,1,0) e FORWARD é (0,0,-1).",
+    "example": "Vector3(0, 2, 0) fica acima da origem.",
+    "aliases": [
+      "vetor",
+      "coordenadas",
+      "x y z",
+      "vector3"
+    ],
+    "lesson": "3d-intro-space-axes",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_vector3.html"
+  },
+  {
+    "id": "conceito-33",
+    "term": "Normalização de vetor",
+    "category": "Matemática",
+    "definition": "Operação que preserva a direção de um vetor não nulo e ajusta seu comprimento para 1.",
+    "detail": "O vetor zero permanece zero. Normalizar uma entrada pode limitar o aumento de velocidade diagonal.",
+    "example": "Normalize (1,1) antes de multiplicar pela velocidade.",
+    "aliases": [
+      "normalized",
+      "normalizar",
+      "magnitude",
+      "diagonal"
+    ],
+    "lesson": "2d-intro-vectors-coords",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_vector2.html"
+  },
+  {
+    "id": "conceito-34",
+    "term": "Coordenadas locais e globais",
+    "category": "Matemática",
+    "definition": "Local descreve uma posição no referencial do pai; global descreve a posição no espaço global correspondente.",
+    "detail": "Somar posições só basta em casos sem rotação/escala; use conversões quando necessário.",
+    "example": "Converta o mouse global com to_local antes de consultar células.",
+    "aliases": [
+      "local",
+      "global",
+      "espaço",
+      "espaco",
+      "to_local",
+      "to_global"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_node2d.html"
+  },
+  {
+    "id": "conceito-35",
+    "term": "Transform3D",
+    "category": "Matemática",
+    "definition": "Transformação formada por uma Basis e uma origem Vector3.",
+    "detail": "Representa transformação afim; operações locais e globais usam referenciais diferentes.",
+    "example": "Transforme um ponto local para o espaço global do nó.",
+    "aliases": [
+      "transform",
+      "transformação",
+      "transformacao",
+      "origin"
+    ],
+    "lesson": "3d-intro-transforms-basis",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_transform3d.html"
+  },
+  {
+    "id": "conceito-36",
+    "term": "Basis",
+    "category": "Matemática",
+    "definition": "Matriz 3×3 que representa eixos de uma transformação 3D.",
+    "detail": "Pode conter rotação, escala e cisalhamento; seus eixos não são sempre unitários.",
+    "example": "Uma escala 2 altera o comprimento dos eixos correspondentes.",
+    "aliases": [
+      "matriz",
+      "eixos",
+      "rotação",
+      "rotacao",
+      "escala"
+    ],
+    "lesson": "3d-intro-transforms-basis",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_basis.html"
+  },
+  {
+    "id": "conceito-37",
+    "term": "Normal da superfície",
+    "category": "Matemática",
+    "definition": "Vetor perpendicular à superfície num ponto, usado em iluminação e colisões.",
+    "detail": "Confira o espaço de coordenadas do retorno antes de combiná-lo com outros vetores.",
+    "example": "A face esquerda de uma parede pode retornar normal (-1,0).",
+    "aliases": [
+      "normal",
+      "perpendicular",
+      "collision_normal"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_raycast2d.html"
+  },
+  {
+    "id": "conceito-38",
+    "term": "Interpolação (lerp)",
+    "category": "Matemática",
+    "definition": "Combinação entre valores de partida e chegada usando um peso.",
+    "detail": "Um peso fixo por quadro pode depender dos FPS. A regra de tempo precisa ser escolhida para o efeito.",
+    "example": "lerp(0.0, 10.0, 0.5) resulta em 5.",
+    "aliases": [
+      "lerp",
+      "interpolar",
+      "peso",
+      "suavização",
+      "suavizacao"
+    ],
+    "lesson": "2d-init-sprites-cameras",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_@globalscope.html#class-globalscope-method-lerp"
+  },
+  {
+    "id": "conceito-39",
+    "term": "RID",
+    "category": "Física",
+    "definition": "Identificador de baixo nível usado por servidores da Godot.",
+    "detail": "Ele não é o próprio Node; obtenha o RID apropriado ao recurso ou corpo consultado.",
+    "example": "Exclua um CollisionObject2D com ignorar.get_rid na consulta.",
+    "aliases": [
+      "rid",
+      "identificador",
+      "exclude"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_rid.html"
+  },
+  {
+    "id": "conceito-40",
+    "term": "CharacterBody2D",
+    "category": "Física",
+    "definition": "Corpo destinado a movimento controlado por script, com suporte a contatos e deslizamento.",
+    "detail": "Gravidade e decisões de salto precisam ser implementadas; o corpo não cai automaticamente como RigidBody.",
+    "example": "Atualize velocity e chame move_and_slide.",
+    "aliases": [
+      "personagem",
+      "corpo cinemático",
+      "corpo cinematico",
+      "character body"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_characterbody2d.html"
+  },
+  {
+    "id": "conceito-41",
+    "term": "CharacterBody3D",
+    "category": "Física",
+    "definition": "Corpo de personagem com movimento por script e detecção de paredes, chão e rampas em 3D.",
+    "detail": "velocity é um Vector3. Configure up_direction e floor_max_angle para classificar superfícies; a gravidade depende do seu código.",
+    "example": "Aplique gravidade no eixo Y e mova o personagem com move_and_slide().",
+    "aliases": [
+      "personagem 3d",
+      "rampa",
+      "chão",
+      "chao",
+      "character body"
+    ],
+    "lesson": "3d-init-character-physics",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_characterbody3d.html"
+  },
+  {
+    "id": "conceito-42",
+    "term": "PhysicsDirectSpaceState3D",
+    "category": "Física",
+    "definition": "Interface para consultar colisões diretamente no espaço físico 3D do mundo.",
+    "detail": "Obtenha-a por get_world_3d().direct_space_state e consulte durante o passo físico. Uma consulta não movimenta o corpo.",
+    "example": "Use intersect_ray com uma máscara para testar a parede à frente.",
+    "aliases": [
+      "consulta física",
+      "consulta fisica",
+      "intersect_ray",
+      "raycast3d"
+    ],
+    "lesson": "3d-init-areas-raycasts-picking",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_physicsdirectspacestate3d.html"
+  },
+  {
+    "id": "conceito-43",
+    "term": "RigidBody2D / RigidBody3D",
+    "category": "Física",
+    "definition": "Corpo cujo movimento é calculado pela simulação física.",
+    "detail": "Forças e impulsos interagem com massa e outras propriedades. Alterar transform continuamente pode conflitar com a simulação.",
+    "example": "Aplique um impulso a uma peça solta.",
+    "aliases": [
+      "corpo dinâmico",
+      "corpo dinamico",
+      "rigid body"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_rigidbody2d.html"
+  },
+  {
+    "id": "conceito-44",
+    "term": "StaticBody2D / StaticBody3D",
+    "category": "Física",
+    "definition": "Corpo usado para geometria física que não precisa da dinâmica de um RigidBody.",
+    "detail": "A escolha para uma plataforma móvel depende da forma de movimento e interação; não trate todos os casos como estáticos.",
+    "example": "Uma parede com forma retangular usa StaticBody2D.",
+    "aliases": [
+      "parede",
+      "corpo estático",
+      "corpo estatico"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_staticbody2d.html"
+  },
+  {
+    "id": "conceito-45",
+    "term": "Area2D / Area3D",
+    "category": "Física",
+    "definition": "Região que pode detectar sobreposições e modificar parâmetros físicos conforme sua configuração.",
+    "detail": "Camadas, máscaras, formas e opções de monitoramento afetam os sinais e resultados.",
+    "example": "Uma área anuncia a entrada de um corpo coletável.",
+    "aliases": [
+      "sensor",
+      "gatilho",
+      "trigger",
+      "area",
+      "monitoring"
+    ],
+    "lesson": "2d-init-areas-collisions",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_area2d.html"
+  },
+  {
+    "id": "conceito-46",
+    "term": "CollisionShape",
+    "category": "Física",
+    "definition": "Nó que associa uma forma de colisão a um objeto físico compatível.",
+    "detail": "A imagem desenhada e a forma física são configuradas separadamente.",
+    "example": "Use RectangleShape2D num CollisionShape2D filho da parede.",
+    "aliases": [
+      "colisão",
+      "colisao",
+      "shape",
+      "forma"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_collisionshape2d.html"
+  },
+  {
+    "id": "conceito-47",
+    "term": "Collision Layer e Mask",
+    "category": "Física",
+    "definition": "Layer indica pertencimento a camadas; Mask seleciona camadas consideradas pela detecção ou interação.",
+    "detail": "Os filtros e as opções de cada consulta/corpo precisam ser configurados em conjunto.",
+    "example": "Uma máscara com bit 1 encontra uma parede na camada 1.",
+    "aliases": [
+      "camada",
+      "máscara",
+      "mascara",
+      "filtro",
+      "collision_layer",
+      "collision_mask"
+    ],
+    "lesson": "2d-init-areas-collisions",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_collisionobject2d.html"
+  },
+  {
+    "id": "conceito-48",
+    "term": "move_and_slide",
+    "category": "Física",
+    "definition": "Método de CharacterBody que usa velocity para mover e resolver deslizamento em contatos.",
+    "detail": "velocity é velocidade por segundo; não multiplique a propriedade por delta apenas para chamar esse método.",
+    "example": "Após gravidade no passo físico, chame move_and_slide().",
+    "aliases": [
+      "deslizamento",
+      "velocity",
+      "move and slide"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_characterbody2d.html"
+  },
+  {
+    "id": "conceito-49",
+    "term": "move_and_collide",
+    "category": "Física",
+    "definition": "Método que tenta mover um corpo por um deslocamento e pode retornar dados da colisão.",
+    "detail": "O argumento de movimento é deslocamento, diferente da velocidade armazenada por CharacterBody.",
+    "example": "Use velocidade × delta como deslocamento de uma tentativa.",
+    "aliases": [
+      "colidir",
+      "movimento",
+      "move and collide"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_physicsbody2d.html"
+  },
+  {
+    "id": "conceito-50",
+    "term": "RayCast2D / RayCast3D",
+    "category": "Física",
+    "definition": "Consulta de um segmento que pode informar o primeiro colisor, ponto e normal aceitos.",
+    "detail": "Há filtros e atualização por passo físico. force_raycast_update força uma consulta; o alcance continua finito.",
+    "example": "Um raio de 240 unidades testa a parede à frente.",
+    "aliases": [
+      "raio",
+      "segmento",
+      "raycast",
+      "ray cast",
+      "sonda"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_raycast2d.html"
+  },
+  {
+    "id": "conceito-51",
+    "term": "Impulso e força",
+    "category": "Física",
+    "definition": "Força representa uma ação mantida ao longo do tempo; impulso representa uma aplicação pontual.",
+    "detail": "Repetir um impulso a cada quadro muda a regra física. Massa influencia o resultado.",
+    "example": "Aplique o impulso inicial uma única vez ao lançar uma peça.",
+    "aliases": [
+      "impulse",
+      "force",
+      "massa",
+      "lançamento",
+      "lancamento"
+    ],
+    "lesson": "2d-init-physics-bodies",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_rigidbody2d.html"
+  },
+  {
+    "id": "conceito-52",
+    "term": "Sprite2D",
+    "category": "Mundo 2D",
+    "definition": "Nó que desenha uma textura no espaço 2D.",
+    "detail": "A textura e sua origem visual não criam um corpo ou forma de colisão automaticamente.",
+    "example": "Use uma imagem de engrenagem como Texture.",
+    "aliases": [
+      "sprite",
+      "textura",
+      "imagem"
+    ],
+    "lesson": "2d-init-sprites-cameras",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_sprite2d.html"
+  },
+  {
+    "id": "conceito-53",
+    "term": "AnimatedSprite2D",
+    "category": "Mundo 2D",
+    "definition": "Nó que reproduz sequências de texturas definidas em SpriteFrames.",
+    "detail": "Nome, taxa e repetição da animação precisam de configuração; flip_h altera a apresentação.",
+    "example": "Troque entre os quadros parado e corrida.",
+    "aliases": [
+      "spriteframes",
+      "quadros",
+      "flip_h",
+      "corrida"
+    ],
+    "lesson": "2d-init-sprites-cameras",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_animatedsprite2d.html"
+  },
+  {
+    "id": "conceito-54",
+    "term": "Camera2D",
+    "category": "Mundo 2D",
+    "definition": "Nó que define como uma região do mundo 2D é apresentada na viewport.",
+    "detail": "Suavização, limites e zoom podem separar posição desejada e centro efetivo da vista.",
+    "example": "Acompanhe o personagem sem alterar suas coordenadas físicas.",
+    "aliases": [
+      "camera",
+      "câmera",
+      "enquadramento",
+      "zoom"
+    ],
+    "lesson": "2d-init-sprites-cameras",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_camera2d.html"
+  },
+  {
+    "id": "conceito-55",
+    "term": "Parallax2D",
+    "category": "Mundo 2D",
+    "definition": "Apresentação de camadas com deslocamentos relativos diferentes para sugerir profundidade.",
+    "detail": "Repetição da textura e fator de deslocamento precisam ser configurados; não é uma mudança na geometria física.",
+    "example": "Um fundo pode se deslocar menos que o primeiro plano.",
+    "aliases": [
+      "parallax",
+      "paralaxe",
+      "fundo",
+      "scroll_scale"
+    ],
+    "lesson": "2d-init-sprites-cameras",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_parallax2d.html"
+  },
+  {
+    "id": "conceito-56",
+    "term": "TileSet",
+    "category": "Mundo 2D",
+    "definition": "Catálogo de peças e propriedades usadas por camadas de tiles.",
+    "detail": "Textura, colisão, dados customizados e terrenos são configurações distintas.",
+    "example": "Cadastre bronze, óleo e vapor num atlas.",
+    "aliases": [
+      "tileset",
+      "catálogo",
+      "catalogo",
+      "bloco"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tileset.html"
+  },
+  {
+    "id": "conceito-57",
+    "term": "TileMapLayer",
+    "category": "Mundo 2D",
+    "definition": "Camada que coloca tiles de um TileSet em endereços da grade.",
+    "detail": "local_to_map recebe posição local; atualizações internas são agrupadas e não garantem consulta física imediata.",
+    "example": "A célula(0,0) de 32×32 tem centro local(16,16) na grade usada na aula.",
+    "aliases": [
+      "tilemap",
+      "grade",
+      "célula",
+      "celula",
+      "local_to_map"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tilemaplayer.html"
+  },
+  {
+    "id": "conceito-58",
+    "term": "Atlas de textura",
+    "category": "Mundo 2D",
+    "definition": "Imagem dividida em regiões para representar diferentes peças.",
+    "detail": "ID da fonte, coordenada do recorte e alternativa identificam coisas diferentes no TileSet.",
+    "example": "Bronze está no recorte(0,0) do atlas de apoio.",
+    "aliases": [
+      "atlas",
+      "recorte",
+      "source_id",
+      "TileSetAtlasSource"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tilesetatlassource.html"
+  },
+  {
+    "id": "conceito-59",
+    "term": "TileData",
+    "category": "Mundo 2D",
+    "definition": "Conjunto de propriedades de uma peça do catálogo TileSet.",
+    "detail": "Dados customizados são compartilhados por esse tile; ler dano 15 não aplica dano por conta própria.",
+    "example": "Uma regra consulta tipo_piso e decide o efeito.",
+    "aliases": [
+      "metadados",
+      "custom data",
+      "tile data",
+      "dano"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tiledata.html"
+  },
+  {
+    "id": "conceito-60",
+    "term": "Terrenos e peering bits",
+    "category": "Mundo 2D",
+    "definition": "Configuração de compatibilidade entre peças para escolher variantes conforme os vizinhos.",
+    "detail": "O algoritmo depende do modo e das combinações preparadas, incluindo pontas compatíveis com vazio.",
+    "example": "Use Match Sides e 16 combinações para conectar tubos.",
+    "aliases": [
+      "terrain",
+      "terreno",
+      "peering bits",
+      "autotile"
+    ],
+    "lesson": "2d-inter-tilemaps-worlds",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/2d/using_tilesets.html"
+  },
+  {
+    "id": "conceito-61",
+    "term": "AnimationPlayer",
+    "category": "Animação",
+    "definition": "Nó que reproduz animações com trilhas e chaves de propriedades.",
+    "detail": "Reprodução, interrupção e repetição devem ser definidas; duas fontes animando a mesma propriedade podem competir.",
+    "example": "Três chaves fazem X ir de 80 a 260 e voltar.",
+    "aliases": [
+      "animação",
+      "animacao",
+      "chave",
+      "keyframe",
+      "trilha"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_animationplayer.html"
+  },
+  {
+    "id": "conceito-62",
+    "term": "Tween",
+    "category": "Animação",
+    "definition": "Interpolador criado por código para alterar valores ao longo do tempo.",
+    "detail": "Crie com create_tween; escolha curva/easing e controle efeitos concorrentes ou interrompidos.",
+    "example": "Mova a peça até X=260 em 0.6 segundo.",
+    "aliases": [
+      "tween",
+      "interpolador",
+      "create_tween"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tween.html"
+  },
+  {
+    "id": "conceito-63",
+    "term": "Transição e easing",
+    "category": "Animação",
+    "definition": "Transição escolhe a família da curva; easing define como ela é percorrida no início e no fim.",
+    "detail": "BACK pode ultrapassar o destino; LINEAR não produz o mesmo perfil de velocidade.",
+    "example": "Combine TRANS_BACK com EASE_OUT.",
+    "aliases": [
+      "ease",
+      "easing",
+      "curva",
+      "overshoot",
+      "trans_back"
+    ],
+    "lesson": "2d-inter-tweens-raycasts",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tween.html"
+  },
+  {
+    "id": "conceito-64",
+    "term": "Skeleton3D e osso",
+    "category": "Animação",
+    "definition": "Skeleton3D organiza ossos e suas poses para animação de uma estrutura.",
+    "detail": "A deformação de uma malha também depende de skin e pesos; uma hierarquia de ossos sozinha não prepara o personagem.",
+    "example": "Ajuste a pose de um braço num rig configurado.",
+    "aliases": [
+      "rig",
+      "osso",
+      "bone",
+      "esqueleto",
+      "skin"
+    ],
+    "lesson": "3d-adv-animationtree-skeleton",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_skeleton3d.html"
+  },
+  {
+    "id": "conceito-65",
+    "term": "AnimationTree",
+    "category": "Animação",
+    "definition": "Nó que organiza mistura e transições entre animações.",
+    "detail": "Grafo, parâmetros e filtros precisam corresponder às animações e ao controlador.",
+    "example": "Misture poses num BlendSpace e controle transições.",
+    "aliases": [
+      "blendspace",
+      "blend",
+      "grafo",
+      "animation tree"
+    ],
+    "lesson": "3d-adv-animationtree-skeleton",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_animationtree.html"
+  },
+  {
+    "id": "conceito-66",
+    "term": "Root motion",
+    "category": "Animação",
+    "definition": "Extração do movimento de uma trilha raiz para aplicação pelo controlador.",
+    "detail": "O movimento físico precisa ser integrado conscientemente; não basta habilitar a opção para resolver colisões.",
+    "example": "Use o deslocamento extraído para orientar a locomoção.",
+    "aliases": [
+      "root motion",
+      "locomoção",
+      "locomocao"
+    ],
+    "lesson": "3d-adv-animationtree-skeleton",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/animation/animation_tree.html#root-motion"
+  },
+  {
+    "id": "conceito-67",
+    "term": "Control",
+    "category": "Interface e entrada",
+    "definition": "Base dos nós de interface, com retângulo, layout e interação.",
+    "detail": "Coordenadas, âncoras, tamanho mínimo e foco influenciam a apresentação.",
+    "example": "Um Button e um Label são Controls.",
+    "aliases": [
+      "ui",
+      "interface",
+      "control",
+      "retângulo",
+      "retangulo"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_control.html"
+  },
+  {
+    "id": "conceito-68",
+    "term": "Container",
+    "category": "Interface e entrada",
+    "definition": "Nó que organiza automaticamente o layout de seus Controls filhos.",
+    "detail": "A posição manual pode ser substituída pelo layout; configure tamanho mínimo e flags de expansão.",
+    "example": "VBoxContainer empilha botões verticalmente.",
+    "aliases": [
+      "layout",
+      "container",
+      "vbox",
+      "hbox"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_container.html"
+  },
+  {
+    "id": "conceito-69",
+    "term": "Âncoras e offsets",
+    "category": "Interface e entrada",
+    "definition": "Parâmetros que relacionam o retângulo de um Control ao tamanho do pai.",
+    "detail": "Containers podem assumir esse layout. Teste resoluções diferentes para conferir o resultado.",
+    "example": "Prenda um HUD às bordas da viewport.",
+    "aliases": [
+      "ancora",
+      "âncora",
+      "anchor",
+      "offset",
+      "responsivo"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/ui/size_and_anchors.html"
+  },
+  {
+    "id": "conceito-70",
+    "term": "CanvasLayer",
+    "category": "Interface e entrada",
+    "definition": "Nó que separa uma camada de desenho 2D da transformação do mundo.",
+    "detail": "Camada de desenho não é a mesma coisa que camada de colisão.",
+    "example": "Mantenha o HUD numa camada independente da câmera do mundo.",
+    "aliases": [
+      "hud",
+      "canvas",
+      "camada de desenho"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_canvaslayer.html"
+  },
+  {
+    "id": "conceito-71",
+    "term": "Foco de teclado",
+    "category": "Interface e entrada",
+    "definition": "Indica qual Control recebe a interação de teclado da interface.",
+    "detail": "Configure navegação e devolução de foco após diálogos; uma tecla tratada não deve também acionar o jogo.",
+    "example": "Tab percorre botões; Enter ativa o botão focado.",
+    "aliases": [
+      "foco",
+      "focus",
+      "tab",
+      "grab_focus"
+    ],
+    "lesson": "2d-ponte-acessibilidade",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/ui/gui_navigation.html"
+  },
+  {
+    "id": "conceito-72",
+    "term": "InputMap",
+    "category": "Interface e entrada",
+    "definition": "Mapa entre nomes de ações e eventos de entrada.",
+    "detail": "A regra usa a ação lógica; teclas, mouse ou controle dependem dos eventos configurados.",
+    "example": "mover_direita pode responder a uma tecla escolhida.",
+    "aliases": [
+      "input map",
+      "ação",
+      "acao",
+      "entrada"
+    ],
+    "lesson": "2d-intro-vectors-coords",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_inputmap.html"
+  },
+  {
+    "id": "conceito-73",
+    "term": "Remapeamento",
+    "category": "Interface e entrada",
+    "definition": "Troca dos eventos associados a uma ação do jogo.",
+    "detail": "Captura, cancelar, conflito, restauração e persistência fazem parte do fluxo completo.",
+    "example": "Substitua A por J sem alterar as ações ui_* do menu.",
+    "aliases": [
+      "remap",
+      "remapear",
+      "controles",
+      "atalho"
+    ],
+    "lesson": "2d-ponte-acessibilidade",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_inputmap.html"
+  },
+  {
+    "id": "conceito-74",
+    "term": "Tecla física e lógica",
+    "category": "Interface e entrada",
+    "definition": "physical_keycode identifica posição física; keycode representa a tecla lógica conforme o layout.",
+    "detail": "Escolha a representação apropriada e teste layouts; configure apenas o campo desejado no evento de mapeamento.",
+    "example": "O exercício de controles usa physical_keycode.",
+    "aliases": [
+      "keycode",
+      "physical_keycode",
+      "layout",
+      "teclado"
+    ],
+    "lesson": "2d-ponte-acessibilidade",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_inputeventkey.html"
+  },
+  {
+    "id": "conceito-75",
+    "term": "Movimento reduzido",
+    "category": "Interface e entrada",
+    "definition": "Preferência para reduzir efeitos visuais de movimento que não são essenciais.",
+    "detail": "Ela precisa ser aplicada aos efeitos do projeto; salvar um bool sozinho não altera animações. Consulte a API de Tween para controlar os efeitos feitos com esse recurso.",
+    "example": "Desligue o pulso de confirmação no apoio.",
+    "aliases": [
+      "acessibilidade",
+      "animações",
+      "animacoes",
+      "reduced motion"
+    ],
+    "lesson": "2d-ponte-acessibilidade",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_tween.html"
+  },
+  {
+    "id": "conceito-76",
+    "term": "HUD",
+    "category": "Interface e entrada",
+    "definition": "Interface que apresenta informações relevantes durante o jogo.",
+    "detail": "O jogador deve compreender informações essenciais sem depender só de cor ou áudio.",
+    "example": "Mostre vida, peças coletadas e objetivo por texto/forma.",
+    "aliases": [
+      "heads up display",
+      "painel",
+      "vida",
+      "objetivo"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/getting_started/first_2d_game/06.heads_up_display.html"
+  },
+  {
+    "id": "conceito-77",
+    "term": "Pausa e process_mode",
+    "category": "Interface e entrada",
+    "definition": "Política que interrompe parte do processamento enquanto mantém controles necessários utilizáveis.",
+    "detail": "SceneTree.paused e o modo de processamento dos nós afetam quais callbacks continuam; um jogo por turnos também pode usar seu próprio bloqueio.",
+    "example": "O menu precisa continuar aceitando Retomar.",
+    "aliases": [
+      "pausar",
+      "pausa",
+      "process_mode",
+      "paused"
+    ],
+    "lesson": "2d-inter-lights-ui",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/pausing_games.html"
+  },
+  {
+    "id": "conceito-78",
+    "term": "JSON",
+    "category": "Dados e persistência",
+    "definition": "Formato textual para representar dados como listas, objetos, números e strings.",
+    "detail": "Analisar a sintaxe não valida IDs, limites ou consistência do estado do jogo.",
+    "example": "Valide o inventário depois de interpretar o texto salvo.",
+    "aliases": [
+      "json",
+      "arquivo",
+      "parse",
+      "serialização",
+      "serializacao"
+    ],
+    "lesson": "2d-adv-resources-saveload",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_json.html"
+  },
+  {
+    "id": "conceito-79",
+    "term": "ConfigFile",
+    "category": "Dados e persistência",
+    "definition": "Objeto que organiza valores em seções e chaves para leitura e gravação.",
+    "detail": "set_value altera a memória; save grava o arquivo. Confira erros e valide cada campo carregado.",
+    "example": "Salve o volume SFX na seção audio.",
+    "aliases": [
+      "cfg",
+      "ini",
+      "configuração",
+      "configuracao",
+      "set_value"
+    ],
+    "lesson": "2d-ponte-audio",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_configfile.html"
+  },
+  {
+    "id": "conceito-80",
+    "term": "Validação de save",
+    "category": "Dados e persistência",
+    "definition": "Conferência do formato, versão e domínio dos dados antes de restaurar uma sessão.",
+    "detail": "Valide em estado candidato e substitua a sessão só depois de todas as verificações passarem.",
+    "example": "Rejeite posição fora do mapa sem apagar a partida atual.",
+    "aliases": [
+      "save",
+      "load",
+      "snapshot",
+      "validação",
+      "validacao",
+      "carregar"
+    ],
+    "lesson": "2d-projeto-integrador",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_configfile.html"
+  },
+  {
+    "id": "conceito-81",
+    "term": "res:// e user://",
+    "category": "Dados e persistência",
+    "definition": "res:// aponta para os recursos do projeto; user:// para dados graváveis da aplicação.",
+    "detail": "A localização real depende do sistema e da configuração. Dados de uma build não devem depender de gravar em res://.",
+    "example": "Grave ajustes em user://aether_audio.cfg.",
+    "aliases": [
+      "caminho",
+      "path",
+      "pasta",
+      "disco",
+      "persistência",
+      "persistencia"
+    ],
+    "lesson": "2d-adv-resources-saveload",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/io/data_paths.html"
+  },
+  {
+    "id": "conceito-82",
+    "term": "AudioStreamPlayer",
+    "category": "Áudio",
+    "definition": "Nó que reproduz um recurso de áudio sem posicionamento espacial.",
+    "detail": "Escolha stream e bus; reproduzir a mesma instância pode reiniciar o som. Áudio posicional usa as variantes 2D/3D.",
+    "example": "Um efeito de botão usa o bus SFX.",
+    "aliases": [
+      "som",
+      "audio",
+      "player",
+      "play",
+      "música",
+      "musica"
+    ],
+    "lesson": "2d-ponte-audio",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_audiostreamplayer.html"
+  },
+  {
+    "id": "conceito-83",
+    "term": "Bus de áudio",
+    "category": "Áudio",
+    "definition": "Canal que reúne fontes para aplicar ganho, efeitos e roteamento.",
+    "detail": "Music e SFX podem enviar a Master. Ganhos em série se multiplicam na escala linear.",
+    "example": "0.5 em SFX e 0.5 em Master produzem ganho 0.25.",
+    "aliases": [
+      "bus",
+      "barramento",
+      "mixagem",
+      "music",
+      "sfx",
+      "master"
+    ],
+    "lesson": "2d-ponte-audio",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_audioserver.html"
+  },
+  {
+    "id": "conceito-84",
+    "term": "Volume linear e dB",
+    "category": "Áudio",
+    "definition": "Duas formas de expressar ganho de amplitude; dB usa escala logarítmica.",
+    "detail": "0.5 linear equivale a cerca de -6.02 dB. Isso não mede diretamente o volume percebido pelo usuário.",
+    "example": "Converta volume com linear_to_db usando a política do exercício.",
+    "aliases": [
+      "volume",
+      "decibel",
+      "decibéis",
+      "decibeis",
+      "ganho"
+    ],
+    "lesson": "2d-ponte-audio",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_@globalscope.html#class-globalscope-method-linear-to-db"
+  },
+  {
+    "id": "conceito-85",
+    "term": "Mute",
+    "category": "Áudio",
+    "definition": "Estado que silencia um caminho de áudio.",
+    "detail": "Master mudo silencia os buses enviados a ele. Alertas essenciais também precisam de uma indicação visual.",
+    "example": "O texto AÇÃO confirmada continua visível com mute.",
+    "aliases": [
+      "mudo",
+      "silenciar",
+      "zero",
+      "áudio",
+      "audio"
+    ],
+    "lesson": "2d-ponte-audio",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_audioserver.html"
+  },
+  {
+    "id": "conceito-86",
+    "term": "Mesh (Malha)",
+    "category": "Mundo 3D",
+    "definition": "Recurso que descreve superfícies e geometria para desenhar em 3D.",
+    "detail": "Malha visual, material e colisão têm responsabilidades distintas.",
+    "example": "Uma BoxMesh pode representar um bloco visual.",
+    "aliases": [
+      "mesh",
+      "malha",
+      "superfície",
+      "superficie",
+      "geometria"
+    ],
+    "lesson": "3d-intro-meshes-csg",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_mesh.html"
+  },
+  {
+    "id": "conceito-87",
+    "term": "MeshInstance3D",
+    "category": "Mundo 3D",
+    "definition": "Nó que coloca uma malha no mundo com uma transformação.",
+    "detail": "Instâncias podem compartilhar o mesmo recurso Mesh; confira também o material compartilhado.",
+    "example": "Use duas instâncias da mesma malha em posições distintas.",
+    "aliases": [
+      "mesh instance",
+      "modelo",
+      "instância",
+      "instancia"
+    ],
+    "lesson": "3d-intro-meshes-csg",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_meshinstance3d.html"
+  },
+  {
+    "id": "conceito-88",
+    "term": "CSG",
+    "category": "Mundo 3D",
+    "definition": "Conjunto de nós para combinar formas sólidas em operações como união e subtração.",
+    "detail": "É útil para prototipar; custo e resultado visual/físico precisam ser avaliados antes da produção final.",
+    "example": "Subtraia uma forma para criar uma passagem de teste.",
+    "aliases": [
+      "csg",
+      "booleano",
+      "união",
+      "uniao",
+      "subtração",
+      "subtracao"
+    ],
+    "lesson": "3d-intro-meshes-csg",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_csgshape3d.html"
+  },
+  {
+    "id": "conceito-89",
+    "term": "GridMap",
+    "category": "Mundo 3D",
+    "definition": "Grade que posiciona itens de uma MeshLibrary em células 3D.",
+    "detail": "Orientação, tamanho da célula e configuração de colisão pertencem ao fluxo de montagem.",
+    "example": "Monte um corredor usando módulos cadastrados.",
+    "aliases": [
+      "grid map",
+      "célula",
+      "celula",
+      "módulo",
+      "modulo"
+    ],
+    "lesson": "3d-inter-gridmap-decals",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_gridmap.html"
+  },
+  {
+    "id": "conceito-90",
+    "term": "MeshLibrary",
+    "category": "Mundo 3D",
+    "definition": "Catálogo de itens de malha e propriedades usado pelo GridMap.",
+    "detail": "Cadastrar uma malha não cria automaticamente todas as formas físicas desejadas.",
+    "example": "Associe ao item sua malha e suas formas configuradas.",
+    "aliases": [
+      "mesh library",
+      "biblioteca",
+      "catálogo",
+      "catalogo"
+    ],
+    "lesson": "3d-inter-gridmap-decals",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_meshlibrary.html"
+  },
+  {
+    "id": "conceito-91",
+    "term": "Decal",
+    "category": "Mundo 3D",
+    "definition": "Projeção de texturas dentro de um volume sobre superfícies compatíveis.",
+    "detail": "Volume, orientação, máscaras e renderizador afetam o resultado.",
+    "example": "Projete uma marca numa parede sem criar outra malha para o desenho.",
+    "aliases": [
+      "decal",
+      "adesivo",
+      "projeção",
+      "projecao"
+    ],
+    "lesson": "3d-inter-gridmap-decals",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_decal.html"
+  },
+  {
+    "id": "conceito-92",
+    "term": "SpringArm3D",
+    "category": "Mundo 3D",
+    "definition": "Nó que ajusta a distância dos filhos usando uma consulta de colisão ao longo de um braço.",
+    "detail": "Forma, máscara, exclusões e posição inicial precisam ser configuradas.",
+    "example": "Aproxime a câmera quando uma parede entra entre ela e o alvo.",
+    "aliases": [
+      "spring arm",
+      "braço",
+      "braco",
+      "câmera",
+      "camera"
+    ],
+    "lesson": "3d-init-cameras-springarm",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_springarm3d.html"
+  },
+  {
+    "id": "conceito-93",
+    "term": "Material",
+    "category": "Gráficos",
+    "definition": "Recurso que define como uma superfície é desenhada.",
+    "detail": "Compartilhar o recurso pode compartilhar alterações; overrides têm alcance próprio.",
+    "example": "Duas peças podem usar o mesmo StandardMaterial3D.",
+    "aliases": [
+      "material",
+      "override",
+      "compartilhado"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_material.html"
+  },
+  {
+    "id": "conceito-94",
+    "term": "PBR",
+    "category": "Gráficos",
+    "definition": "Modelo de materiais que relaciona propriedades de superfície à resposta à luz.",
+    "detail": "Resultado depende também de iluminação, ambiente e exposição; valores não garantem uma aparência isoladamente.",
+    "example": "Compare metal polido e superfície áspera sob a mesma luz.",
+    "aliases": [
+      "pbr",
+      "physically based rendering",
+      "standardmaterial3d"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_basematerial3d.html"
+  },
+  {
+    "id": "conceito-95",
+    "term": "Albedo",
+    "category": "Gráficos",
+    "definition": "Cor base usada no modelo de material.",
+    "detail": "Não representa a iluminação final da superfície. Textura e cor configuradas podem se combinar.",
+    "example": "Defina a cor base do bronze antes de ajustar a luz.",
+    "aliases": [
+      "albedo",
+      "cor base",
+      "base color"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_basematerial3d.html"
+  },
+  {
+    "id": "conceito-96",
+    "term": "Metallic e roughness",
+    "category": "Gráficos",
+    "definition": "Metallic representa caráter metálico; roughness controla a dispersão dos reflexos no modelo de superfície.",
+    "detail": "Rugosidade baixa tende a reflexos concentrados; o ambiente disponível continua influenciando o resultado.",
+    "example": "Compare roughness 0.2 e 0.8 mantendo as demais condições.",
+    "aliases": [
+      "metallic",
+      "metálico",
+      "metalico",
+      "rugosidade",
+      "roughness"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_basematerial3d.html"
+  },
+  {
+    "id": "conceito-97",
+    "term": "Normal map",
+    "category": "Gráficos",
+    "definition": "Textura que altera as normais usadas no cálculo de iluminação.",
+    "detail": "Não adiciona geometria nem colisão; orientação e tangentes precisam ser adequadas.",
+    "example": "Sugira pequenas ranhuras sem acrescentar vértices.",
+    "aliases": [
+      "normal map",
+      "relevo",
+      "tangente"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/standard_material_3d.html#normal-map"
+  },
+  {
+    "id": "conceito-98",
+    "term": "Textura ORM",
+    "category": "Gráficos",
+    "definition": "Empacotamento de oclusão, roughness e metallic em canais de uma textura.",
+    "detail": "Confira a convenção dos canais e a configuração do material ao importar.",
+    "example": "No padrão ORM, R guarda oclusão, G roughness e B metallic.",
+    "aliases": [
+      "orm",
+      "canais",
+      "occlusion roughness metallic"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_ormmaterial3d.html"
+  },
+  {
+    "id": "conceito-99",
+    "term": "Emission",
+    "category": "Gráficos",
+    "definition": "Componente que faz a superfície contribuir como emissora na aparência do material.",
+    "detail": "Glow e iluminação de outros objetos dependem de efeitos/técnicas adicionais; brilho do material não basta.",
+    "example": "Uma peça aquecida pode parecer incandescente.",
+    "aliases": [
+      "emissão",
+      "emissao",
+      "emission",
+      "incandescente"
+    ],
+    "lesson": "3d-inter-pbr-materials",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/standard_material_3d.html#emission"
+  },
+  {
+    "id": "conceito-100",
+    "term": "WorldEnvironment",
+    "category": "Gráficos",
+    "definition": "Nó que fornece um recurso Environment com configurações do ambiente visual.",
+    "detail": "Céu, exposição, efeitos e opções de iluminação dependem da configuração e do renderizador.",
+    "example": "Use o mesmo Environment ao comparar materiais.",
+    "aliases": [
+      "environment",
+      "ambiente",
+      "céu",
+      "ceu",
+      "exposição",
+      "exposicao"
+    ],
+    "lesson": "3d-inter-lighting-environment",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_worldenvironment.html"
+  },
+  {
+    "id": "conceito-101",
+    "term": "Luz direta",
+    "category": "Gráficos",
+    "definition": "Contribuição da luz que chega à superfície diretamente de uma fonte.",
+    "detail": "Sombras, alcance, direção e materiais determinam a resposta; luz indireta é outra contribuição.",
+    "example": "Uma OmniLight3D ilumina objetos próximos.",
+    "aliases": [
+      "luz",
+      "direta",
+      "omnilight3d",
+      "directionallight3d",
+      "spotlight3d"
+    ],
+    "lesson": "3d-inter-lighting-environment",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_light3d.html"
+  },
+  {
+    "id": "conceito-102",
+    "term": "Neblina volumétrica",
+    "category": "Gráficos",
+    "definition": "Efeito que representa luz e dispersão no volume de neblina 3D.",
+    "detail": "Depende do renderizador e tem custo próprio; não equivale a um filtro plano sobre a imagem.",
+    "example": "Use um FogVolume para delimitar uma região de vapor.",
+    "aliases": [
+      "fog",
+      "névoa",
+      "nevoa",
+      "volumetric",
+      "fogvolume"
+    ],
+    "lesson": "3d-inter-lighting-environment",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_fogvolume.html"
+  },
+  {
+    "id": "conceito-103",
+    "term": "Shader",
+    "category": "Gráficos",
+    "definition": "Programa usado no pipeline gráfico para definir processamento de vértices, superfícies ou outros estágios.",
+    "detail": "O tipo, como canvas_item ou spatial, determina o contexto e as variáveis disponíveis.",
+    "example": "Um shader canvas_item altera a cor de um sprite.",
+    "aliases": [
+      "shader",
+      "gpu",
+      "canvas_item",
+      "spatial"
+    ],
+    "lesson": "2d-adv-shaders-particles",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/shaders/shader_reference/index.html"
+  },
+  {
+    "id": "conceito-104",
+    "term": "UV",
+    "category": "Gráficos",
+    "definition": "Coordenadas usadas para localizar amostras de textura numa superfície.",
+    "detail": "A faixa e o resultado dependem da malha, do sampler e da repetição configurada.",
+    "example": "Use UV para amostrar a textura de uma peça.",
+    "aliases": [
+      "uv",
+      "textura",
+      "mapeamento",
+      "sampler"
+    ],
+    "lesson": "3d-adv-spatial-shaders-particles",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/shaders/shader_reference/spatial_shader.html"
+  },
+  {
+    "id": "conceito-105",
+    "term": "Partículas",
+    "category": "Gráficos",
+    "definition": "Instâncias geradas por um emissor para compor efeitos visuais.",
+    "detail": "Duração, repetição, limites visíveis e colisão precisam de configuração; reinício não é sempre automático.",
+    "example": "Dispare uma rajada de vapor após uma ação.",
+    "aliases": [
+      "particles",
+      "gpuparticles",
+      "emissor",
+      "one_shot",
+      "finished"
+    ],
+    "lesson": "2d-adv-shaders-particles",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_gpuparticles2d.html"
+  },
+  {
+    "id": "conceito-106",
+    "term": "Iluminação global (GI)",
+    "category": "Iluminação global",
+    "definition": "Conjunto de técnicas para representar luz indireta, como contribuições rebatidas entre superfícies.",
+    "detail": "GI difusa e reflexos especulares têm papéis diferentes; escolha técnica, preparo e renderizador para o cenário.",
+    "example": "Uma parede vermelha pode contribuir com cor no entorno.",
+    "aliases": [
+      "gi",
+      "global illumination",
+      "luz indireta",
+      "color bleeding",
+      "rebatimento"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/introduction_to_global_illumination.html"
+  },
+  {
+    "id": "conceito-107",
+    "term": "VoxelGI",
+    "category": "Iluminação global",
+    "definition": "Técnica que prepara uma representação volumétrica para iluminação indireta e reflexos.",
+    "detail": "Exige bake e, na referência 4.5, usa Forward+. Objetos dinâmicos podem receber a iluminação preparada.",
+    "example": "Prepare a geometria antes de comparar o efeito indireto.",
+    "aliases": [
+      "voxel gi",
+      "voxel",
+      "bake"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_voxelgi.html"
+  },
+  {
+    "id": "conceito-108",
+    "term": "LightmapGI",
+    "category": "Iluminação global",
+    "definition": "Armazena iluminação calculada em lightmaps e pode usar probes para objetos dinâmicos.",
+    "detail": "O bake é feito no editor; UV2 e recursos gerados fazem parte da preparação.",
+    "example": "Asse a iluminação de uma sala estática e salve seus dados.",
+    "aliases": [
+      "lightmap",
+      "uv2",
+      "luz assada",
+      "baked lighting"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_lightmapgi.html"
+  },
+  {
+    "id": "conceito-109",
+    "term": "ReflectionProbe",
+    "category": "Iluminação global",
+    "definition": "Captura o entorno de um ponto para oferecer reflexos baseados nessa captura.",
+    "detail": "A captura pode precisar de atualização; não substitui todo o cálculo de GI difusa ou reflexos locais.",
+    "example": "Capture a sala para refletir seu entorno numa peça metálica.",
+    "aliases": [
+      "reflection probe",
+      "reflexo",
+      "cubemap",
+      "sonda"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_reflectionprobe.html"
+  },
+  {
+    "id": "conceito-110",
+    "term": "SDFGI",
+    "category": "Iluminação global",
+    "definition": "Técnica de iluminação global baseada em uma representação por campos de distância.",
+    "detail": "Renderizador, geometria considerada e parâmetros afetam suporte, custo e qualidade; confira a versão-alvo.",
+    "example": "Compare uma cena preparada com a opção SDFGI do Environment.",
+    "aliases": [
+      "sdfgi",
+      "distância",
+      "distancia",
+      "campo"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_environment.html#class-environment-property-sdfgi-enabled"
+  },
+  {
+    "id": "conceito-111",
+    "term": "Bake",
+    "category": "Iluminação global",
+    "definition": "Etapa que calcula e prepara dados derivados para uso posterior.",
+    "detail": "O significado depende do recurso: luz e navegação têm bakes distintos. Alterar a origem pode exigir recalcular.",
+    "example": "Refaça o bake após mudar a geometria relevante.",
+    "aliases": [
+      "assar",
+      "pré-calcular",
+      "pre-calcular",
+      "baked"
+    ],
+    "lesson": "3d-pro-global-illumination",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_lightmapgi.html"
+  },
+  {
+    "id": "conceito-112",
+    "term": "A* (A estrela)",
+    "category": "Navegação",
+    "definition": "Algoritmo que busca um caminho num grafo usando custos e uma estimativa até o destino.",
+    "detail": "A qualidade da solução depende da modelagem e da heurística; uma rota não move o personagem sozinha.",
+    "example": "Busque uma sequência de células atravessáveis.",
+    "aliases": [
+      "astar",
+      "a estrela",
+      "caminho",
+      "grafo",
+      "pathfinding"
+    ],
+    "lesson": "2d-adv-ai-navigation",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_astargrid2d.html"
+  },
+  {
+    "id": "conceito-113",
+    "term": "Navmesh",
+    "category": "Navegação",
+    "definition": "Malha que descreve regiões navegáveis para consultas de caminho.",
+    "detail": "Não é a malha visual nem a colisão física; raio do agente e bake influenciam as rotas.",
+    "example": "Prepare uma região navegável para o corredor.",
+    "aliases": [
+      "malha de navegação",
+      "malha de navegacao",
+      "navigationmesh"
+    ],
+    "lesson": "3d-adv-navmesh-ai",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_navigationmesh.html"
+  },
+  {
+    "id": "conceito-114",
+    "term": "NavigationAgent",
+    "category": "Navegação",
+    "definition": "Nó que auxilia o acompanhamento de um caminho e pode calcular desvio local.",
+    "detail": "O controlador ainda aplica movimento e colisões; sincronização e tolerâncias precisam de configuração.",
+    "example": "Use o próximo ponto para orientar a velocidade do personagem.",
+    "aliases": [
+      "agente",
+      "navigationagent2d",
+      "navigationagent3d"
+    ],
+    "lesson": "2d-adv-ai-navigation",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_navigationagent3d.html"
+  },
+  {
+    "id": "conceito-115",
+    "term": "Avoidance",
+    "category": "Navegação",
+    "definition": "Cálculo de ajuste local de velocidade para reduzir conflitos entre agentes ou obstáculos configurados.",
+    "detail": "Não garante resolver todo impasse nem substitui a colisão física do personagem.",
+    "example": "Use a velocidade segura retornada no controlador.",
+    "aliases": [
+      "rvo",
+      "desvio",
+      "evitação",
+      "evitacao",
+      "velocidade segura"
+    ],
+    "lesson": "2d-adv-ai-navigation",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_navigationagent3d.html"
+  },
+  {
+    "id": "conceito-116",
+    "term": "NavigationLink",
+    "category": "Navegação",
+    "definition": "Ligação configurada entre pontos para permitir uma conexão de navegação.",
+    "detail": "A rota pode conter o link; a animação ou travessia física precisa de política no controlador.",
+    "example": "Um salto entre plataformas exige executar a travessia planejada.",
+    "aliases": [
+      "link",
+      "travessia",
+      "navigationlink3d",
+      "salto"
+    ],
+    "lesson": "3d-adv-navmesh-ai",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_navigationlink3d.html"
+  },
+  {
+    "id": "conceito-117",
+    "term": "Profiler",
+    "category": "Depuração e otimização",
+    "definition": "Ferramenta para medir onde tempo e recursos são consumidos durante uma execução.",
+    "detail": "Contagens de objetos ou triângulos isoladas não comprovam ganho de FPS.",
+    "example": "Meça antes e depois com a mesma cena e condições.",
+    "aliases": [
+      "profiler",
+      "perfil",
+      "medir",
+      "desempenho",
+      "benchmark"
+    ],
+    "lesson": "2d-pro-optimization-servers",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/debug/the_profiler.html"
+  },
+  {
+    "id": "conceito-118",
+    "term": "Object pooling",
+    "category": "Depuração e otimização",
+    "definition": "Reutilização de instâncias em vez de criar e destruir todas em cada uso.",
+    "detail": "Estado, conexões e recursos precisam ser reiniciados corretamente; o ganho deve ser medido.",
+    "example": "Reative um projétil do pool com estado limpo.",
+    "aliases": [
+      "pool",
+      "pooling",
+      "piscina de objetos",
+      "reciclagem"
+    ],
+    "lesson": "2d-pro-optimization-servers",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/performance/general_optimization.html"
+  },
+  {
+    "id": "conceito-119",
+    "term": "MultiMesh",
+    "category": "Depuração e otimização",
+    "definition": "Recurso para desenhar muitas instâncias de uma malha com dados por instância.",
+    "detail": "Agrupamento pode reduzir trabalho de envio e também limitar o descarte individual; não promete um número fixo de draw calls.",
+    "example": "Compare um grupo global e grupos menores da mesma geometria.",
+    "aliases": [
+      "multimesh",
+      "lote",
+      "instancing",
+      "draw call"
+    ],
+    "lesson": "2d-pro-optimization-servers",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_multimesh.html"
+  },
+  {
+    "id": "conceito-120",
+    "term": "Frustum culling",
+    "category": "Depuração e otimização",
+    "definition": "Descarte de objetos fora do volume de visão da câmera.",
+    "detail": "Estar dentro desse volume não implica estar visível: outra geometria pode ocultar o objeto.",
+    "example": "Uma peça atrás da câmera pode ficar fora do frustum.",
+    "aliases": [
+      "frustum",
+      "culling",
+      "câmera",
+      "camera",
+      "visibilidade"
+    ],
+    "lesson": "3d-pro-optimization-culling-lod",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/occlusion_culling.html"
+  },
+  {
+    "id": "conceito-121",
+    "term": "Occlusion culling",
+    "category": "Depuração e otimização",
+    "definition": "Descarte de objetos considerados ocultos por geometria preparada para o teste.",
+    "detail": "Limites, oclusores e agrupamento influenciam o resultado e seu custo.",
+    "example": "Um OccluderInstance3D pode representar uma parede oclusora.",
+    "aliases": [
+      "oclusão",
+      "oclusao",
+      "occluder",
+      "occlusion",
+      "culling"
+    ],
+    "lesson": "3d-pro-optimization-culling-lod",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_occluderinstance3d.html"
+  },
+  {
+    "id": "conceito-122",
+    "term": "LOD",
+    "category": "Depuração e otimização",
+    "definition": "Seleção de níveis de detalhe da geometria conforme o critério adotado.",
+    "detail": "Mesh LOD automático da Godot considera erro projetado em tela; não se resume a uma distância fixa universal.",
+    "example": "Uma malha pode usar uma versão menos detalhada quando ocupa menos tela.",
+    "aliases": [
+      "level of detail",
+      "detalhe",
+      "lod",
+      "polígonos",
+      "poligonos"
+    ],
+    "lesson": "3d-pro-optimization-culling-lod",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/mesh_lod.html"
+  },
+  {
+    "id": "conceito-123",
+    "term": "HLOD e visibility range",
+    "category": "Depuração e otimização",
+    "definition": "Estratégia que alterna representações de grupos em faixas de visibilidade.",
+    "detail": "É diferente da troca de detalhe interna de uma malha; transições e limites devem ser testados.",
+    "example": "Troque um conjunto distante por uma representação simplificada.",
+    "aliases": [
+      "hlod",
+      "alcance",
+      "visibility range",
+      "agrupamento"
+    ],
+    "lesson": "3d-pro-optimization-culling-lod",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/3d/visibility_ranges.html"
+  },
+  {
+    "id": "conceito-124",
+    "term": "Carregamento em segundo plano",
+    "category": "Arquitetura",
+    "definition": "Solicitação de recursos que pode prosseguir enquanto a aplicação mantém outras tarefas.",
+    "detail": "Consulte status e erros antes de obter/usar o recurso; trocar cenas e descartar solicitações exige política.",
+    "example": "Mostre um estado de carregamento até o recurso ficar disponível.",
+    "aliases": [
+      "thread",
+      "threaded",
+      "assíncrono",
+      "assincrono",
+      "loading"
+    ],
+    "lesson": "2d-pro-architecture-async",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_resourceloader.html"
+  },
+  {
+    "id": "conceito-125",
+    "term": "AABB",
+    "category": "Matemática",
+    "definition": "Caixa alinhada aos eixos usada para representar um limite espacial.",
+    "detail": "O espaço de coordenadas e a transformação importam; uma caixa maior pode reduzir a precisão do descarte.",
+    "example": "Inspecione o limite de um grupo de objetos.",
+    "aliases": [
+      "bounding box",
+      "caixa",
+      "limites",
+      "aabb"
+    ],
+    "lesson": "3d-pro-optimization-culling-lod",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_aabb.html"
+  },
+  {
+    "id": "conceito-126",
+    "term": "ENet",
+    "category": "Rede e ferramentas",
+    "definition": "Tecnologia usada por um peer de rede para comunicação em tempo real.",
+    "detail": "Criar host/cliente pode falhar; portas, conectividade e reconexão precisam ser tratadas.",
+    "example": "Use ENetMultiplayerPeer para abrir uma sessão de teste.",
+    "aliases": [
+      "enet",
+      "host",
+      "cliente",
+      "servidor",
+      "porta"
+    ],
+    "lesson": "2d-pro-multiplayer-tools",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_enetmultiplayerpeer.html"
+  },
+  {
+    "id": "conceito-127",
+    "term": "RPC",
+    "category": "Rede e ferramentas",
+    "definition": "Chamada configurada para executar uma função em peers de rede.",
+    "detail": "Permissão, destino e dados recebidos precisam de validação; a anotação não torna um pedido confiável.",
+    "example": "O cliente solicita uma ação e o servidor valida.",
+    "aliases": [
+      "rpc",
+      "remote procedure call",
+      "pedido",
+      "multiplayer"
+    ],
+    "lesson": "2d-pro-multiplayer-tools",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/networking/high_level_multiplayer.html"
+  },
+  {
+    "id": "conceito-128",
+    "term": "Autoridade multiplayer",
+    "category": "Rede e ferramentas",
+    "definition": "Responsabilidade atribuída a um peer para controlar um nó ou regra replicada.",
+    "detail": "Defina quem decide o estado e quais pedidos aceita; identidade do cliente não substitui validação.",
+    "example": "O servidor decide se um disparo respeita o cooldown.",
+    "aliases": [
+      "authority",
+      "autoridade",
+      "servidor",
+      "validação",
+      "validacao"
+    ],
+    "lesson": "2d-pro-multiplayer-tools",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/networking/high_level_multiplayer.html"
+  },
+  {
+    "id": "conceito-129",
+    "term": "Replicação",
+    "category": "Rede e ferramentas",
+    "definition": "Propagação de criação, remoção ou estado entre participantes da sessão.",
+    "detail": "Frequência, propriedades e autoridade precisam ser configuradas; suavização visual é outra camada.",
+    "example": "Sincronize posição sem confundir snapshot com previsão local.",
+    "aliases": [
+      "replica",
+      "replicação",
+      "replicacao",
+      "synchronizer",
+      "spawner"
+    ],
+    "lesson": "2d-pro-multiplayer-tools",
+    "source": "https://docs.godotengine.org/en/4.5/classes/class_multiplayersynchronizer.html"
+  },
+  {
+    "id": "conceito-130",
+    "term": "Breakpoint",
+    "category": "Depuração e otimização",
+    "definition": "Ponto em que o debugger suspende a execução para permitir inspeção.",
+    "detail": "Observe o estado antes e depois da linha; um programa suspenso pode parecer travado.",
+    "example": "Pare antes da soma duplicada e observe total passar de 1 para 2.",
+    "aliases": [
+      "depurar",
+      "debugger",
+      "breakpoint",
+      "inspeção",
+      "inspecao"
+    ],
+    "lesson": "2d-ponte-depuracao",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/scripting/debug/overview_of_debugging_tools.html"
+  },
+  {
+    "id": "conceito-131",
+    "term": "Commit",
+    "category": "Rede e ferramentas",
+    "definition": "Registro de uma versão dos arquivos preparados no repositório Git.",
+    "detail": "Um commit local não publica o projeto e não comprova que os testes passaram.",
+    "example": "Revise git diff --cached antes de criar o commit.",
+    "aliases": [
+      "git",
+      "commit",
+      "versão",
+      "versao",
+      "versionamento"
+    ],
+    "lesson": "2d-ponte-depuracao",
+    "source": "https://git-scm.com/docs/git-commit"
+  },
+  {
+    "id": "conceito-132",
+    "term": "Diff e restore",
+    "category": "Rede e ferramentas",
+    "definition": "Diff mostra diferenças; restore pode recuperar arquivos de uma versão escolhida.",
+    "detail": "restore pode descartar edições não commitadas. Delimite o arquivo e preserve o que deseja guardar.",
+    "example": "Pratique git restore apenas em exercicio.txt da cópia de ensaio.",
+    "aliases": [
+      "git",
+      "diff",
+      "restore",
+      "recuperar",
+      "reverter"
+    ],
+    "lesson": "2d-ponte-depuracao",
+    "source": "https://git-scm.com/docs/git-restore"
+  },
+  {
+    "id": "conceito-133",
+    "term": ".gitignore",
+    "category": "Rede e ferramentas",
+    "definition": "Arquivo com padrões para ignorar arquivos não rastreados pelo Git.",
+    "detail": "Ele não retira automaticamente arquivos já rastreados. Na Godot, cache gerado difere dos recursos-fonte.",
+    "example": "Ignore .godot e a pasta build do exercício.",
+    "aliases": [
+      "gitignore",
+      "git",
+      "cache",
+      "ignorar"
+    ],
+    "lesson": "2d-ponte-depuracao",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/best_practices/version_control_systems.html"
+  },
+  {
+    "id": "conceito-134",
+    "term": "Preset de exportação",
+    "category": "Rede e ferramentas",
+    "definition": "Configuração de destino, recursos e opções usada ao exportar o projeto.",
+    "detail": "A cena principal e os recursos necessários precisam entrar na entrega.",
+    "example": "Configure Windows Desktop para gerar a build local.",
+    "aliases": [
+      "preset",
+      "exportação",
+      "exportacao",
+      "export_presets.cfg"
+    ],
+    "lesson": "2d-projeto-integrador",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/export/exporting_projects.html"
+  },
+  {
+    "id": "conceito-135",
+    "term": "Export templates",
+    "category": "Rede e ferramentas",
+    "definition": "Runtimes usados pela Godot para gerar executáveis do destino.",
+    "detail": "Use templates compatíveis com a versão do editor; instalar o editor não garante que estejam disponíveis.",
+    "example": "Instale os templates correspondentes antes de exportar.",
+    "aliases": [
+      "template",
+      "exportar",
+      "executável",
+      "executavel"
+    ],
+    "lesson": "2d-projeto-integrador",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/export/exporting_projects.html"
+  },
+  {
+    "id": "conceito-136",
+    "term": "Build",
+    "category": "Rede e ferramentas",
+    "definition": "Entrega executável preparada para um destino, com seus recursos necessários.",
+    "detail": "ZIP de fontes e PCK isolado não comprovam uma aplicação exportada funcionando.",
+    "example": "Abra o executável e seu PCK fora do editor.",
+    "aliases": [
+      "build",
+      "release",
+      "publicação",
+      "publicacao",
+      "distribuição",
+      "distribuicao"
+    ],
+    "lesson": "2d-projeto-integrador",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/export/exporting_for_windows.html"
+  },
+  {
+    "id": "conceito-137",
+    "term": "@tool",
+    "category": "Rede e ferramentas",
+    "definition": "Anotação que permite a execução de um script dentro do editor.",
+    "detail": "Considere o contexto editor/runtime e preserve a edição; alterações podem afetar o projeto aberto.",
+    "example": "Um gerador pode atualizar uma prévia no editor.",
+    "aliases": [
+      "tool",
+      "ferramenta",
+      "editor",
+      "Engine.is_editor_hint"
+    ],
+    "lesson": "2d-pro-multiplayer-tools",
+    "source": "https://docs.godotengine.org/en/4.5/tutorials/plugins/running_code_in_the_editor.html"
   }
 ];

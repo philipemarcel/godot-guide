@@ -621,7 +621,7 @@
                   <span>${escapeHtml(lesson.simulator.title)}</span>
                 </div>
               </div>
-              <button class="brass-btn secondary simulator-pause" id="btn-sim-pause" aria-pressed="false" ${["vectors_2d", "layers_masks", "resource_forge"].includes(lesson.simulator.type) ? 'hidden style="display:none"' : ''}>Pausar simulação</button>
+              <button class="brass-btn secondary simulator-pause" id="btn-sim-pause" aria-pressed="false" ${["vectors_2d", "layers_masks", "resource_forge", "curriculum_data", "curriculum_debug", "curriculum_audio", "curriculum_access", "curriculum_capstone"].includes(lesson.simulator.type) ? 'hidden style="display:none"' : ''}>Pausar simulação</button>
               <p id="sim-description" style="color: var(--text-sand); margin-bottom: 14px; font-size: 0.98rem;">
                 ${formatInline(lesson.simulator.description)}
               </p>
@@ -841,7 +841,7 @@
 
   function renderLessonSources(lesson) {
     const t=lesson.teaching;if(!t)return "";
-    return `<section class="lesson-takeaway"><h2>O que levar para a próxima aula</h2>${renderParagraphs(t.summary)}<p class="study-note">${formatInline(t.next)}</p><details class="lesson-sources"><summary>Documentação usada nesta revisão</summary><ul>${t.sources.filter(s=>/^https:\/\/docs\.godotengine\.org\//.test(s.url)).map(s=>`<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.label)}</a></li>`).join("")}</ul></details></section>`;
+    return `<section class="lesson-takeaway"><h2>O que levar para a próxima aula</h2>${renderParagraphs(t.summary)}<p class="study-note">${formatInline(t.next)}</p><details class="lesson-sources"><summary>Documentação usada nesta revisão</summary><ul>${t.sources.filter(s=>/^https:\/\/(docs\.godotengine\.org|git-scm\.com)\//.test(s.url)).map(s=>`<li><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.label)}</a></li>`).join("")}</ul></details></section>`;
   }
 
   function renderApproachContent(ap) {
@@ -945,40 +945,61 @@
   }
 
   function renderGlossaryView(stage) {
+    const entries = [...window.GODOT_FEYNMAN_GLOSSARY].sort((a, b) => a.term.localeCompare(b.term, "pt-BR"));
+    const categories = [...new Set(entries.map(g => g.category))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const lessons = new Map(getAllLessons().map(l => [l.id, l]));
     stage.innerHTML = `
-      <article class="steampunk-plate">
+      <article class="steampunk-plate glossary-view">
         <header class="lesson-hero">
-          <div class="lesson-badges">
-            <span class="badge-pill badge-level">DICIONÁRIO DE CONCEITOS</span>
-          </div>
+          <div class="lesson-badges"><span class="badge-pill badge-level">DICIONÁRIO DE CONCEITOS</span></div>
           <h1 class="lesson-title">Dicionário de conceitos da Godot</h1>
-          <p class="lesson-subtitle">
-            Consulte rapidamente qualquer termo técnico de programação de jogos traduzido para exemplos simples do dia a dia.
-          </p>
+          <p class="lesson-subtitle">${entries.length} conceitos das trilhas 2D, 3D e aulas extras. Consulte definições, exemplos e cuidados de uso, ou abra a aula para praticar.</p>
         </header>
         <div class="lesson-body">
-          <div class="reference-search"><label for="reference-query">Buscar no dicionário</label><input type="search" id="reference-query" placeholder="Ex.: sinal, vetor, cena…" autocomplete="off"><span id="reference-count" role="status" aria-live="polite"></span></div>
+          <div class="reference-search glossary-filters">
+            <div class="glossary-search-field"><label for="reference-query">Buscar conceito ou sinônimo</label><input type="search" id="reference-query" placeholder="Ex.: normalização, sinal, iluminação global…" autocomplete="off"></div>
+            <div class="glossary-category-field"><label for="glossary-category">Categoria</label><select id="glossary-category"><option value="">Todas as categorias</option>${categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
+            <button type="button" id="glossary-clear" class="steampunk-btn" hidden>Limpar filtros</button>
+            <span id="reference-count" role="status" aria-live="polite" aria-atomic="true"></span>
+          </div>
+          <p id="glossary-empty" class="empty-state" hidden>Nenhum conceito encontrado. Tente um termo mais curto, outra categoria ou limpe os filtros.</p>
           <div class="glossary-grid">
-            ${window.GODOT_FEYNMAN_GLOSSARY.map(
-              (g) => `
-              <div class="glossary-card">
-                <span class="badge-pill badge-node" style="align-self:flex-start;">${escapeHtml(g.category)}</span>
-                <h3>${escapeHtml(g.term)}</h3>
-                <div class="glossary-feynman">
-                  
-                  ${formatInline(g.feynman)}
+            ${entries.map(g => `
+              <article class="glossary-card" aria-labelledby="${escapeHtml(g.id)}">
+                <span class="badge-pill badge-node">${escapeHtml(g.category)}</span>
+                <h2 id="${escapeHtml(g.id)}">${escapeHtml(g.term)}</h2>
+                <div class="glossary-definition">${formatInline(g.definition)}</div>
+                <p><strong>Na prática e cuidados:</strong> ${formatInline(g.detail)}</p>
+                <p class="glossary-example"><strong>Exemplo:</strong> ${formatInline(g.example)}</p>
+                <div class="glossary-links">
+                  ${lessons.has(g.lesson) ? `<button type="button" class="glossary-lesson-link" data-glossary-lesson="${escapeHtml(g.lesson)}">Estudar na aula ${escapeHtml(lessons.get(g.lesson).title)}</button>` : ""}
+                  ${/^https:\/\/(docs\.godotengine\.org|git-scm\.com)\//.test(g.source) ? `<a href="${escapeHtml(g.source)}" target="_blank" rel="noopener noreferrer">Documentação oficial <span class="sr-only">sobre ${escapeHtml(g.term)} (abre em nova aba)</span><span aria-hidden="true">↗</span></a>` : ""}
                 </div>
-                <p style="font-size:0.92rem; color:var(--text-sand); margin-top:4px;">
-                  <strong>Na Engine:</strong> ${formatInline(g.technical)}
-                </p>
-              </div>
-            `
-            ).join("")}
+              </article>`).join("")}
           </div>
         </div>
-      </article>
-    `;
-    bindReferenceSearch(stage, ".glossary-card", "termos");
+      </article>`;
+    const input = stage.querySelector("#reference-query");
+    const category = stage.querySelector("#glossary-category");
+    const clear = stage.querySelector("#glossary-clear");
+    const cards = [...stage.querySelectorAll(".glossary-card")];
+    const searchable = entries.map(g => normalize([g.term, g.category, g.definition, g.detail, g.example, ...g.aliases].join(" ")));
+    const filter = () => {
+      const words = normalize(input.value).trim().split(/\s+/).filter(Boolean);
+      let count = 0;
+      cards.forEach((card, i) => {
+        card.hidden = (category.value !== "" && entries[i].category !== category.value) || !words.every(word => searchable[i].includes(word));
+        if (!card.hidden) count++;
+      });
+      stage.querySelector("#reference-count").textContent = `${count} de ${entries.length} conceitos`;
+      stage.querySelector("#glossary-empty").hidden = count > 0;
+      clear.hidden = !input.value && !category.value;
+    };
+    input.addEventListener("input", filter);
+    category.addEventListener("change", filter);
+    clear.addEventListener("click", () => { input.value = ""; category.value = ""; filter(); input.focus(); });
+    stage.querySelectorAll("[data-glossary-lesson]").forEach(button => button.addEventListener("click", () => selectLesson(button.dataset.glossaryLesson)));
+    filter();
   }
 
   function bindReferenceSearch(stage, selector, noun) {
