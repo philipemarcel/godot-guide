@@ -182,7 +182,7 @@
     document.getElementById("map-track-context").textContent = (mapArea === "3d" ? "Forja 3D" : "Oficina 2D") + " · " + (state.level === "all" ? "Todos os níveis" : LEVEL_ORDER.find(item => item.key === state.level).name);
     const lesson = getAllLessons().find(item => item.id === state.activeLessonId);
     const context = document.getElementById("dock-context");
-    context.textContent = reference ? (state.area === "compare" ? "Tradutor 2D ↔ 3D" : "Dicionário de conceitos") : lesson?.title || "Bancada de estudos";
+    context.textContent = reference ? (state.area === "compare" ? "Tradutor 2D → 3D" : "Dicionário de conceitos") : lesson?.title || "Bancada de estudos";
     context.title = context.textContent;
   }
 
@@ -899,49 +899,66 @@
   }
 
   function renderComparisonView(stage) {
+    const entries = window.GODOT_2D_3D_COMPARE;
+    const categories = [...new Set(entries.map(r => r.category))].sort((a, b) => a.localeCompare(b, "pt-BR"));
     stage.innerHTML = `
-      <article class="steampunk-plate">
+      <article class="steampunk-plate comparison-view">
         <header class="lesson-hero">
-          <div class="lesson-badges">
-            <span class="badge-pill badge-level">FERRAMENTA DE CONVERSÃO</span>
-          </div>
-          <h1 class="lesson-title">Tradutor Mecânico 2D &harr; 3D da Godot</h1>
-          <p class="lesson-subtitle">
-            Já sabe criar algo em 2D e quer passar para 3D (ou vice-versa)? Veja a tabela de equivalência direta de Nós, Eixos e Funções!
-          </p>
+          <div class="lesson-badges"><span class="badge-pill badge-level">GUIA DE CORRESPONDÊNCIAS · GODOT 4.5</span></div>
+          <h1 class="lesson-title">Tradutor 2D → 3D da Godot</h1>
+          <p class="lesson-subtitle">${entries.length} comparações para levar o que você aprendeu em 2D para um projeto 3D: o que reaproveitar, o que adaptar e o que conferir.</p>
         </header>
         <div class="lesson-body">
-          <div class="reference-search"><label for="reference-query">Buscar equivalência</label><input type="search" id="reference-query" placeholder="Ex.: câmera, física, Node2D…" autocomplete="off"><span id="reference-count" role="status" aria-live="polite"></span></div>
-          <div class="comparison-table-wrap" role="region" aria-label="Tabela de equivalências 2D e 3D" tabindex="0">
-            <table class="steampunk-table"><caption class="sr-only">Equivalências de conceitos e nós entre Godot 2D e 3D</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Funcionalidade</th>
-                  <th scope="col">Nó / Conceito em 2D</th>
-                  <th scope="col">Nó / Conceito em 3D</th>
-                  <th scope="col">Diferença Principal</th>
-                  <th scope="col">Explicação</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${window.GODOT_2D_3D_COMPARE.map(
-                  (row) => `
-                  <tr>
-                    <td><strong>${escapeHtml(row.category)}</strong></td>
-                    <td><code class="godot-node-tag">${escapeHtml(row.node2d)}</code></td>
-                    <td><code class="godot-node-tag">${escapeHtml(row.node3d)}</code></td>
-                    <td>${formatInline(row.difference)}</td>
-                    <td><em>${formatInline(row.feynmanTip)}</em></td>
-                  </tr>
-                `
-                ).join("")}
-              </tbody>
-            </table>
+          <details class="comparison-intro">
+            <summary>Como usar e interpretar as correspondências</summary>
+            <p><strong>Comece pela intenção:</strong> busque uma tarefa ou nó, compare os dois lados e faça o teste sugerido. Este guia compara conceitos; ele não converte cenas, modelos ou scripts automaticamente.</p>
+            <p><strong>Leia o tipo de correspondência:</strong> <em>API semelhante</em> mantém parte da interface; <em>Exige adaptação</em> muda o fluxo ou a representação; <em>Compartilhado</em> pode manter a mesma base. Nenhum rótulo dispensa testes.</p>
+          </details>
+          <div class="reference-search glossary-filters comparison-filters">
+            <div class="glossary-search-field"><label for="reference-query">Buscar tarefa, nó ou conceito</label><input type="search" id="reference-query" placeholder="Ex.: câmera, RayCast, salto, HUD…" autocomplete="off"></div>
+            <div class="glossary-category-field"><label for="comparison-category">Categoria</label><select id="comparison-category"><option value="">Todas as categorias</option>${categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</select></div>
+            <button type="button" class="comparison-clear" id="comparison-clear" hidden>Limpar filtros</button>
+            <span id="reference-count" role="status" aria-live="polite" aria-atomic="true"></span>
           </div>
+          <p class="empty-state" id="comparison-empty" hidden>Nenhuma comparação encontrada. Tente outro termo, mude a categoria ou limpe os filtros.</p>
+          <div class="comparison-grid">
+            ${entries.map(row => `
+              <article class="comparison-card" aria-labelledby="${escapeHtml(row.id)}">
+                <div class="comparison-badges"><span class="badge-pill badge-node">${escapeHtml(row.category)}</span><span class="comparison-relation">${escapeHtml(row.relation)}</span></div>
+                <h2 id="${escapeHtml(row.id)}">${escapeHtml(row.title)}</h2>
+                <dl class="comparison-pair">
+                  <div><dt>Em 2D</dt><dd>${escapeHtml(row.node2d)}</dd></div>
+                  <div><dt>No projeto 3D</dt><dd>${escapeHtml(row.node3d)}</dd></div>
+                </dl>
+                <p class="comparison-difference">${formatInline(row.difference)}</p>
+                <div class="comparison-example"><strong>Ao migrar:</strong> ${formatInline(row.example)}</div>
+                <p class="comparison-check"><strong>Confira:</strong> ${formatInline(row.check)}</p>
+                <details class="comparison-sources"><summary>Consultar documentação oficial</summary><ul>${row.sources.filter(url => /^https:\/\/docs\.godotengine\.org\//.test(url)).map(url => `<li><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(decodeURIComponent(url.split("/").pop().replace(/\.html$/, "").replace(/^class_/, "")))} <span class="sr-only">(abre em nova aba)</span><span aria-hidden="true">↗</span></a></li>`).join("")}</ul></details>
+              </article>`).join("")}
+          </div>
+          <p class="comparison-version">Referência: documentação Godot 4.5. Ao usar outra versão, confira as APIs e os recursos disponíveis no seu renderizador.</p>
         </div>
-      </article>
-    `;
-    bindReferenceSearch(stage, ".steampunk-table tbody tr", "equivalências");
+      </article>`;
+    const input = stage.querySelector("#reference-query");
+    const category = stage.querySelector("#comparison-category");
+    const clear = stage.querySelector("#comparison-clear");
+    const cards = [...stage.querySelectorAll(".comparison-card")];
+    const searchable = entries.map(r => normalize([r.title, r.category, r.node2d, r.node3d, r.relation, r.difference, r.example, r.check, ...r.aliases].join(" ")));
+    const filter = () => {
+      const words = normalize(input.value).trim().split(/\s+/).filter(Boolean);
+      let count = 0;
+      cards.forEach((card, i) => {
+        card.hidden = (category.value !== "" && entries[i].category !== category.value) || !words.every(word => searchable[i].includes(word));
+        if (!card.hidden) count++;
+      });
+      stage.querySelector("#reference-count").textContent = `${count} de ${entries.length} comparações`;
+      stage.querySelector("#comparison-empty").hidden = count > 0;
+      clear.hidden = !input.value && !category.value;
+    };
+    input.addEventListener("input", filter);
+    category.addEventListener("change", filter);
+    clear.addEventListener("click", () => { input.value = ""; category.value = ""; filter(); input.focus(); });
+    filter();
   }
 
   function renderGlossaryView(stage) {

@@ -20,95 +20,574 @@ window.STEAMPUNK_ICONS = {
 
 window.GODOT_2D_3D_COMPARE = [
   {
-    category: "Base & Espaço",
-    node2d: "Node2D",
-    node3d: "Node3D",
-    difference: "No 2D a posição é `Vector2(x, y)` em pixels (com +Y apontando para baixo). No 3D a posição é `Vector3(x, y, z)` em metros (com +Y apontando para o céu e -Z para a frente).",
-    feynmanTip: "2D é desenhar numa folha de caderno pautado; 3D é caminhar dentro de uma sala medida em metros."
+    "id": "comparacao-1",
+    "title": "Nós e unidades",
+    "category": "Espaço e movimento",
+    "node2d": "Node2D · Vector2",
+    "node3d": "Node3D · Vector3",
+    "relation": "Exige adaptação",
+    "difference": "A posição ganha um eixo. Em 2D é comum trabalhar em pixels; em 3D a convenção é 1 unidade por metro, e a escala do projeto deve ser consistente. Não existe conversão universal de pixels para metros.",
+    "example": "Se uma porta desenhada com 128 px representa 2 m, use essa relação como decisão de escala do projeto, não como regra da engine.",
+    "check": "Posição local/global, escala dos pais e dimensões das colisões precisam concordar.",
+    "aliases": [
+      "pixel",
+      "metro",
+      "position",
+      "unidades"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_node2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
+    ]
   },
   {
-    category: "Vetor de Movimento",
-    node2d: "Vector2(x, y)",
-    node3d: "Vector3(x, y, z)",
-    difference: "`Vector2.UP` é `(0, -1)`. Já `Vector3.UP` é `(0, 1, 0)` e `Vector3.FORWARD` é `(0, 0, -1)`.",
-    feynmanTip: "No 2D pular diminui o Y; no 3D pular aumenta o Y!"
+    "id": "comparacao-2",
+    "title": "Eixos e direções",
+    "category": "Espaço e movimento",
+    "node2d": "Vector2.UP · rotação 2D",
+    "node3d": "Vector3.UP · Vector3.FORWARD",
+    "relation": "Exige adaptação",
+    "difference": "Na convenção 2D, cima é (0, -1). Em 3D, cima é (0, 1, 0) e a constante FORWARD é (0, 0, -1). A frente visual de um modelo importado pode precisar de ajuste.",
+    "example": "Um salto pode usar Y negativo em 2D e Y positivo em 3D quando o controlador adota essas convenções.",
+    "check": "Não copie o sinal da gravidade ou o eixo de frente sem conferir o referencial.",
+    "aliases": [
+      "cima",
+      "frente",
+      "up",
+      "forward",
+      "gravidade"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_vector2.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_vector3.html"
+    ]
   },
   {
-    category: "Personagem Controlável",
-    node2d: "CharacterBody2D",
-    node3d: "CharacterBody3D",
-    difference: "Ambos usam `velocity` e `move_and_slide()`. No 2D velocidades típicas são `200 a 400 px/s`; no 3D são `4.0 a 8.0 m/s`.",
-    feynmanTip: "O mesmo comando `move_and_slide()` funciona igualzinho nos dois mundos!"
+    "id": "comparacao-3",
+    "title": "Movimento visto de cima",
+    "category": "Espaço e movimento",
+    "node2d": "Vector2 de entrada no plano XY",
+    "node3d": "Vector3 de movimento no plano XZ",
+    "relation": "Exige adaptação",
+    "difference": "Para um personagem sobre o chão 3D, normalmente Y fica reservado à altura. O segundo componente da entrada pode alimentar Z. Movimento relativo à câmera exige ainda orientar a direção e projetá-la no plano do chão.",
+    "example": "Com uma entrada `u` do tipo Vector2, `Vector3(u.x, 0.0, u.y)` mapeia cima (0, -1) para -Z. É apenas a direção, ainda sem gravidade ou colisão.",
+    "check": "Normalize ou limite o comprimento conforme a intenção e aplique movimento pelo controlador físico.",
+    "aliases": [
+      "wasd",
+      "setas",
+      "input",
+      "diagonal",
+      "top down"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_input.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_vector3.html"
+    ]
   },
   {
-    category: "Física Realista (Gravidade/Chute)",
-    node2d: "RigidBody2D",
-    node3d: "RigidBody3D",
-    difference: "No 2D gira apenas em 1 eixo (`torque`); no 3D gira em 3 eixos (`Vector3` de torque) e possui massa e centro de gravidade tridimensionais.",
-    feynmanTip: "A bola de boliche que rola e quica sozinha quando recebe `apply_central_impulse()`."
+    "id": "comparacao-4",
+    "title": "Transformação local e global",
+    "category": "Espaço e movimento",
+    "node2d": "Transform2D · rotation",
+    "node3d": "Transform3D · Basis",
+    "relation": "Exige adaptação",
+    "difference": "No 2D há um ângulo de rotação no plano; no 3D a orientação envolve três eixos e sua composição importa. Ambos têm transformações relativas ao pai; rotação e escala impedem tratar toda conversão como soma de posições.",
+    "example": "Use `to_local()` e `to_global()` para converter pontos no referencial correto; em 3D os pontos são Vector3.",
+    "check": "Não troque apenas Vector2 por Vector3 num cálculo que pressupõe um único ângulo.",
+    "aliases": [
+      "transform",
+      "basis",
+      "local",
+      "global",
+      "rotate"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_node2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_node3d.html"
+    ]
   },
   {
-    category: "Chão e Paredes Fixas",
-    node2d: "StaticBody2D",
-    node3d: "StaticBody3D",
-    difference: "Idênticos em propósito: bloqueiam a passagem sem gastar processamento de movimento.",
-    feynmanTip: "As vigas de ferro e o piso da fábrica que nunca saem do lugar."
+    "id": "comparacao-5",
+    "title": "Personagem controlado",
+    "category": "Física",
+    "node2d": "CharacterBody2D",
+    "node3d": "CharacterBody3D",
+    "relation": "API semelhante",
+    "difference": "Ambos oferecem `velocity` e `move_and_slide()`, mas velocidade passa de Vector2 a Vector3. Gravidade e salto dependem de código; detecção de chão, rampas e orientação precisam de configuração.",
+    "example": "No 3D, mantenha o movimento horizontal em XZ, atualize a velocidade vertical e chame `move_and_slide()` no passo de física.",
+    "check": "velocity é velocidade por segundo. Não a multiplique por delta apenas para chamar move_and_slide; ajuste também up_direction e limites de rampa.",
+    "aliases": [
+      "personagem",
+      "character",
+      "cinemático",
+      "velocity",
+      "salto"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_characterbody2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_characterbody3d.html"
+    ]
   },
   {
-    category: "Sensores e Gatilhos",
-    node2d: "Area2D",
-    node3d: "Area3D",
-    difference: "Ambos emitem `body_entered`, `body_exited`, `area_entered` e podem alterar a gravidade local.",
-    feynmanTip: "O tapete sensor de porta de shopping que avisa quando alguém pisa nele."
+    "id": "comparacao-6",
+    "title": "Corpo simulado por física",
+    "category": "Física",
+    "node2d": "RigidBody2D",
+    "node3d": "RigidBody3D",
+    "relation": "API semelhante",
+    "difference": "O motor calcula o movimento nos dois casos. Torque e velocidade angular são escalares em 2D e vetores em 3D. Massa, formas, amortecimento e contatos continuam influenciando o resultado.",
+    "example": "Um impulso de lançamento pode ser aplicado por `apply_central_impulse()`; seu argumento muda de Vector2 para Vector3.",
+    "check": "Aplique o impulso pontual uma vez. Alterar a transformação continuamente pode competir com a simulação.",
+    "aliases": [
+      "rigidbody",
+      "impulso",
+      "torque",
+      "massa",
+      "force"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_rigidbody2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_rigidbody3d.html"
+    ]
   },
   {
-    category: "Forma de Colisão",
-    node2d: "CollisionShape2D",
-    node3d: "CollisionShape3D",
-    difference: "Em 2D usa `RectangleShape2D`, `CircleShape2D`, `CapsuleShape2D`. Em 3D usa `BoxShape3D`, `SphereShape3D`, `CapsuleShape3D`, `ConcavePolygonShape3D`.",
-    feynmanTip: "O capacete invisível que dá corpo sólido ao objeto."
+    "id": "comparacao-7",
+    "title": "Pisos e paredes",
+    "category": "Física",
+    "node2d": "StaticBody2D",
+    "node3d": "StaticBody3D",
+    "relation": "API semelhante",
+    "difference": "São corpos que não se movem por forças ou contatos. Podem ser reposicionados manualmente, mas isso não equivale a simular uma plataforma varrendo seu trajeto. Não têm custo de física zero.",
+    "example": "Use StaticBody3D e uma forma de colisão para um piso fixo. Para uma plataforma que se desloca, avalie AnimatableBody3D.",
+    "check": "Confira colisão, contato e movimento da superfície; não escolha o corpo só por ele parecer imóvel numa imagem.",
+    "aliases": [
+      "staticbody",
+      "parede",
+      "piso",
+      "plataforma",
+      "animatable"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_staticbody2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_staticbody3d.html"
+    ]
   },
   {
-    category: "Visual / Imagem / Modelo",
-    node2d: "Sprite2D / AnimatedSprite2D",
-    node3d: "MeshInstance3D / Sprite3D",
-    difference: "O 3D exibe malhas de triângulos (`MeshInstance3D`), mas também tem o `Sprite3D` se você quiser colocar desenhos 2D em pé dentro de um mundo 3D (estilo Paper Mario / Doom Clássico!).",
-    feynmanTip: "Figurinha 2D vs Escultura 3D (ou figurinha em pé no palco 3D com `Sprite3D`)."
+    "id": "comparacao-8",
+    "title": "Sensores e gatilhos",
+    "category": "Física",
+    "node2d": "Area2D",
+    "node3d": "Area3D",
+    "relation": "API semelhante",
+    "difference": "Ambos detectam sobreposições e podem alterar parâmetros físicos. body_entered e area_entered dependem de formas, filtros e monitoramento; uma Area não funciona como parede sólida por si só.",
+    "example": "Uma Area3D com CollisionShape3D pode detectar a entrada do personagem e anunciar uma coleta.",
+    "check": "Teste monitoring, monitorable e os filtros do caso. As propriedades de gravidade não são idênticas nos dois espaços.",
+    "aliases": [
+      "sensor",
+      "trigger",
+      "gatilho",
+      "monitoring",
+      "sinal"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_area2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_area3d.html"
+    ]
   },
   {
-    category: "Câmera e Seguidor",
-    node2d: "Camera2D",
-    node3d: "Camera3D + SpringArm3D",
-    difference: "A `Camera2D` tem zoom e limites em pixels. A `Camera3D` tem lente `FOV` (graus), projeção Perspectiva/Ortográfica e usa `SpringArm3D` para não entrar em paredes.",
-    feynmanTip: "A janela plana que desliza (2D) vs O olho humano ou bastão de selfie (3D)."
+    "id": "comparacao-9",
+    "title": "Formas de colisão",
+    "category": "Física",
+    "node2d": "CollisionShape2D · Shape2D",
+    "node3d": "CollisionShape3D · Shape3D",
+    "relation": "API semelhante",
+    "difference": "O nó fornece uma forma ao objeto físico compatível. Rectangle/Circle/Capsule têm alternativas Box/Sphere/Capsule no espaço 3D. A forma visual não cria colisão automaticamente.",
+    "example": "Troque uma RectangleShape2D por uma BoxShape3D com dimensões coerentes com a malha e a escala escolhida.",
+    "check": "Formas côncavas não são escolha universal para corpos dinâmicos; avalie primitivas ou formas convexas e custo.",
+    "aliases": [
+      "shape",
+      "rectangle",
+      "circle",
+      "box",
+      "sphere",
+      "capsule",
+      "colisão"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_collisionshape2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_collisionshape3d.html"
+    ]
   },
   {
-    category: "Pintura de Mapas em Grade",
-    node2d: "TileMapLayer (TileSet)",
-    node3d: "GridMap (MeshLibrary)",
-    difference: "O `TileMapLayer` carimba quadrados `(x, y)` com AutoTiling; o `GridMap` carimba blocos cúbicos `(x, y, z)` nos três eixos.",
-    feynmanTip: "Caderno quadriculado de carimbos (2D) vs Blocos de montar estilo LEGO/Minecraft (3D)."
+    "id": "comparacao-10",
+    "title": "Camadas e máscaras",
+    "category": "Física",
+    "node2d": "CollisionObject2D · collision_layer/mask",
+    "node3d": "CollisionObject3D · collision_layer/mask",
+    "relation": "API semelhante",
+    "difference": "Layer indica pertencimento e Mask seleciona camadas consideradas. Os mundos físicos 2D e 3D são separados: usar o mesmo número de camada não cria colisões entre eles.",
+    "example": "Recrie no projeto 3D os nomes e a intenção das camadas personagem, cenário e sensores.",
+    "check": "Máscara de colisão, camada visual, filtro de luz e camada de navegação têm finalidades diferentes.",
+    "aliases": [
+      "layers",
+      "masks",
+      "filtro",
+      "camada",
+      "máscara"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_collisionobject2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_collisionobject3d.html"
+    ]
   },
   {
-    category: "Iluminação e Ambiente",
-    node2d: "PointLight2D + CanvasModulate",
-    node3d: "OmniLight3D / SpotLight3D / DirectionalLight3D + WorldEnvironment",
-    difference: "Em 2D a luz é uma textura somada/multiplicada nos pixels. Em 3D a luz calcula reflexos PBR, neblina volumétrica e Iluminação Global (`VoxelGI`, `LightmapGI`, `SDFGI`).",
-    feynmanTip: "Lanterna no papel (2D) vs Sol, holofotes e fumaça volumétrica de cinema (3D)."
+    "id": "comparacao-11",
+    "title": "Imagem no mundo",
+    "category": "Visual e câmera",
+    "node2d": "Sprite2D",
+    "node3d": "Sprite3D ou MeshInstance3D",
+    "relation": "Exige adaptação",
+    "difference": "Sprite3D coloca uma imagem plana no espaço 3D; MeshInstance3D desenha uma malha com volume. Não são substitutos equivalentes para toda arte de sprite.",
+    "example": "Para manter a aparência de uma placa desenhada, avalie Sprite3D e pixel_size; para um objeto com volume, prepare uma malha e material.",
+    "check": "Billboard pode orientar a imagem à câmera. Textura, transparência, tamanho aparente e colisão exigem configuração própria.",
+    "aliases": [
+      "sprite",
+      "mesh",
+      "modelo",
+      "billboard",
+      "imagem",
+      "textura"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_sprite2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_sprite3d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_meshinstance3d.html"
+    ]
   },
   {
-    category: "Laser Sensor e Navegação IA",
-    node2d: "RayCast2D / NavigationAgent2D",
-    node3d: "RayCast3D / NavigationAgent3D",
-    difference: "A API é quase 100% idêntica! `is_colliding()`, `get_collider()` e `get_next_path_position()` têm exatamente o mesmo nome nos dois!",
-    feynmanTip: "Aprendeu RayCast e Navegação no 2D? Você já sabe 95% de como usar no 3D!"
+    "id": "comparacao-12",
+    "title": "Animação por quadros",
+    "category": "Animação e efeitos",
+    "node2d": "AnimatedSprite2D · SpriteFrames",
+    "node3d": "AnimatedSprite3D · SpriteFrames",
+    "relation": "API semelhante",
+    "difference": "Os dois reproduzem sequências de texturas de um SpriteFrames. AnimatedSprite3D continua sendo uma imagem plana no espaço; não converte quadros em um esqueleto ou malha animada.",
+    "example": "Reutilize os quadros de parado e corrida numa AnimatedSprite3D e ajuste escala, orientação e billboard.",
+    "check": "Confira nomes, FPS, repetição e sinais. Animação esquelética 3D demanda outro fluxo.",
+    "aliases": [
+      "animatedsprite",
+      "spriteframes",
+      "frames",
+      "quadros"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_animatedsprite2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_animatedsprite3d.html"
+    ]
   },
   {
-    category: "Shaders e Partículas",
-    node2d: "shader_type canvas_item / GPUParticles2D",
-    node3d: "shader_type spatial / GPUParticles3D",
-    difference: "Em 2D o shader altera `COLOR` e `UV`. Em 3D o shader altera `ALBEDO`, `ROUGHNESS`, `METALLIC`, `EMISSION` e `VERTEX` tridimensional.",
-    feynmanTip: "Os mesmos duendes pintores da placa de vídeo, trabalhando no quadro (2D) ou na escultura (3D)."
+    "id": "comparacao-13",
+    "title": "Câmera e enquadramento",
+    "category": "Visual e câmera",
+    "node2d": "Camera2D",
+    "node3d": "Camera3D · SpringArm3D opcional",
+    "relation": "Exige adaptação",
+    "difference": "Camera2D oferece zoom, limites e suavização 2D. Camera3D tem projeção, planos de recorte e parâmetros como FOV na perspectiva ou size na ortográfica. SpringArm3D é um auxiliar opcional para certas câmeras.",
+    "example": "Numa câmera de terceira pessoa, coloque Camera3D sob SpringArm3D, configure alcance/filtros e exclua o personagem quando necessário.",
+    "check": "SpringArm não é requisito de Camera3D nem garantia universal contra atravessar paredes. Teste margem, formas e proximidade.",
+    "aliases": [
+      "camera",
+      "câmera",
+      "fov",
+      "zoom",
+      "springarm",
+      "ortográfica"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_camera2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_camera3d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_springarm3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-14",
+    "title": "Mapas em grade",
+    "category": "Cenários e navegação",
+    "node2d": "TileMapLayer · TileSet",
+    "node3d": "GridMap · MeshLibrary",
+    "relation": "Exige adaptação",
+    "difference": "TileMapLayer posiciona tiles numa grade 2D; GridMap posiciona itens de malha numa grade 3D. Células não obrigam malhas cúbicas. Terrenos/peering bits do TileSet não são um autotiling 3D automaticamente equivalente.",
+    "example": "Converta uma planta em módulos 3D e prepare uma MeshLibrary com suas malhas, materiais e formas necessários.",
+    "check": "Confira tamanho/origem das células e a orientação. Colisão, navegação e regras de conexão precisam ser preparadas.",
+    "aliases": [
+      "tilemap",
+      "tileset",
+      "gridmap",
+      "meshlibrary",
+      "atlas",
+      "terreno",
+      "autotile"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_tilemaplayer.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_gridmap.html"
+    ]
+  },
+  {
+    "id": "comparacao-15",
+    "title": "Luzes diretas",
+    "category": "Iluminação e materiais",
+    "node2d": "PointLight2D · DirectionalLight2D",
+    "node3d": "OmniLight3D · SpotLight3D · DirectionalLight3D",
+    "relation": "Exige adaptação",
+    "difference": "Luzes 2D atuam sobre o canvas e podem usar textura e normal map; luzes 3D iluminam superfícies segundo geometria, materiais e configuração. Uma luz 3D não habilita GI ou neblina volumétrica sozinha.",
+    "example": "Para uma lâmpada que irradia no cenário 3D, experimente OmniLight3D; para um feixe, SpotLight3D.",
+    "check": "Confira alcance, energia, sombras, máscaras e renderizador com o mesmo material de teste.",
+    "aliases": [
+      "luz",
+      "light",
+      "pointlight",
+      "omnilight",
+      "spotlight",
+      "lanterna"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/tutorials/2d/2d_lights_and_shadows.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_light3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-16",
+    "title": "Sombras e oclusão",
+    "category": "Iluminação e materiais",
+    "node2d": "LightOccluder2D · OccluderPolygon2D",
+    "node3d": "Malha com cast_shadow · luz com sombras",
+    "relation": "Exige adaptação",
+    "difference": "A sombra 2D pode usar um polígono oclusor. Em 3D, luzes com sombras e geometria preparada participam do cálculo. OccluderInstance3D serve ao occlusion culling; não é a simples troca de LightOccluder2D.",
+    "example": "Prepare uma parede 3D, habilite as opções de sombra adequadas e compare com e sem a parede entre fonte e alvo.",
+    "check": "Não confunda oclusão para descarte de desenho com geração de sombra da luz.",
+    "aliases": [
+      "shadow",
+      "sombra",
+      "occluder",
+      "culling",
+      "oclusão"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_lightoccluder2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_geometryinstance3d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_occluderinstance3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-17",
+    "title": "Ambiente, GI e reflexos",
+    "category": "Iluminação e materiais",
+    "node2d": "CanvasModulate · composição visual 2D",
+    "node3d": "WorldEnvironment · GI · ReflectionProbe",
+    "relation": "Exige adaptação",
+    "difference": "CanvasModulate aplica uma cor ao canvas; não equivale a um sistema de GI. No 3D, ambiente, luz indireta e reflexos são configurados por recursos e técnicas diferentes. ReflectionProbe captura o entorno para reflexos.",
+    "example": "Compare luz direta, uma técnica de GI preparada e uma captura de reflexos, alterando uma contribuição por vez.",
+    "check": "Verifique bake, UV2, geometria e suporte do renderizador. Não represente luz rebatida como um filtro uniforme sobre a cena.",
+    "aliases": [
+      "environment",
+      "gi",
+      "voxelgi",
+      "lightmapgi",
+      "sdfgi",
+      "reflectionprobe",
+      "reflexo"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_canvasmodulate.html",
+      "https://docs.godotengine.org/en/4.5/tutorials/3d/global_illumination/introduction_to_global_illumination.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_reflectionprobe.html"
+    ]
+  },
+  {
+    "id": "comparacao-18",
+    "title": "Consulta por raio",
+    "category": "Cenários e navegação",
+    "node2d": "RayCast2D",
+    "node3d": "RayCast3D",
+    "relation": "API semelhante",
+    "difference": "Os dois consultam um segmento e oferecem is_colliding/get_collider. O alvo local, ponto e normal mudam de Vector2 para Vector3. Filtros e exceções continuam necessários; o resultado é atualizado por passo físico.",
+    "example": "Para uma sonda frontal local em 3D, ajuste `target_position` conforme a frente do nó, por exemplo (0, 0, -2).",
+    "check": "O raio é finito. Se mudar parâmetros e precisar do resultado no mesmo passo, considere force_raycast_update().",
+    "aliases": [
+      "raycast",
+      "raio",
+      "laser",
+      "sonda",
+      "ray cast"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_raycast2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_raycast3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-19",
+    "title": "Caminho e desvio local",
+    "category": "Cenários e navegação",
+    "node2d": "NavigationAgent2D · dados de navegação 2D",
+    "node3d": "NavigationAgent3D · dados de navegação 3D",
+    "relation": "API semelhante",
+    "difference": "Os nomes de vários métodos coincidem, mas os dados navegáveis e vetores mudam. O agente auxilia o caminho e pode calcular avoidance; o controlador ainda move o corpo e trata colisões.",
+    "example": "Depois de preparar e sincronizar a região, use get_next_path_position no passo físico para obter a direção do próximo trecho.",
+    "check": "Raio, altura, tolerâncias, bake e avoidance precisam de teste. A* em grade e navmesh também não são trocas automáticas.",
+    "aliases": [
+      "navegação",
+      "navigationagent",
+      "astar",
+      "pathfinding",
+      "avoidance",
+      "rvo"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_navigationagent2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_navigationagent3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-20",
+    "title": "Shaders de superfície",
+    "category": "Animação e efeitos",
+    "node2d": "shader_type canvas_item",
+    "node3d": "shader_type spatial",
+    "relation": "Exige adaptação",
+    "difference": "A linguagem tem estrutura semelhante, mas variáveis e espaços diferem. COLOR é uma saída usual no fragment 2D; ALBEDO, ROUGHNESS e METALLIC pertencem ao contexto spatial. VERTEX é vec2 em canvas_item e vec3 em spatial.",
+    "example": "Transfira a intenção de cor de uma textura para ALBEDO no spatial, conferindo amostragem, luz e espaço usado em cada estágio.",
+    "check": "UV não elimina diferenças de iluminação ou geometria. Não copie um shader inteiro só mudando shader_type.",
+    "aliases": [
+      "shader",
+      "gpu",
+      "albedo",
+      "color",
+      "uv",
+      "vertex",
+      "material"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/tutorials/shaders/shader_reference/canvas_item_shader.html",
+      "https://docs.godotengine.org/en/4.5/tutorials/shaders/shader_reference/spatial_shader.html"
+    ]
+  },
+  {
+    "id": "comparacao-21",
+    "title": "Partículas",
+    "category": "Animação e efeitos",
+    "node2d": "GPUParticles2D",
+    "node3d": "GPUParticles3D",
+    "relation": "API semelhante",
+    "difference": "Ambos têm emissão, duração, repetição e reinício. No 3D mudam volume, direções, malhas de desenho e limites espaciais. Material de processamento e material de desenho cumprem papéis distintos.",
+    "example": "Recrie uma rajada de vapor com direção, escala, draw pass e material adequados ao espaço 3D.",
+    "check": "Teste restart, one_shot, câmera e limites de visibilidade; emissor configurado não garante o efeito visível.",
+    "aliases": [
+      "particles",
+      "partículas",
+      "vapor",
+      "one_shot",
+      "restart"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_gpuparticles2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_gpuparticles3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-22",
+    "title": "Trilhas, Tween e esqueleto",
+    "category": "Animação e efeitos",
+    "node2d": "AnimationPlayer · Tween · Skeleton2D",
+    "node3d": "AnimationPlayer · Tween · Skeleton3D",
+    "relation": "Exige adaptação",
+    "difference": "AnimationPlayer e Tween são usados nas duas dimensões. Caminhos de propriedades, tipos de valor e rigs precisam ser ajustados; Skeleton2D não vira Skeleton3D só por renomear o nó.",
+    "example": "Mantenha a ideia de duração/interrupção de um Tween, mas use valores Vector3 para uma propriedade position 3D.",
+    "check": "Confira propriedades animadas concorrentes, espaços, poses, skin e pesos na migração de personagens.",
+    "aliases": [
+      "animação",
+      "tween",
+      "skeleton",
+      "rig",
+      "bone",
+      "animationplayer"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_animationplayer.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_tween.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_skeleton3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-23",
+    "title": "Áudio posicional",
+    "category": "Interface, áudio e lógica",
+    "node2d": "AudioStreamPlayer2D",
+    "node3d": "AudioStreamPlayer3D",
+    "relation": "API semelhante",
+    "difference": "Ambos têm posição e atenuação, com propriedades específicas de cada espaço. No 3D há opções como direcionalidade e Doppler; o ouvinte precisa corresponder à cena. Música/interface pode continuar com AudioStreamPlayer sem posição.",
+    "example": "Uma máquina no cenário usa AudioStreamPlayer3D; um clique do menu pode continuar no AudioStreamPlayer comum.",
+    "check": "Confira ouvinte, distância, buses e ganho. Esconder um nó não é o mesmo que silenciar o áudio.",
+    "aliases": [
+      "audio",
+      "som",
+      "bus",
+      "listener",
+      "doppler",
+      "volume"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_audiostreamplayer2d.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_audiostreamplayer3d.html"
+    ]
+  },
+  {
+    "id": "comparacao-24",
+    "title": "HUD e menus",
+    "category": "Interface, áudio e lógica",
+    "node2d": "Control · Container · CanvasLayer",
+    "node3d": "Control · Container · CanvasLayer",
+    "relation": "Compartilhado",
+    "difference": "Uma interface de tela pode continuar usando os mesmos nós no jogo 3D. Um painel desenhado dentro do mundo é outro caso e pode precisar de SubViewport e uma superfície de exibição.",
+    "example": "Reutilize um HUD de vida e pausa em Control/CanvasLayer sobre a vista 3D, revisando âncoras, tamanho mínimo e foco.",
+    "check": "Não troque todo Control por Node3D. Diferencie posição na tela de posição no mundo.",
+    "aliases": [
+      "hud",
+      "ui",
+      "interface",
+      "menu",
+      "container",
+      "viewport"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_control.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_canvaslayer.html"
+    ]
+  },
+  {
+    "id": "comparacao-25",
+    "title": "Regras e comunicação",
+    "category": "Interface, áudio e lógica",
+    "node2d": "Node · Resource · sinais · InputMap",
+    "node3d": "Node · Resource · sinais · InputMap",
+    "relation": "Compartilhado",
+    "difference": "Coleções, contratos, sinais e ações de entrada podem manter a arquitetura. Código dependente de nós, vetores, consultas ou coordenadas precisa ser adaptado e retestado.",
+    "example": "Mantenha uma regra de estoque independente do visual e conecte a apresentação 3D ao mesmo contrato de operação.",
+    "check": "Compartilhar a lógica não comprova que todos os caminhos físicos, visuais e de entrada funcionam após a migração.",
+    "aliases": [
+      "gdscript",
+      "signal",
+      "sinal",
+      "resource",
+      "inputmap",
+      "autoload",
+      "estoque"
+    ],
+    "sources": [
+      "https://docs.godotengine.org/en/4.5/classes/class_node.html",
+      "https://docs.godotengine.org/en/4.5/classes/class_inputmap.html"
+    ]
   }
 ];
 
